@@ -244,4 +244,10 @@ export default {
   music: "Música",
   crMusic: "Música",
   musicCredit: "Pixabay (licencia de contenido de Pixabay)",
+  altitude: "Altitud",
+  lp_approach: "Acercándonos a la Luna…",
+  lp_approach_mars: "Acercándonos a Marte…",
+  lp_braking: "Encendemos el motor para frenar",
+  lp_final: "Descenso final: con cuidado…",
+  lp_landed: "¡Contacto! Hemos aterrizado.",
 };

@@ -9,7 +9,13 @@ import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
 import { icon } from './icons.js';
 
 const C = { o2: 0x4fc3f7, shield: 0x8fb8ff, bat: 0x69f0ae, sun: 0xffdd88 };
-const SUN_DIR = new THREE.Vector3(-0.8, 0.45, 0.35).normalize(); // low Sun, long shadows (like the real Moon)
+const SUN_DIR = new THREE.Vector3(-0.09, 0.24, -0.97).normalize(); // low Sun, long shadows (like the real Moon)
+// The ground is a small "planet": it curves away, so from the base you see the horizon, the Sun and the Earth.
+// (Shrunk for the game: the real Moon has a radius of 1,737 km.)
+const RADIUS = { moon: 1200, mars: 1700 };
+const curveDrop = (d, R) => R - Math.sqrt(Math.max(0, R * R - d * d));
+const EARTH_POS = new THREE.Vector3(-561, -100, -864);
+const SUN_POS = new THREE.Vector3(-402, -95, -1236);
 
 let renderer, labelRenderer, scene, camera, controls, wrap;
 let sunLight, earthLight, ambient;
@@ -59,7 +65,7 @@ function regolithTexture() {
 }
 
 function makeTerrain() {
-  const size = 600, seg = 220;
+  const size = 1000, seg = 300;
   const geo = new THREE.PlaneGeometry(size, size, seg, seg);
   geo.rotateX(-Math.PI / 2);
   const rnd = seeded(42);
@@ -81,7 +87,7 @@ function makeTerrain() {
       if (d < 1) y -= c.d * (1 - d * d);
       else if (d < 1.6) y += c.d * .3 * Math.pow(1 - (d - 1) / .6, 2);
     }
-    pos.setY(i, y);
+    pos.setY(i, y - curveDrop(dist, RADIUS.moon));
   }
   geo.computeVertexNormals();
   const tex = regolithTexture();
@@ -108,7 +114,7 @@ function makeTerrain() {
     rocks.setMatrixAt(i, m);
   }
   rocks.castShadow = true; rocks.receiveShadow = true;
-  const g = new THREE.Group(); g.add(mesh, rocks);
+  const g = new THREE.Group(); g.add(mesh, rocks, planetBody(RADIUS.moon, tex, 0xa29f99));
   parts.moonTex = tex;
   return g;
 }
@@ -154,7 +160,7 @@ function makeMarsTerrain(tex) {
       if (d < 1) { y -= 4.5 * (1 - d * d); river = Math.max(river, 1 - d); }
       else if (d < 1.8) y += .8 * (1 - (d - 1) / .8);
     }
-    pos.setY(i, y);
+    pos.setY(i, y - curveDrop(dist, RADIUS.mars));
     // colours: rusty ground, darker high rock, pale sand on the river floors
     const n = fbm(x * .03 + 3, z * .03, 3);
     tmp.copy(base).lerp(dark, Math.min(1, Math.max(0, (y - 8) / 70) + (n - .5) * .5)).lerp(sand, river * .8);
@@ -181,8 +187,18 @@ function makeMarsTerrain(tex) {
     rocks.setMatrixAt(i, m);
   }
   rocks.castShadow = true; rocks.receiveShadow = true;
-  const g = new THREE.Group(); g.add(mesh, rocks);
+  const g = new THREE.Group(); g.add(mesh, rocks, planetBody(RADIUS.mars, tex, 0xb8643c));
   return g;
+}
+
+// The rest of the planet beyond the detailed ground: a big sphere with the same dusty surface.
+function planetBody(R, tex, color) {
+  const t = tex.clone(); t.needsUpdate = true; t.repeat.set(140, 70);
+  const body = new THREE.Mesh(new THREE.SphereGeometry(R - 1.5, 180, 90),
+    new THREE.MeshStandardMaterial({ map: t, bumpMap: t, bumpScale: 1, color, roughness: 1 }));
+  body.position.y = -R;
+  body.receiveShadow = true;
+  return body;
 }
 
 function heightAt(geo, x, z, size, seg) {
@@ -197,7 +213,7 @@ function makeSky() {
   const n = 3000, arr = new Float32Array(n * 3), col = new Float32Array(n * 3);
   for (let i = 0; i < n; i++) {
     const v = new THREE.Vector3().randomDirection().multiplyScalar(1500);
-    if (v.y < -50) v.y = -v.y;
+    if (v.y < -450) v.y = -v.y; // stars down to the curved horizon
     arr.set([v.x, v.y, v.z], i * 3);
     const b = .5 + Math.random() * .5; col.set([b, b, b * (.9 + Math.random() * .2)], i * 3);
   }
@@ -210,8 +226,8 @@ function makeSky() {
   // Earth (NASA texture), hanging in the black sky
   const earthTex = new THREE.TextureLoader().load('assets/textures/earth.jpg');
   earthTex.colorSpace = THREE.SRGBColorSpace;
-  const earth = new THREE.Mesh(new THREE.SphereGeometry(55, 48, 32), new THREE.MeshStandardMaterial({ map: earthTex, roughness: .8 }));
-  earth.position.set(500, 380, -700);
+  const earth = new THREE.Mesh(new THREE.SphereGeometry(55, 48, 32), new THREE.MeshStandardMaterial({ map: earthTex, emissive: 0xffffff, emissiveMap: earthTex, emissiveIntensity: .75, roughness: .8 }));
+  earth.position.copy(EARTH_POS);
   earth.rotation.z = .4;
   g.add(earth);
   parts.earth = earth;
@@ -223,7 +239,7 @@ function makeSky() {
   gg.fillStyle = grd; gg.fillRect(0, 0, 128, 128);
   const sun = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(glow), depthWrite: false, transparent: true }));
   sun.scale.setScalar(260);
-  sun.position.copy(SUN_DIR).multiplyScalar(1300);
+  sun.position.copy(SUN_POS);
   g.add(sun);
   parts.sun = sun;
   return g;
@@ -719,7 +735,7 @@ export function initScene() {
 
   scene = new THREE.Scene();
   scene.background = new THREE.Color(0x000000);
-  camera = new THREE.PerspectiveCamera(42, 1, .5, 4000);
+  camera = new THREE.PerspectiveCamera(50, 1, .5, 6000);
 
   controls = new OrbitControls(camera, renderer.domElement);
   controls.enableDamping = true;
@@ -733,7 +749,7 @@ export function initScene() {
   Object.assign(sunLight.shadow.camera, { left: -50, right: 50, top: 50, bottom: -50, near: 10, far: 300 });
   sunLight.shadow.bias = -.0005;
   earthLight = new THREE.DirectionalLight(0x9db8ff, .12);
-  earthLight.position.set(500, 380, -700);
+  earthLight.position.set(-720, 300, -720);
   ambient = new THREE.AmbientLight(0x8890a0, .12);
   scene.add(sunLight, earthLight, ambient);
 
@@ -783,7 +799,7 @@ export function setMode(m, force = false) {
     controls.enabled = true;
     controls.target.set(-5, 0, 4);
     const narrow = window.innerWidth < 700;
-    camera.position.set(22, narrow ? 78 : 55, narrow ? 62 : 48);
+    camera.position.copy(GAME_CAM());
     controls.autoRotate = false;
     controls.enablePan = true; controls.screenSpacePanning = false; // right button / two fingers move the view
     controls.minPolarAngle = .05; controls.maxPolarAngle = 1.35;
@@ -808,17 +824,17 @@ export function setPlanet(p) {
 }
 
 const ease = x => x < 0 ? 0 : x > 1 ? 1 : x * x * (3 - 2 * x);
-const GAME_CAM = () => new THREE.Vector3(22, window.innerWidth < 700 ? 78 : 55, window.innerWidth < 700 ? 62 : 48);
+function GAME_CAM() { return window.innerWidth < 700 ? new THREE.Vector3(34, 62, 100) : new THREE.Vector3(44, 36, 80); }
 
 // The lander comes down from the sky onto the landing site, then the camera flies to the base view.
-export async function playLanding(done) {
+export async function playLanding(done, onProgress) {
   if (!ok) { done?.(); return; }
   await Promise.race([lmReady, new Promise(r => setTimeout(r, 6000))]); // wait for the lander model
   if (!parts.lm) { done?.(); return; }
   parts.lm.position.y = 70;
   setMode('game', true);
   controls.enabled = false;
-  anim = { kind: 'landing', t: 0, done };
+  anim = { kind: 'landing', t: 0, done, onProgress };
 }
 
 // The crew takes off and leaves the base. The camera follows the craft into the sky.
@@ -832,7 +848,7 @@ export function playLaunch(done) {
 export function skipAnimation() {
   if (!anim) return;
   const a = anim; anim = null;
-  if (a.kind === 'landing') { parts.lm.position.y = 0; parts.flame.visible = false; setMode('game', true); }
+  if (a.kind === 'landing') { parts.lm.position.set(-26, 0, 14); parts.lm.rotation.set(0, .6, 0); parts.flame.visible = false; setMode('game', true); }
   a.done?.();
 }
 
@@ -842,18 +858,44 @@ function runAnim(dt) {
   const lm = parts.lm, home = new THREE.Vector3(-26, 0, 14);
   const flicker = .85 + Math.random() * .3;
   if (a.kind === 'landing') {
-    const T = 4.2, p = Math.min(a.t / T, 1);
-    lm.position.y = 70 * Math.pow(1 - p, 2.2);
-    parts.flame.visible = a.t < T + .4;
-    parts.flame.scale.set(flicker, flicker * (1.2 - p * .5), flicker);
+    // 1) approach from far away, high above the curved ground (0–13 s)
+    // 2) braking and descent over the landing site (13–20 s)  3) touchdown, then fly to the base view
+    const P0 = new THREE.Vector3(home.x + 620, 460, home.z - 300);
+    const P1 = new THREE.Vector3(home.x + 45, 70, home.z - 25);
+    const T1 = 13, T2 = 20, T3 = 22.8;
+    let phase;
+    if (a.t < T1) {
+      const p = ease(a.t / T1);
+      lm.position.lerpVectors(P0, P1, p);
+      lm.position.y = P0.y + (P1.y - P0.y) * Math.pow(p, .8);
+      lm.rotation.set(0, .6, (1 - p) * .55); // tilted back while braking
+      const dir = new THREE.Vector3().subVectors(P1, P0).normalize();
+      camera.position.copy(lm.position).addScaledVector(dir, -55).add(new THREE.Vector3(0, 14, 22));
+      camera.lookAt(lm.position.clone().addScaledVector(dir, 30).add(new THREE.Vector3(0, -12, 0)));
+      phase = a.t < 7 ? 'approach' : 'braking';
+    } else if (a.t < T2) {
+      const p = (a.t - T1) / (T2 - T1);
+      lm.position.x = P1.x + (home.x - P1.x) * ease(p * 1.4);
+      lm.position.z = P1.z + (home.z - P1.z) * ease(p * 1.4);
+      lm.position.y = P1.y * Math.pow(1 - p, 1.7);
+      lm.rotation.set(0, .6, 0);
+      camera.position.set(home.x + 34, lm.position.y * .55 + 12, home.z + 30);
+      camera.lookAt(lm.position.x, lm.position.y + 2, lm.position.z);
+      phase = 'final';
+    } else {
+      lm.position.copy(home);
+      if (!a.dusted) { a.dusted = true; burstDust(home); }
+      const k = ease((a.t - T2 - .4) / (T3 - T2 - .4));
+      const near = new THREE.Vector3(home.x + 34, 12, home.z + 30);
+      camera.position.lerpVectors(near, GAME_CAM(), k);
+      camera.lookAt(new THREE.Vector3(home.x, 2, home.z).lerp(new THREE.Vector3(-5, 0, 4), k));
+      phase = 'landed';
+    }
+    parts.flame.visible = a.t < T2 + .3;
+    parts.flame.scale.set(flicker, flicker * (a.t < T1 ? 1.4 : 1), flicker);
     parts.flameLight.intensity = parts.flame.visible ? 60 * flicker : 0;
-    if (a.t >= T && !a.dusted) { a.dusted = true; burstDust(home); }
-    const look = new THREE.Vector3(home.x, lm.position.y + 3, home.z);
-    const near = new THREE.Vector3(home.x + 26, lm.position.y * .6 + 10, home.z + 26);
-    const k = ease((a.t - T + .2) / 1.6);
-    camera.position.lerpVectors(near, GAME_CAM(), k);
-    camera.lookAt(look.lerp(new THREE.Vector3(-5, 0, 4), k));
-    if (a.t > T + 1.8) { anim = null; controls.target.set(-5, 0, 4); camera.position.copy(GAME_CAM()); controls.enabled = true; controls.update(); a.done?.(); }
+    a.onProgress?.({ phase, alt: Math.round(lm.position.y * 22) });
+    if (a.t > T3) { anim = null; controls.target.set(-5, 0, 4); camera.position.copy(GAME_CAM()); controls.enabled = true; controls.update(); a.done?.(); }
   } else if (a.kind === 'launch') {
     const ign = 1.3, s = Math.max(0, a.t - ign);
     lm.position.y = 2.5 * s * s; // speeds up as it climbs

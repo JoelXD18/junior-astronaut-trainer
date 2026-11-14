@@ -249,4 +249,10 @@ export default {
   music: "Music",
   crMusic: "Music",
   musicCredit: "Pixabay (Pixabay Content License)",
+  altitude: "Altitude",
+  lp_approach: "Approaching the Moon…",
+  lp_approach_mars: "Approaching Mars…",
+  lp_braking: "Firing the engine to slow down",
+  lp_final: "Final descent: easy does it…",
+  lp_landed: "Touchdown! We have landed.",
 };

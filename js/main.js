@@ -255,6 +255,7 @@ function gameScreen() {
 
     <div class="bottom">${bottom}</div>
   </section>
+  ${cinematic === 'landing' ? `<div class="landing-cap"><span class="cap-phase" id="cap-phase"></span><span class="cap-alt"><small>${esc(t('altitude'))}</small><b id="cap-alt"></b></span></div>` : ''}
   ${cinematic ? `<button class="btn grey small skip" data-action="skip">${esc(t('skip'))} ⏭</button>` : ''}`;
 }
 
@@ -476,6 +477,7 @@ function render() {
   modalRoot.hidden = !modal;
   document.title = t('title');
   playMusic(musicFor());
+  document.body.classList.toggle('cinematic-on', !!cinematic || screen === 'roll');
   if (!has3d) return;
   setLabels({ shield: t('lblShield'), home: t('lblHome') });
   const inGame = (screen === 'game' || screen === 'roll') && game;
@@ -503,7 +505,15 @@ function startGame() {
   cinematic = 'landing';
   screen = 'game';
   playMusic('landing', { restart: true });
-  playLanding(() => { cinematic = null; showHelp = !helpSeen; helpStep = 0; render(); });
+  // Captions during the landing (updated every frame without redrawing the screen)
+  let lastPhase = '';
+  const onProgress = ({ phase, alt }) => {
+    const p = document.getElementById('cap-phase'), a = document.getElementById('cap-alt');
+    if (!p) return;
+    if (phase !== lastPhase || !p.textContent) { lastPhase = phase; p.textContent = t('lp_' + phase + (game.map === 'mars' && phase === 'approach' ? '_mars' : '')); p.classList.remove('pop'); void p.offsetWidth; p.classList.add('pop'); }
+    a.textContent = alt.toLocaleString(lang()) + ' m';
+  };
+  playLanding(() => { cinematic = null; showHelp = !helpSeen; helpStep = 0; render(); }, onProgress);
   render();
 }
 
