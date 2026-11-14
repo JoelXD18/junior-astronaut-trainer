@@ -250,4 +250,9 @@ export default {
   lp_braking: "Encendemos el motor para frenar",
   lp_final: "Descenso final: con cuidado…",
   lp_landed: "¡Contacto! Hemos aterrizado.",
+  lp_exit: "Abrimos la escotilla…",
+  lp_ladder: "Bajamos por la escalera…",
+  lp_step: "«Es un pequeño paso para el hombre, pero un gran salto para la humanidad.»",
+  armstrongWho: "Neil Armstrong, Apolo 11 (1969)",
+  lp_flag: "Clavamos la bandera",
 };

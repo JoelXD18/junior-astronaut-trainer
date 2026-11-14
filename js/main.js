@@ -255,7 +255,7 @@ function gameScreen() {
 
     <div class="bottom">${bottom}</div>
   </section>
-  ${cinematic === 'landing' ? `<div class="landing-cap"><span class="cap-phase" id="cap-phase"></span></div>` : ''}
+  ${cinematic === 'landing' ? `<div class="helmet" id="helmet" aria-hidden="true"><i class="glare"></i></div><div class="landing-cap"><span class="cap-phase" id="cap-phase"></span><span class="cap-who" id="cap-who"></span></div>` : ''}
   ${cinematic ? `<button class="btn grey small skip" data-action="skip">${esc(t('skip'))} ⏭</button>` : ''}`;
 }
 
@@ -510,6 +510,9 @@ function startGame() {
   const onProgress = ({ phase }) => {
     const p = document.getElementById('cap-phase');
     if (!p) return;
+    document.getElementById('helmet')?.classList.toggle('on', ['exit', 'ladder', 'step', 'flag'].includes(phase));
+    const who = document.getElementById('cap-who');
+    if (who) who.textContent = phase === 'step' ? t('armstrongWho') : '';
     if (phase !== lastPhase || !p.textContent) { lastPhase = phase; p.textContent = t('lp_' + phase + (game.map === 'mars' && phase === 'approach' ? '_mars' : '')); p.classList.remove('pop'); void p.offsetWidth; p.classList.add('pop'); }
   };
   playLanding(() => { cinematic = null; showHelp = !helpSeen; helpStep = 0; render(); }, onProgress);
