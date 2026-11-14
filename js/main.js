@@ -9,7 +9,7 @@ import { initScene, setMode, setLabels, updateScene, playStorm, syncBuildings, s
   startPlacing, stopPlacing, resetView, setPlanet, playLanding, playLaunch, skipAnimation, resetLander, playIntro,
   setDebris, setCrashed, driveRover, onPickDebris } from './scene.js';
 import { isUnlocked, unlock, best, saveBest, unlockAll, setUnlockAll } from './progress.js';
-import { playMusic, setVolume, toggleMute, audioSettings, speak, stopSpeaking, radio, stopRadio, radioBusy } from './audio.js';
+import { playMusic, setVolume, toggleMute, audioSettings, speak, stopSpeaking, radio, stopRadio, radioBusy, radioTime, sfx } from './audio.js';
 import { DEMOS } from './demos.js';
 import { icon } from './icons.js';
 import { loadSpaceWeather, getWeather, onWeather, flareStrength } from './spaceweather.js';
@@ -548,17 +548,30 @@ function startGame() {
     if (who) who.textContent = t(l.who === 'crew' ? 'radioCrew' : 'radioControl');
   };
   const said = new Set();
+  const mars = game.map === 'mars', crash = game.mode === 'escape';
+  let engine = null;
   const onProgress = ({ phase }) => {
     if (subtitle && !document.getElementById('cap-phase')?.textContent) showLine(subtitle); // screen was redrawn
     if (said.has(phase)) return;
     said.add(phase);
-    const mars = game.map === 'mars';
+    if (phase === 'approach') engine = sfx('engine', { loop: true, vol: .5 });
+    if (phase === 'crash') { engine?.(); sfx('crash'); }
+    if (phase === 'landed') { engine?.(); sfx('touchdown'); }
     const lines = radioScript(phase, mars);
     if (lines.length) radio(lines, lang(), showLine);
   };
-  const startPlaying = () => { cinematic = null; showHelp = true; helpStep = 0; if (game.mode === 'escape') setCrashed(true); render(); };
+  // Every shot lasts as long as what is said in it, so the voices always match the picture.
+  const len = ph => radioTime(radioScript(ph, mars), lang());
+  const S = 5;                                                        // last metres to the ground
+  const T1 = Math.max(12, len('approach') + .8);
+  const T2 = T1 + Math.max(7, len('braking') + .6);
+  const T3 = T2 + Math.max(S, crash ? 0 : len('final') + .4);
+  const after = crash ? len('crash') - .2 * S : len('landed');       // the crash happens at 80% of the last shot
+  const fly = 3;
+  const T4 = T3 + Math.max(fly + .5, after + .3 + fly);
+  const startPlaying = () => { cinematic = null; engine?.(); showHelp = true; helpStep = 0; if (crash) setCrashed(true); render(); };
   const waitRadio = (tries = 0) => (radioBusy() && tries < 60 && cinematic === 'landing' ? setTimeout(() => waitRadio(tries + 1), 300) : startPlaying());
-  playLanding(() => waitRadio(), onProgress, { crash: game.mode === 'escape' });
+  playLanding(() => waitRadio(), onProgress, { crash, times: { T1, T2, T3, T4, fly }, hold: () => radioBusy() });
   render();
 }
 
@@ -570,7 +583,7 @@ function radioScript(phase, mars) {
       { who: 'control', text: t('r_brief_' + game.mode, { n: MAPS[game.map].missionDays, p: ESCAPE.parts }) },
       L('crew', mars ? 'r_crew_see_mars' : 'r_crew_see')];
     case 'braking': return [L('crew', 'r_crew_engine'), L('control', 'r_ctrl_go')];
-    case 'final': return [L('crew', 'r_crew_final')];
+    case 'final': return game.mode === 'escape' ? [] : [L('crew', 'r_crew_final')];
     case 'crash': return [L('crew', 'r_crew_mayday'), L('control', 'r_ctrl_mayday')];
     case 'landed': return [L('crew', mars ? 'r_crew_landed_mars' : 'r_crew_landed'), { who: 'control', text: t('r_welcome_' + game.mode, { n: MAPS[game.map].missionDays }) }];
     default: return [];
@@ -581,7 +594,7 @@ function radioScript(phase, mars) {
 function showRadioLine(l) {
   let el = document.getElementById('radio-sub');
   if (!el) { el = document.createElement('div'); el.id = 'radio-sub'; document.body.appendChild(el); }
-  el.innerHTML = `<b>${esc(t(l.who === 'crew' ? 'radioCrew' : 'radioControl'))}</b> ${esc(l.text)}`;
+  el.innerHTML = `<b>${esc(t(l.who === 'crew' ? 'radioCrew' : 'radioControl'))}</b> ${esc(l.text)}${l.note ? ` <i class="rs-note">(${esc(l.note)})</i>` : ''}`;
   el.classList.add('on');
   clearTimeout(showRadioLine.timer);
   showRadioLine.timer = setTimeout(() => el.classList.remove('on'), 2500 + l.text.length * 70);
@@ -594,6 +607,7 @@ function warnOverRadio() {
   const fc = forecast(game);
   if (!fc.warned) return;
   warnedDay = game.day;
+  sfx('alarm');
   radio([{ who: 'control', text: t('r_warn', { c: fc.hint || 'M' }) }], lang(), showRadioLine);
 }
 
@@ -604,6 +618,7 @@ function beginPlacing(type) {
     valid: (x, z) => validSpot(game, type, x, z),
     done: (x, z) => {
       const b = build(game, type, x, z, freeEnergy());
+      if (b) sfx('build');
       ui = { kind: 'selected', id: b.id };
       render();
     } });
@@ -636,7 +651,7 @@ document.addEventListener('click', e => {
         const held = shieldBlocks(game, choice.shield) >= strength;
         const fl = game.today.flare;
         radio([{ who: 'crew', text: t(held ? 'r_storm_held' : 'r_storm_hurt') },
-          { who: 'control', text: fl ? t('r_storm_real', { cls: fl.cls, date: fmtDate(fl.t) }) : t('r_storm_copy') }], lang(), showRadioLine);
+          { who: 'control', text: fl ? t('r_storm_real', { cls: fl.cls[0] }) : t('r_storm_copy'), note: fl ? `${fl.cls} · ${fmtDate(fl.t)}` : '' }], lang(), showRadioLine);
       }
       const finish = () => {
         busy = false;
@@ -647,6 +662,7 @@ document.addEventListener('click', e => {
       if (strength > 0 && has3d) {
         busy = true;                                  // watch the storm hit the base first
         playStorm(strength, Math.min(shieldBlocks(game, choice.shield), strength));
+        sfx('storm');
         render();
         return setTimeout(finish, 2800);
       }
@@ -666,6 +682,7 @@ document.addEventListener('click', e => {
     case 'mute': toggleMute(); return render();
     case 'send-rover': {
       const id = ui.id;
+      sfx('rover');
       sendRover(game, id, freeEnergy());
       ui = null; busy = true;
       driveRover(id, () => { busy = false; render(); });
@@ -685,7 +702,7 @@ document.addEventListener('click', e => {
     case 'close-ui': ui = null; return render();
     case 'cancel-place': if (has3d) stopPlacing(); ui = null; return render();
     case 'reset-view': if (has3d) resetView(); return;
-    case 'upgrade': upgrade(game, ui.id, freeEnergy()); return render();
+    case 'upgrade': if (upgrade(game, ui.id, freeEnergy())) sfx('upgrade'); return render();
     case 'move': {
       const b = game.buildings.find(x => x.id === ui.id);
       ui = { kind: 'placing', type: b.type, moveId: b.id };
@@ -713,7 +730,10 @@ function finishGame() {
     cinematic = 'launch';
     playMusic('credits', { restart: true });
     render();
-    playLaunch(() => { cinematic = null; go('roll'); });
+    const lines = [{ who: 'control', text: t('r_launch_ctrl') }, { who: 'crew', text: t('r_launch_crew') }];
+    radio(lines, lang(), showRadioLine);
+    setTimeout(() => sfx('launch'), 900);
+    playLaunch(() => { cinematic = null; go('roll'); }, { length: Math.max(6.5, radioTime(lines, lang()) + .5) });
     return;
   }
   go('end');

@@ -523,3 +523,4 @@ body.intro .menu, body.intro-lock .menu { pointer-events: none; }
 .brand-stripe { position: relative; width: 78%; height: 7px; margin-top: 10px; border-radius: 4px;
   background: linear-gradient(90deg, transparent, #e03c31 18%, #ff5a4a 50%, #e03c31 82%, transparent); box-shadow: 0 0 14px rgba(255, 70, 60, .7); }
 .tap-start .brand-main { font-size: clamp(38px, 9.5vw, 104px); }
+.rs-note { opacity: .75; font-style: normal; }

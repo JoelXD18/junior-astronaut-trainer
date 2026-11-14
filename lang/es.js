@@ -294,8 +294,10 @@ export default {
   r_warn: "Base, aquí Control de Misión. Los científicos han visto una erupción de clase {c} en el Sol. Hoy os puede llegar una tormenta solar: ¡encended el escudo!",
   r_storm_held: "Control, ¡acaba de llegar una tormenta solar a la base! El escudo la ha parado. La tripulación está bien.",
   r_storm_hurt: "Control, ¡acaba de llegar una tormenta solar a la base! El escudo no ha bastado. La tripulación ha recibido radiación.",
-  r_storm_real: "Recibido, Base. Esa tormenta corresponde a una erupción real registrada por la NASA: clase {cls}, {date}. Cuidad a la tripulación.",
   r_storm_copy: "Recibido, Base. Cuidad a la tripulación.",
   tapToStart: "Toca para empezar",
   madeFor: "Hecho para el NASA Space Apps Challenge 2026 · Salamanca",
+  r_launch_ctrl: "Base, aquí Control de Misión. La nave está lista. ¡Podéis despegar!",
+  r_launch_crew: "Motores encendidos… ¡y despegamos! ¡Volvemos a casa!",
+  r_storm_real: "Recibido, Base. Esa tormenta corresponde a una erupción real de clase {cls} registrada por la NASA. Cuidad a la tripulación.",
 };

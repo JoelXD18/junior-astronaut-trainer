@@ -72,6 +72,9 @@ function unlock() {
 
 // Read a text aloud in the game's language (narrator for the tutorial). Music is lowered meanwhile.
 export function speak(text, lang) {
+  stopClip();
+  const c = clipFor('narrator', text, lang);
+  if (c) { setDuck(true); playClip(c, () => setDuck(false)); return true; }
   if (!('speechSynthesis' in window)) return false;
   speechSynthesis.cancel();
   const u = new SpeechSynthesisUtterance(text);
@@ -84,7 +87,45 @@ export function speak(text, lang) {
   speechSynthesis.speak(u);
   return true;
 }
-export function stopSpeaking() { if ('speechSynthesis' in window) speechSynthesis.cancel(); setDuck(false); }
+export function stopSpeaking() { stopClip(); if ('speechSynthesis' in window) speechSynthesis.cancel(); setDuck(false); }
+
+// ---------- recorded voices and sound effects ----------
+// tools/make-audio.mjs records every line once (ElevenLabs) and writes assets/voice/manifest.json with
+// the exact length of each clip. Knowing the lengths, the animations are timed so voice and picture match.
+let manifest = { voice: {}, sfx: {} };
+fetch('assets/voice/manifest.json').then(r => (r.ok ? r.json() : null)).then(m => { if (m) manifest = m; }).catch(() => {});
+const clipFor = (who, text, lang) => manifest.voice?.[lang]?.[who + '|' + text] || null;
+let clip = null;
+function playClip(c, done) {
+  const a = new Audio(c.file);
+  a.volume = settings.muted ? 0 : Math.min(1, .35 + settings.volume);
+  let ended = false;
+  const end = () => { if (ended) return; ended = true; if (clip === a) clip = null; done?.(); };
+  a.onended = a.onerror = end;
+  setTimeout(end, (c.dur + 1.5) * 1000); // never get stuck
+  clip = a;
+  a.play().catch(end);
+}
+function stopClip() { if (clip) { const a = clip; clip = null; a.pause(); a.onended?.(); } }
+
+// How long a radio line takes (seconds), including the beeps and the pause after it.
+export function lineTime(l, lang) {
+  const c = clipFor(l.who, l.text, lang);
+  const talk = c ? c.dur : .4 + l.text.length * .062; // browser voices: a guess (the animation waits if they run late)
+  return talk + (l.who === 'control' ? .3 : 0) + .35;
+}
+export const radioTime = (lines, lang) => lines.reduce((s, l) => s + lineTime(l, lang), 0);
+
+// Short sound effects. Returns a stop function (for loops such as the engine).
+export function sfx(name, { loop = false, vol = 1 } = {}) {
+  const s = manifest.sfx?.[name];
+  if (!s || !unlocked || settings.muted) return () => {};
+  const a = new Audio(s.file);
+  a.loop = loop;
+  a.volume = Math.min(1, settings.volume * vol * (s.vol || 1));
+  a.play().catch(() => {});
+  return () => { const v0 = a.volume; let k = 1; const f = setInterval(() => { k -= .1; a.volume = Math.max(0, v0 * k); if (k <= 0) { clearInterval(f); a.pause(); } }, 40); };
+}
 
 // ---------- mission radio ----------
 // Apollo radio had short beeps ("Quindar tones") at the start and end of each message from Mission Control.
@@ -111,7 +152,6 @@ function pickVoices(lang) {
 let radioQueue = [], radioOn = false;
 // lines: [{ who: 'crew' | 'control', text }]; onLine(line) is called when each line starts (for subtitles).
 export function radio(lines, lang, onLine) {
-  if (!('speechSynthesis' in window)) { onLine?.(lines[lines.length - 1]); return; }
   radioQueue.push(...lines.map(l => ({ ...l, lang, onLine })));
   if (!radioOn) nextRadio();
 }
@@ -122,8 +162,17 @@ function nextRadio() {
   l.onLine?.(l); // subtitle right away (also works when the browser has no voices)
   let finished = false;
   const next = () => { if (finished) return; finished = true; clearTimeout(guard); if (l.who === 'control') beep(2475); setTimeout(nextRadio, 350); };
+  const c = clipFor(l.who, l.text, l.lang);
+  if (c) { // recorded voice: we know exactly how long it lasts
+    var guard = setTimeout(next, (c.dur + 2) * 1000);
+    setDuck(true);
+    if (l.who === 'control') beep(2525);
+    setTimeout(() => (settings.muted ? setTimeout(next, c.dur * 1000) : playClip(c, next)), l.who === 'control' ? 300 : 0);
+    return;
+  }
+  if (!('speechSynthesis' in window)) { guard = setTimeout(next, 1500 + l.text.length * 75); return; }
   // if speech is not available or never ends, move on after a reading time
-  const guard = setTimeout(next, 1500 + l.text.length * 75);
+  guard = setTimeout(next, 1500 + l.text.length * 75);
   const voices = speechSynthesis.getVoices();
   if (!voices.length || settings.muted) return;
   const v = pickVoices(l.lang)[l.who];
@@ -140,6 +189,7 @@ function nextRadio() {
 export function radioBusy() { return radioOn || radioQueue.length > 0; }
 export function stopRadio() {
   radioQueue = []; radioOn = false;
+  stopClip();
   if ('speechSynthesis' in window) speechSynthesis.cancel();
   setDuck(false);
 }

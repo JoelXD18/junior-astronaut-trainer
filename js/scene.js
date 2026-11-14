@@ -939,7 +939,7 @@ export function initScene() {
 
   setMode('menu', true);
   const el = renderer.domElement;
-  window.__jamt = { camera, parts, THREE, scene, storm: (s, b) => playStorm(s, b), seek: s => { if (anim) anim.t = s; }, get state() { return { planet, mode, target, sun: sunLight.intensity, amb: ambient.intensity, bg: scene.background.getHexString(), sky: skyColor.getHexString() }; } }; // for testing in the browser console
+  window.__jamt = { camera, parts, THREE, scene, storm: (s, b) => playStorm(s, b), seek: s => { if (anim) anim.t = s; }, get anim() { return anim && { kind: anim.kind, t: anim.t, T: anim.T, waiting: anim.waiting }; }, get state() { return { planet, mode, target, sun: sunLight.intensity, amb: ambient.intensity, bg: scene.background.getHexString(), sky: skyColor.getHexString() }; } }; // for testing in the browser console
   el.addEventListener('pointerdown', e => { downAt = [e.clientX, e.clientY]; });
   el.addEventListener('pointermove', onMove);
   el.addEventListener('pointerup', onUp);
@@ -1007,23 +1007,25 @@ const ease = x => x < 0 ? 0 : x > 1 ? 1 : x * x * (3 - 2 * x);
 function GAME_CAM() { return window.innerWidth < 700 ? new THREE.Vector3(34, 62, 100) : new THREE.Vector3(44, 36, 80); }
 
 // The lander comes down from the sky onto the landing site, then the camera flies to the base view.
-export async function playLanding(done, onProgress, { crash = false } = {}) {
+// times: { T1, T2, T3, T4, fly } in seconds, worked out from how long the radio lines last.
+// hold(): true while the radio still has to finish before the next shot (safety for browser voices).
+export async function playLanding(done, onProgress, { crash = false, times = null, hold = null } = {}) {
   if (!ok) { done?.(); return; }
   await Promise.race([lmReady, new Promise(r => setTimeout(r, 6000))]); // wait for the lander model
   if (!parts.lm) { done?.(); return; }
   parts.lm.position.y = 70;
   setMode('game', true);
   controls.enabled = false;
-  anim = { kind: 'landing', t: 0, done, onProgress, crash };
+  anim = { kind: 'landing', t: 0, done, onProgress, crash, hold, T: { T1: 15, T2: 24, T3: 29, T4: 32, fly: 3, ...times } };
   parts.smoke.visible = false;
   if (crash) for (const o of debrisObjs.values()) { o.userData.flying = true; o.visible = false; }
 }
 
 // The crew takes off and leaves the base. The camera follows the craft into the sky.
-export function playLaunch(done) {
+export function playLaunch(done, { length = 6.5 } = {}) {
   if (!ok || !parts.lm) { done?.(); return; }
   controls.enabled = false;
-  anim = { kind: 'launch', t: 0, done };
+  anim = { kind: 'launch', t: 0, done, length };
   parts.astronauts?.forEach(a => { a.visible = false; }); // the crew is on board
 }
 
@@ -1046,6 +1048,7 @@ export function skipAnimation() {
 function runAnim(dt) {
   const a = anim;
   a.t += dt;
+  a.waiting = false;
   const lm = parts.lm, home = a.home || (a.home = landingSpot());
   const flicker = .85 + Math.random() * .3;
   if (a.kind === 'intro') {
@@ -1068,7 +1071,11 @@ function runAnim(dt) {
     // in the background, above the curved horizon of the Moon:
     // 1) wide shot over the Moon (0–10 s)  2) closer, braking (10–17 s)
     // 3) from the ground, looking up as it touches down (17–21 s), then fly to the base view.
-    const T1 = 15, T2 = 24, T3 = 29, T4 = 32;
+    const { T1, T2, T3, T4, fly } = a.T;
+    // wait for the radio at the end of a shot (only needed with browser voices, whose length is a guess)
+    for (const [b, ph] of [[T1, 'approach'], [T2, 'braking'], [T4 - fly, 'landed']]) {
+      if (a.t >= b && a.t - dt < b && a.hold?.(ph)) { a.t = b - .0001; a.waiting = true; break; }
+    }
     const up = new THREE.Vector3(0, 1, 0);
     const hz = new THREE.Vector3().subVectors(EARTH_CINE, home).setY(0).normalize(); // towards the Earth
     const perp = new THREE.Vector3().crossVectors(up, hz);
@@ -1113,7 +1120,10 @@ function runAnim(dt) {
       phase = 'final';
     } else {
       lm.position.copy(home);
-      const k = ease((a.t - T3) / (T4 - T3));
+      // the camera stays on the ground, slowly moving round the ship while the crew talks, then flies up
+      const k = ease((a.t - (T4 - fly)) / fly);
+      const pan = Math.min(a.t - T3, T4 - fly - T3);
+      groundCam.addScaledVector(perp, pan * .9).addScaledVector(hz, pan * .5);
       if (parts.earth) { parts.earth.position.lerpVectors(EARTH_CINE, EARTH_POS, k); parts.earth.scale.setScalar(1.8 - .8 * k); }
       camera.position.lerpVectors(groundCam, GAME_CAM(), k);
       camera.lookAt(new THREE.Vector3(home.x, 7, home.z).addScaledVector(hz, 20 * (1 - k)).lerp(new THREE.Vector3(-5, 0, 4), k));
@@ -1144,7 +1154,7 @@ function runAnim(dt) {
     const shake = a.t < ign + 1 ? (Math.random() - .5) * .4 : 0;
     camera.position.set(home.x + 30 + shake, 8 + lm.position.y * .55, home.z + 34);
     camera.lookAt(home.x, lm.position.y + 4, home.z);
-    if (a.t > 6.5 && !a.called) { a.called = true; a.done?.(); }
+    if (a.t > a.length && !a.called) { a.called = true; a.done?.(); }
     if (a.t > 14) { parts.flame.visible = false; }
   }
 }

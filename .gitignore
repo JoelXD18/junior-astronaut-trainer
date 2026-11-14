@@ -6,3 +6,4 @@ ENTREGA.md
 video/
 .claude/
 node_modules/
+.env

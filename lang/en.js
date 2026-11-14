@@ -299,8 +299,10 @@ export default {
   r_warn: "Base, Mission Control here. Scientists saw a class {c} flare on the Sun. A solar storm may hit you today: power up the shield!",
   r_storm_held: "Control, a solar storm just hit the base! The shield stopped it. The crew is fine.",
   r_storm_hurt: "Control, a solar storm just hit the base! The shield was not enough. The crew got extra radiation.",
-  r_storm_real: "Copy, Base. That storm matches a real flare recorded by NASA: class {cls}, {date}. Look after your crew.",
   r_storm_copy: "Copy, Base. Look after your crew.",
   tapToStart: "Tap to start",
   madeFor: "Made for the NASA Space Apps Challenge 2026 · Salamanca",
+  r_launch_ctrl: "Base, Mission Control here. The ship is ready. You are go for launch!",
+  r_launch_crew: "Engines on… and liftoff! We are going home!",
+  r_storm_real: "Copy, Base. That storm matches a real class {cls} flare recorded by NASA. Look after your crew.",
 };
