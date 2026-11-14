@@ -15,6 +15,7 @@ const SUN_DIR = new THREE.Vector3(-0.09, 0.24, -0.97).normalize(); // low Sun, l
 const RADIUS = { moon: 1200, mars: 1700 };
 const curveDrop = (d, R) => R - Math.sqrt(Math.max(0, R * R - d * d));
 const EARTH_POS = new THREE.Vector3(-561, -100, -864);
+const EARTH_CINE = new THREE.Vector3(-560, 250, -860); // higher in the sky for the landing film
 const SUN_POS = new THREE.Vector3(-402, -95, -1236);
 
 let renderer, labelRenderer, scene, camera, controls, wrap;
@@ -92,7 +93,13 @@ function makeTerrain() {
   geo.computeVertexNormals();
   const tex = regolithTexture();
   tex.repeat.set(90, 90);
-  const mat = new THREE.MeshStandardMaterial({ map: tex, bumpMap: tex, bumpScale: 1.2, roughness: 1, metalness: 0, color: 0xb9b6b0 });
+  const mat = new THREE.MeshStandardMaterial({ map: tex, bumpMap: tex, bumpScale: 1.2, roughness: 1, metalness: 0, color: 0xb9b6b0, transparent: true });
+  mat.onBeforeCompile = sh => { // fade out towards the edge so the real Moon map shows through
+    sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying float vEdge;')
+      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvEdge = length(position.xz);');
+    sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying float vEdge;')
+      .replace('#include <dithering_fragment>', '#include <dithering_fragment>\ngl_FragColor.a *= 1.0 - smoothstep(260.0, 470.0, vEdge);');
+  };
   parts.groundMat = mat;
   const mesh = new THREE.Mesh(geo, mat);
   mesh.receiveShadow = true;
@@ -114,7 +121,7 @@ function makeTerrain() {
     rocks.setMatrixAt(i, m);
   }
   rocks.castShadow = true; rocks.receiveShadow = true;
-  const g = new THREE.Group(); g.add(mesh, rocks, planetBody(RADIUS.moon, tex, 0xa29f99));
+  const g = new THREE.Group(); g.add(mesh, rocks, planetBody(RADIUS.moon, tex, 0xa29f99, 'moon'));
   parts.moonTex = tex;
   return g;
 }
@@ -168,7 +175,13 @@ function makeMarsTerrain(tex) {
   }
   geo.setAttribute('color', new THREE.BufferAttribute(cols, 3));
   geo.computeVertexNormals();
-  const mat = new THREE.MeshStandardMaterial({ map: tex, bumpMap: tex, bumpScale: 1.4, roughness: 1, vertexColors: true });
+  const mat = new THREE.MeshStandardMaterial({ map: tex, bumpMap: tex, bumpScale: 1.4, roughness: 1, vertexColors: true, transparent: true });
+  mat.onBeforeCompile = sh => {
+    sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying float vEdge;')
+      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvEdge = length(position.xz);');
+    sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying float vEdge;')
+      .replace('#include <dithering_fragment>', '#include <dithering_fragment>\ngl_FragColor.a *= 1.0 - smoothstep(330.0, 440.0, vEdge);');
+  };
   const mesh = new THREE.Mesh(geo, mat);
   mesh.receiveShadow = true;
 
@@ -187,15 +200,26 @@ function makeMarsTerrain(tex) {
     rocks.setMatrixAt(i, m);
   }
   rocks.castShadow = true; rocks.receiveShadow = true;
-  const g = new THREE.Group(); g.add(mesh, rocks, planetBody(RADIUS.mars, tex, 0xb8643c));
+  const g = new THREE.Group(); g.add(mesh, rocks, planetBody(RADIUS.mars, tex, 0xb8643c, 'mars'));
   return g;
 }
 
 // The rest of the planet beyond the detailed ground: a big sphere with the same dusty surface.
-function planetBody(R, tex, color) {
-  const t = tex.clone(); t.needsUpdate = true; t.repeat.set(140, 70);
-  const body = new THREE.Mesh(new THREE.SphereGeometry(R - 1.5, 180, 90),
-    new THREE.MeshStandardMaterial({ map: t, bumpMap: t, bumpScale: 1, color, roughness: 1 }));
+// It uses NASA's real global map, turned so that the base sits on a real place:
+// the Moon base at the Apollo 16 landing site (Descartes highlands), the Mars base at Jezero crater
+// (where the Perseverance rover landed).
+const SITES = { moon: { map: 'assets/textures/moon-lroc.jpg', lon: 15.5, lat: -9 }, mars: { map: 'assets/textures/mars.jpg', lon: 77.5, lat: 18.4 } };
+function planetBody(R, tex, color, which) {
+  const detail = tex.clone(); detail.needsUpdate = true; detail.repeat.set(140, 70);
+  const site = SITES[which];
+  const map = new THREE.TextureLoader().load(site.map);
+  map.colorSpace = THREE.SRGBColorSpace; map.anisotropy = 8;
+  const body = new THREE.Mesh(new THREE.SphereGeometry(R - 1.5, 200, 100),
+    new THREE.MeshStandardMaterial({ map, bumpMap: detail, bumpScale: 1, color: 0xffffff, roughness: 1 }));
+  // point on the sphere for this longitude/latitude (three.js sphere + equirectangular map)
+  const phi = ((site.lon + 180) / 360) * Math.PI * 2, theta = (.5 - site.lat / 180) * Math.PI;
+  const p = new THREE.Vector3(-Math.cos(phi) * Math.sin(theta), Math.cos(theta), Math.sin(phi) * Math.sin(theta));
+  body.quaternion.setFromUnitVectors(p, new THREE.Vector3(0, 1, 0));
   body.position.y = -R;
   body.receiveShadow = true;
   return body;
@@ -226,11 +250,36 @@ function makeSky() {
   // Earth (NASA texture), hanging in the black sky
   const earthTex = new THREE.TextureLoader().load('assets/textures/earth.jpg');
   earthTex.colorSpace = THREE.SRGBColorSpace;
-  const earth = new THREE.Mesh(new THREE.SphereGeometry(55, 48, 32), new THREE.MeshStandardMaterial({ map: earthTex, emissive: 0xffffff, emissiveMap: earthTex, emissiveIntensity: .75, roughness: .8 }));
+  earthTex.anisotropy = 8;
+  // Sunlight on the Earth comes from the side, so from the Moon it looks like a bright "gibbous" Earth.
+  const toMoon = EARTH_POS.clone().negate().normalize();
+  const side = new THREE.Vector3(0, 1, 0).cross(toMoon).normalize();
+  const sunOnEarth = toMoon.clone().multiplyScalar(.55).add(side.multiplyScalar(.82)).add(new THREE.Vector3(0, .15, 0)).normalize();
+  const earthMat = new THREE.ShaderMaterial({
+    uniforms: { map: { value: earthTex }, sun: { value: sunOnEarth } },
+    vertexShader: `varying vec2 vUv; varying vec3 vN; varying vec3 vV;
+      void main(){ vUv = uv; vec4 wp = modelMatrix * vec4(position, 1.); vN = normalize(mat3(modelMatrix) * normal);
+        vV = normalize(cameraPosition - wp.xyz); gl_Position = projectionMatrix * viewMatrix * wp; }`,
+    fragmentShader: `uniform sampler2D map; uniform vec3 sun; varying vec2 vUv; varying vec3 vN; varying vec3 vV;
+      void main(){ vec3 tex = texture2D(map, vUv).rgb; tex = pow(tex, vec3(2.2));
+        float d = dot(vN, sun); float day = smoothstep(-.15, .35, d);
+        vec3 col = tex * (.03 + 1.35 * day);
+        float rim = pow(1. - max(dot(vN, vV), 0.), 2.5);
+        col += vec3(.25, .5, 1.) * rim * (.15 + .9 * day);
+        gl_FragColor = vec4(pow(col, vec3(1. / 2.2)), 1.); }`,
+  });
+  const earth = new THREE.Group();
+  const globe = new THREE.Mesh(new THREE.SphereGeometry(40, 64, 40), earthMat);
+  globe.rotation.z = .41; // Earth's tilt
+  const halo = new THREE.Mesh(new THREE.SphereGeometry(44, 64, 40), new THREE.ShaderMaterial({
+    uniforms: { sun: { value: sunOnEarth } }, transparent: true, depthWrite: false, side: THREE.BackSide, blending: THREE.AdditiveBlending,
+    vertexShader: `varying vec3 vN; varying vec3 vV; void main(){ vec4 wp = modelMatrix * vec4(position, 1.); vN = normalize(mat3(modelMatrix) * normal); vV = normalize(cameraPosition - wp.xyz); gl_Position = projectionMatrix * viewMatrix * wp; }`,
+    fragmentShader: `uniform vec3 sun; varying vec3 vN; varying vec3 vV; void main(){ float r = pow(max(0., 1. - abs(dot(vN, vV))) , 4.); float day = smoothstep(-.3, .4, dot(-vN, sun) * -1.); gl_FragColor = vec4(vec3(.35, .6, 1.) * r * (.3 + day), r * .9); }`,
+  }));
+  earth.add(globe, halo);
   earth.position.copy(EARTH_POS);
-  earth.rotation.z = .4;
   g.add(earth);
-  parts.earth = earth;
+  parts.earth = earth; parts.globe = globe;
 
   // Sun disc with glow
   const glow = document.createElement('canvas'); glow.width = glow.height = 128;
@@ -848,7 +897,7 @@ export function playLaunch(done) {
 export function skipAnimation() {
   if (!anim) return;
   const a = anim; anim = null;
-  if (a.kind === 'landing') { parts.lm.position.set(-26, 0, 14); parts.lm.rotation.set(0, .6, 0); parts.flame.visible = false; setMode('game', true); }
+  if (a.kind === 'landing') { parts.lm.position.set(-26, 0, 14); parts.lm.rotation.set(0, .6, 0); parts.flame.visible = false; if (parts.earth) { parts.earth.position.copy(EARTH_POS); parts.earth.scale.setScalar(1); } setMode('game', true); }
   a.done?.();
 }
 
@@ -858,44 +907,58 @@ function runAnim(dt) {
   const lm = parts.lm, home = new THREE.Vector3(-26, 0, 14);
   const flicker = .85 + Math.random() * .3;
   if (a.kind === 'landing') {
-    // 1) approach from far away, high above the curved ground (0–13 s)
-    // 2) braking and descent over the landing site (13–20 s)  3) touchdown, then fly to the base view
-    const P0 = new THREE.Vector3(home.x + 620, 460, home.z - 300);
-    const P1 = new THREE.Vector3(home.x + 45, 70, home.z - 25);
-    const T1 = 13, T2 = 20, T3 = 22.8;
+    // A film in three shots. The lander flies towards the Earth's direction, so the Earth is always
+    // in the background, above the curved horizon of the Moon:
+    // 1) wide shot over the Moon (0–10 s)  2) closer, braking (10–17 s)
+    // 3) from the ground, looking up as it touches down (17–21 s), then fly to the base view.
+    const T1 = 10, T2 = 17, T3 = 21, T4 = 23.8;
+    const up = new THREE.Vector3(0, 1, 0);
+    const hz = new THREE.Vector3().subVectors(EARTH_CINE, home).setY(0).normalize(); // towards the Earth
+    const perp = new THREE.Vector3().crossVectors(up, hz);
+    const P0 = home.clone().addScaledVector(hz, -650).addScaledVector(perp, 90).setY(140);
+    const P1 = home.clone().addScaledVector(hz, -95).addScaledVector(perp, 12).setY(55);
+    const P2 = home.clone().addScaledVector(hz, -6).setY(20);
+    if (parts.earth && a.t < T3) { parts.earth.position.copy(EARTH_CINE); parts.earth.scale.setScalar(1.8); }
+    const groundCam = home.clone().addScaledVector(hz, -32).addScaledVector(perp, 7).setY(2.4);
     let phase;
     if (a.t < T1) {
-      const p = ease(a.t / T1);
-      lm.position.lerpVectors(P0, P1, p);
-      lm.position.y = P0.y + (P1.y - P0.y) * Math.pow(p, .8);
-      lm.rotation.set(0, .6, (1 - p) * .55); // tilted back while braking
-      const dir = new THREE.Vector3().subVectors(P1, P0).normalize();
-      camera.position.copy(lm.position).addScaledVector(dir, -55).add(new THREE.Vector3(0, 14, 22));
-      camera.lookAt(lm.position.clone().addScaledVector(dir, 30).add(new THREE.Vector3(0, -12, 0)));
-      phase = a.t < 7 ? 'approach' : 'braking';
+      const e = ease(a.t / T1);
+      lm.position.lerpVectors(P0, P1, e);
+      lm.rotation.set(0, .6, .45 * (1 - e));
+      camera.position.copy(lm.position).addScaledVector(hz, -55).addScaledVector(perp, 16).add(new THREE.Vector3(0, 9, 0));
+      camera.lookAt(lm.position.clone().addScaledVector(hz, 120).add(new THREE.Vector3(0, -24, 0)));
+      phase = 'approach';
     } else if (a.t < T2) {
-      const p = (a.t - T1) / (T2 - T1);
-      lm.position.x = P1.x + (home.x - P1.x) * ease(p * 1.4);
-      lm.position.z = P1.z + (home.z - P1.z) * ease(p * 1.4);
-      lm.position.y = P1.y * Math.pow(1 - p, 1.7);
+      const e = ease((a.t - T1) / (T2 - T1));
+      lm.position.lerpVectors(P1, P2, e);
+      lm.rotation.set(0, .6, .12 * (1 - e));
+      // the camera swings from behind the lander to its side
+      const off = hz.clone().multiplyScalar(-40 + 18 * e).addScaledVector(perp, 10 + 26 * e);
+      camera.position.copy(lm.position).add(off).add(new THREE.Vector3(0, 5 - 3 * e, 0));
+      camera.lookAt(lm.position.clone().addScaledVector(hz, 40 * (1 - e)).add(new THREE.Vector3(0, -8 * (1 - e), 0)));
+      phase = 'braking';
+    } else if (a.t < T3) {
+      const p = (a.t - T2) / (T3 - T2);
+      lm.position.lerpVectors(P2, home, ease(Math.min(1, p * 1.15)));
+      lm.position.y = P2.y * Math.pow(Math.max(0, 1 - p * 1.15), 1.6);
       lm.rotation.set(0, .6, 0);
-      camera.position.set(home.x + 34, lm.position.y * .55 + 12, home.z + 30);
-      camera.lookAt(lm.position.x, lm.position.y + 2, lm.position.z);
+      if (p > .86 && !a.dusted) { a.dusted = true; burstDust(home); }
+      camera.position.copy(groundCam);
+      camera.lookAt(new THREE.Vector3(home.x, 7, home.z).addScaledVector(hz, 20));
       phase = 'final';
     } else {
       lm.position.copy(home);
-      if (!a.dusted) { a.dusted = true; burstDust(home); }
-      const k = ease((a.t - T2 - .4) / (T3 - T2 - .4));
-      const near = new THREE.Vector3(home.x + 34, 12, home.z + 30);
-      camera.position.lerpVectors(near, GAME_CAM(), k);
-      camera.lookAt(new THREE.Vector3(home.x, 2, home.z).lerp(new THREE.Vector3(-5, 0, 4), k));
+      const k = ease((a.t - T3) / (T4 - T3));
+      if (parts.earth) { parts.earth.position.lerpVectors(EARTH_CINE, EARTH_POS, k); parts.earth.scale.setScalar(1.8 - .8 * k); }
+      camera.position.lerpVectors(groundCam, GAME_CAM(), k);
+      camera.lookAt(new THREE.Vector3(home.x, 7, home.z).addScaledVector(hz, 20 * (1 - k)).lerp(new THREE.Vector3(-5, 0, 4), k));
       phase = 'landed';
     }
-    parts.flame.visible = a.t < T2 + .3;
-    parts.flame.scale.set(flicker, flicker * (a.t < T1 ? 1.4 : 1), flicker);
+    parts.flame.visible = a.t < T3 - .3;
+    parts.flame.scale.set(flicker, flicker * (a.t < T1 ? 1.3 : 1), flicker);
     parts.flameLight.intensity = parts.flame.visible ? 60 * flicker : 0;
-    a.onProgress?.({ phase, alt: Math.round(lm.position.y * 22) });
-    if (a.t > T3) { anim = null; controls.target.set(-5, 0, 4); camera.position.copy(GAME_CAM()); controls.enabled = true; controls.update(); a.done?.(); }
+    a.onProgress?.({ phase });
+    if (a.t > T4) { anim = null; if (parts.earth) { parts.earth.position.copy(EARTH_POS); parts.earth.scale.setScalar(1); } controls.target.set(-5, 0, 4); camera.position.copy(GAME_CAM()); controls.enabled = true; controls.update(); a.done?.(); }
   } else if (a.kind === 'launch') {
     const ign = 1.3, s = Math.max(0, a.t - ign);
     lm.position.y = 2.5 * s * s; // speeds up as it climbs
@@ -956,7 +1019,7 @@ function tick() {
   parts.sun.material.opacity = lerp(parts.sun.material.opacity, night ? 0 : 1, k);
   parts.lights.forEach(l => { l.intensity = lerp(l.intensity, night ? 40 : 0, k); });
   if (mats.cells) mats.cells.emissiveIntensity = lerp(mats.cells.emissiveIntensity, night ? 0 : .25, k);
-  if (parts.earth) parts.earth.rotation.y += dt * .01;
+  if (parts.globe) parts.globe.rotation.y += dt * .01;
 
   // Shield
   const sh = mode === 'game' ? Math.min(target.shield / 5, 1) : 0;

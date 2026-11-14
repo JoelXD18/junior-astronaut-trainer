@@ -15,7 +15,8 @@ shielding. Every choice has a cost. Built for the NASA Space Apps Challenge 2026
 - **NASA OSDR RadLab** (https://visualization.osdr.nasa.gov/radlab/): real dose rates used in the explanations
   (ISS ≈ 4.7 µGy/h in June 2020; Artemis I near the Moon ≈ 16.5 µGy/h median; CRaTER up to 61,829 µGy/h on
   24 Jan 2012). Saved values, not live.
-- **NASA 3D Resources**: 3D models and Earth texture.
+- **NASA 3D Resources**: 3D models (Apollo Lunar Module, Habitat Demonstration Unit, Astronaut, Perseverance), Earth image and Mars map.
+- **NASA LRO / LROC color map** (NASA SVS CGI Moon Kit, https://svs.gsfc.nasa.gov/4720): the real Moon around the base, which sits at the Apollo 16 landing site. The Mars base sits at Jezero crater.
 
 ## Credits and sources
 
