@@ -117,9 +117,11 @@ export function lineTime(l, lang) {
 export const radioTime = (lines, lang) => lines.reduce((s, l) => s + lineTime(l, lang), 0);
 
 // Short sound effects. Returns a stop function (for loops such as the engine).
+// They are made in code with Web Audio (no sound files); a recorded file in the manifest is used instead if there is one.
 export function sfx(name, { loop = false, vol = 1 } = {}) {
   const s = manifest.sfx?.[name];
-  if (!s || !unlocked || settings.muted) return () => {};
+  if (!unlocked || settings.muted) return () => {};
+  if (!s) return synth(name, vol);
   const a = new Audio(s.file);
   a.loop = loop;
   a.volume = Math.min(1, settings.volume * vol * (s.vol || 1));
@@ -192,4 +194,113 @@ export function stopRadio() {
   stopClip();
   if ('speechSynthesis' in window) speechSynthesis.cancel();
   setDuck(false);
+}
+
+// ---------- sound effects made in code ----------
+function audioCtx() {
+  ctx ||= new (window.AudioContext || window.webkitAudioContext)();
+  if (ctx.state === 'suspended') ctx.resume();
+  return ctx;
+}
+let noiseBuf = null;
+function noise(c, brown = false) {
+  if (!noiseBuf) {
+    noiseBuf = { white: c.createBuffer(1, c.sampleRate * 2, c.sampleRate), brown: c.createBuffer(1, c.sampleRate * 2, c.sampleRate) };
+    const w = noiseBuf.white.getChannelData(0), b = noiseBuf.brown.getChannelData(0);
+    let last = 0;
+    for (let i = 0; i < w.length; i++) { w[i] = Math.random() * 2 - 1; last = (last + .02 * w[i]) / 1.02; b[i] = last * 3.5; }
+  }
+  const src = c.createBufferSource();
+  src.buffer = brown ? noiseBuf.brown : noiseBuf.white;
+  src.loop = true;
+  return src;
+}
+// envelope: [[time, value], ...] relative to now
+function env(param, now, points) { param.setValueAtTime(points[0][1], now + points[0][0]); for (const [t, v] of points.slice(1)) param.linearRampToValueAtTime(v, now + t); }
+function tone(c, out, now, { type = 'sine', f, f2, at = 0, len = .2, gain = .3 }) {
+  const o = c.createOscillator(), g = c.createGain();
+  o.type = type; o.frequency.setValueAtTime(f, now + at);
+  if (f2) o.frequency.exponentialRampToValueAtTime(f2, now + at + len);
+  env(g.gain, now, [[0, 0], [at, 0], [at + .01, gain], [at + len, 0]]);
+  o.connect(g).connect(out); o.start(now + at); o.stop(now + at + len + .05);
+}
+function noiseHit(c, out, now, { at = 0, len = .5, gain = .6, type = 'lowpass', f = 400, f2, q = 1, brown = false }) {
+  const n = noise(c, brown), fl = c.createBiquadFilter(), g = c.createGain();
+  fl.type = type; fl.Q.value = q; fl.frequency.setValueAtTime(f, now + at);
+  if (f2) fl.frequency.exponentialRampToValueAtTime(f2, now + at + len);
+  env(g.gain, now, [[0, 0], [at, 0], [at + .01, gain], [at + len, 0]]);
+  n.connect(fl).connect(g).connect(out); n.start(now + at); n.stop(now + at + len + .05);
+}
+
+function synth(name, vol = 1) {
+  let c;
+  try { c = audioCtx(); } catch { return () => {}; }
+  const now = c.currentTime + .02;
+  const out = c.createGain();
+  out.gain.value = settings.volume * vol;
+  out.connect(c.destination);
+  const stopAll = [];
+  switch (name) {
+    case 'engine': { // steady rocket rumble until stopped
+      const n = noise(c, true), fl = c.createBiquadFilter(), g = c.createGain(), lfo = c.createOscillator(), lg = c.createGain();
+      fl.type = 'lowpass'; fl.frequency.value = 420; fl.Q.value = .7;
+      lfo.frequency.value = 7; lg.gain.value = 60; lfo.connect(lg).connect(fl.frequency);
+      env(g.gain, now, [[0, 0], [1.2, .9]]);
+      n.connect(fl).connect(g).connect(out); n.start(now); lfo.start(now);
+      const hiss = noise(c), hf = c.createBiquadFilter(), hg = c.createGain();
+      hf.type = 'bandpass'; hf.frequency.value = 2200; hf.Q.value = .8; hg.gain.value = .05;
+      hiss.connect(hf).connect(hg).connect(out); hiss.start(now);
+      stopAll.push(() => { const t = c.currentTime; g.gain.cancelScheduledValues(t); g.gain.setValueAtTime(g.gain.value, t); g.gain.linearRampToValueAtTime(0, t + .6); hg.gain.linearRampToValueAtTime(0, t + .6); [n, lfo, hiss].forEach(x => x.stop(t + .7)); });
+      break;
+    }
+    case 'touchdown':
+      noiseHit(c, out, now, { len: .7, gain: .9, f: 260, f2: 80, brown: true });
+      tone(c, out, now, { f: 70, f2: 35, len: .5, gain: .5 });
+      tone(c, out, now, { type: 'triangle', f: 520, f2: 480, at: .12, len: .25, gain: .06 }); // metal legs settling
+      break;
+    case 'crash':
+      noiseHit(c, out, now, { len: 1.6, gain: 1, f: 2400, f2: 120 });
+      tone(c, out, now, { f: 60, f2: 28, len: .9, gain: .7 });
+      for (let i = 0; i < 6; i++) tone(c, out, now, { type: 'square', f: 300 + Math.random() * 900, at: .05 + i * .11 + Math.random() * .05, len: .12, gain: .05 }); // metal bits
+      noiseHit(c, out, now, { at: .4, len: 1.2, gain: .25, type: 'bandpass', f: 900, q: .5 }); // debris
+      break;
+    case 'launch': { // ignition, then a roar that rises and fades into the sky
+      const n = noise(c, true), fl = c.createBiquadFilter(), g = c.createGain();
+      fl.type = 'lowpass'; fl.Q.value = .8;
+      env(fl.frequency, now, [[0, 150], [1.3, 300], [3, 1100], [8, 500]]);
+      env(g.gain, now, [[0, 0], [.3, .4], [1.3, .5], [1.6, 1], [5, .9], [8.5, 0]]);
+      n.connect(fl).connect(g).connect(out); n.start(now); n.stop(now + 9);
+      tone(c, out, now, { f: 45, f2: 30, at: 1.3, len: 4, gain: .45 });
+      noiseHit(c, out, now, { at: 1.3, len: .8, gain: .5, f: 600, f2: 100 });
+      break;
+    }
+    case 'alarm':
+      for (let i = 0; i < 3; i++) tone(c, out, now, { type: 'square', f: 880, at: i * .22, len: .13, gain: .09 });
+      break;
+    case 'storm': { // electric crackle and whoosh
+      noiseHit(c, out, now, { len: 1.8, gain: .5, type: 'bandpass', f: 3500, f2: 400, q: 1.5 });
+      for (let i = 0; i < 14; i++) noiseHit(c, out, now, { at: Math.random() * 1.4, len: .03 + Math.random() * .05, gain: .5, type: 'highpass', f: 2500 });
+      tone(c, out, now, { type: 'sawtooth', f: 120, f2: 40, len: 1.4, gain: .08 });
+      break;
+    }
+    case 'build':
+      [0, .16, .32].forEach((at, i) => { tone(c, out, now, { type: 'triangle', f: [320, 420, 360][i], at, len: .1, gain: .25 }); noiseHit(c, out, now, { at, len: .05, gain: .3, type: 'highpass', f: 3000 }); });
+      tone(c, out, now, { f: 1320, at: .55, len: .25, gain: .12 });
+      tone(c, out, now, { f: 1760, at: .7, len: .4, gain: .12 });
+      break;
+    case 'upgrade':
+      [660, 880, 1100, 1320].forEach((f, i) => tone(c, out, now, { type: 'triangle', f, at: i * .08, len: .25, gain: .14 }));
+      break;
+    case 'rover': {
+      const o = c.createOscillator(), fl = c.createBiquadFilter(), g = c.createGain(), lfo = c.createOscillator(), lg = c.createGain();
+      o.type = 'sawtooth'; o.frequency.value = 85; lfo.frequency.value = 3; lg.gain.value = 12;
+      lfo.connect(lg).connect(o.frequency);
+      fl.type = 'lowpass'; fl.frequency.value = 500;
+      env(g.gain, now, [[0, 0], [.3, .12], [1.8, .12], [2.4, 0]]);
+      o.connect(fl).connect(g).connect(out); o.start(now); lfo.start(now); o.stop(now + 2.5); lfo.stop(now + 2.5);
+      noiseHit(c, out, now, { len: 2.4, gain: .12, type: 'bandpass', f: 1500, q: .7 }); // gravel
+      break;
+    }
+  }
+  return () => stopAll.forEach(f => f());
 }

@@ -62,6 +62,7 @@ Mars is unlocked by winning on the Moon (or in Settings, for teachers and judges
   [Metropolis of Progress (Cinematic Orchestral)](https://pixabay.com/es/music/titulo-principal-metropolis-of-progress-cinematic-orchestral-298820/) by Luis_Humanoide.
 - Fonts: Lilita One and Nunito (Google Fonts, SIL Open Font License).
 - Voices: the browser's built-in speech synthesis (no recorded voices).
+- Sound effects (engine, landing, crash, launch, alarm, storm, building, rover): made in code with the Web Audio API, no sound files.
 - Game idea and design: JoelXD18 (team RAMOS).
 
 ## Use of AI

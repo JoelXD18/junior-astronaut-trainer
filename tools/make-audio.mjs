@@ -33,8 +33,8 @@ function lines(L) {
     const who = ctrl(k) ? 'control' : 'crew';
     const raw = L[k] ?? en[k];
     if (raw.includes('{n}')) for (const m of Object.values(MAPS)) add(who, T(k, { n: m.missionDays, p: ESCAPE.parts }));
-    else if (raw.includes('{c}')) for (const c of ['A', 'B', 'C', 'M', 'X']) add(who, T(k, { c }));
-    else if (raw.includes('{cls}')) for (const c of ['A', 'B', 'C', 'M', 'X']) add(who, T(k, { cls: c }));
+    else if (raw.includes('{c}')) for (const c of ['C', 'M', 'X']) add(who, T(k, { c }));
+    else if (raw.includes('{cls}')) for (const c of ['C', 'M', 'X']) add(who, T(k, { cls: c }));
     else add(who, T(k, { p: ESCAPE.parts }));
   }
   // tutorial narrator (same texts as tutorialSteps() in main.js)
@@ -70,8 +70,8 @@ const SFX = {
 
 // ---------- helpers ----------
 const key = (() => {
-  try { return /ELEVENLABS_API_KEY=(\S+)/.exec(fs.readFileSync(path.join(ROOT, '.env'), 'utf8'))?.[1] || process.env.ELEVENLABS_API_KEY; }
-  catch { return process.env.ELEVENLABS_API_KEY; }
+  if (process.env.ELEVENLABS_API_KEY) return process.env.ELEVENLABS_API_KEY;
+  try { return /ELEVENLABS_API_KEY=(sk_\S+)/.exec(fs.readFileSync(path.join(ROOT, '.env'), 'utf8'))?.[1]; } catch { return null; }
 })();
 let ffmpeg = process.env.FFMPEG;
 if (!ffmpeg) { try { ffmpeg = (await import('ffmpeg-static')).default; } catch { /* checked below */ } }
