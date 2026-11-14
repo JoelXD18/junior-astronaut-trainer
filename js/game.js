@@ -4,8 +4,8 @@ import { flareStrength } from './spaceweather-core.js';
 export const MAPS = {
   moon: {
     id: 'moon',
-    missionDays: 14,      // story mode: survive this many days, then escape
-    cycle: 14,            // a lunar day + night (repeats in survival mode)
+    missionDays: 14,      // survival mode: survive this many days
+    cycle: 14,            // a lunar day + night (repeats in infinite mode)
     nightStart: 8,        // days 8..14 of each cycle are lunar night (shortened for the game)
     sunFactor: 1,
     warnFactor: 1,
@@ -51,7 +51,20 @@ export const MAPS = {
     ],
   },
 };
-export const MODES = ['story', 'survival'];
+// escape: the ship crashes; collect its scattered parts with the rover, repair it and take off
+// survival: keep the crew safe for missionDays days
+// infinite: last as many days as you can (local record)
+export const MODES = ['escape', 'survival', 'infinite'];
+export const ESCAPE = {
+  parts: 5,            // pieces of the ship to bring back
+  roverBase: 1,        // energy to start the rover…
+  roverPerMeters: 22,  // …plus 1 energy for every 22 m of distance (there and back)
+  suitOxygen: 1,       // oxygen the driver uses outside
+  outsideDose: 5,      // extra radiation per storm point for a crew caught outside (no shield there!)
+  repairCost: 6,       // energy to repair the ship once every part is back
+  startBattery: 14,    // the ship's batteries survived the crash
+  landing: [-26, 14],  // where the ship came down
+};
 
 // Buildings. Everything is paid with energy, so building today means less energy for oxygen,
 // shield or the battery: a real trade-off.
@@ -157,7 +170,7 @@ function rollWeather(state, rng) {
 }
 
 // flares: real NASA flares to use as storms; activity: 0.8 (quiet Sun) .. 1.3 (very active Sun)
-export function newGame({ map = 'moon', difficulty = 'normal', mode = 'story', seed = Date.now(), flares = [], activity = 1 } = {}) {
+export function newGame({ map = 'moon', difficulty = 'normal', mode = 'survival', seed = Date.now(), flares = [], activity = 1 } = {}) {
   const m = MAPS[map];
   const state = {
     map, difficulty, mode, seed, rngCalls: 0,
@@ -178,7 +191,67 @@ export function newGame({ map = 'moon', difficulty = 'normal', mode = 'story', s
   for (const [type, x, z] of m.start) state.buildings.push({ id: state.nextId++, type, level: 1, x, z });
   const rng = rngFor(state);
   state.today = rollWeather(state, rng);
+  if (mode === 'escape') { scatterDebris(state, rng); state.battery = Math.min(batteryMax(state), ESCAPE.startBattery); }
   return state;
+}
+
+// ---------- escape mode ----------
+
+// When the ship crashes, its broken parts land all around the base, some near and some far.
+function scatterDebris(state, rng) {
+  state.debris = [];
+  state.outsideToday = false;
+  const [lx, lz] = ESCAPE.landing;
+  let tries = 0;
+  while (state.debris.length < ESCAPE.parts && tries++ < 500) {
+    const ang = rng() * Math.PI * 2, dist = 22 + Math.pow(rng(), .8) * 26 + state.debris.length * 3;
+    const x = lx + Math.cos(ang) * dist, z = lz + Math.sin(ang) * dist;
+    if (Math.hypot(x, z) > 70 || Math.hypot(x, z) < 16) continue;
+    if (state.buildings.some(b => Math.hypot(b.x - x, b.z - z) < BUILDINGS[b.type].radius + 3)) continue;
+    if (state.debris.some(d => Math.hypot(d.x - x, d.z - z) < 9)) continue;
+    state.debris.push({ id: state.debris.length + 1, x: Math.round(x * 2) / 2, z: Math.round(z * 2) / 2, collected: false });
+  }
+}
+
+export function partsCollected(state) { return (state.debris || []).filter(d => d.collected).length; }
+export function partsNeeded() { return ESCAPE.parts; }
+
+// Energy for a rover trip from the base to a part and back.
+export function roverCost(d) {
+  const dist = Math.hypot(d.x - ESCAPE.landing[0], d.z - ESCAPE.landing[1]);
+  return ESCAPE.roverBase + Math.ceil((dist * 2) / ESCAPE.roverPerMeters);
+}
+
+// Why the rover can't go for this part now (or null).
+export function roverProblem(state, d, budget = available(state)) {
+  if (d.collected) return 'collected';
+  if (state.outsideToday) return 'roverBusy';
+  if (state.oxygen < ESCAPE.suitOxygen + 1) return 'noOxygen';
+  if (budget < roverCost(d)) return 'noEnergy';
+  return null;
+}
+
+// Send the rover: pays energy now (like building) and a little oxygen; the part is back the same day.
+export function sendRover(state, id, budget) {
+  const d = state.debris.find(x => x.id === id);
+  if (!d || roverProblem(state, d, budget)) throw new Error('Rover cannot go');
+  state.spent += roverCost(d);
+  state.oxygen -= ESCAPE.suitOxygen;
+  state.outsideToday = true;
+  d.collected = true;
+  return d;
+}
+
+export function canRepair(state, budget = available(state)) {
+  return state.mode === 'escape' && partsCollected(state) >= ESCAPE.parts && budget >= ESCAPE.repairCost;
+}
+
+// Fix the ship and take off: you win!
+export function repairAndLaunch(state, budget) {
+  if (!canRepair(state, budget)) throw new Error('Cannot repair');
+  state.spent += ESCAPE.repairCost;
+  state.status = 'won';
+  state.repaired = true;
 }
 
 // Re-creates the generator at the right point, so saved games continue the same way.
@@ -276,13 +349,15 @@ export function playDay(state, { oxygen = 0, shield = 0 }) {
   const shieldPower = shield > 0 ? shield + shieldBonus(shieldLevel(state)) : 0;
   const blocked = Math.min(shieldPower, storm);
   const stormDose = (storm - blocked) * DOSE_PER_STORM_POINT;
-  const dose = state.dose + map.baseDose + stormDose;
+  const outsideDose = state.outsideToday && storm > 0 ? storm * ESCAPE.outsideDose : 0; // no shield outside the base
+  const dose = state.dose + map.baseDose + stormDose + outsideDose;
 
   const report = {
     day: state.day, night: isNight(map, state.day), energy: energyToday(state), spent: state.spent,
     oxygen, shield, shieldPower, o2Bonus, wasted, oxygenLost, storm, blocked, warned: state.today.warned, flare: state.today.flare,
-    stormDose, baseDose: map.baseDose,
+    stormDose, baseDose: map.baseDose, outsideDose, outside: !!state.outsideToday,
   };
+  state.outsideToday = false;
 
   state.oxygen = Math.max(0, oxygenAfter);
   state.battery = battery;
@@ -292,7 +367,7 @@ export function playDay(state, { oxygen = 0, shield = 0 }) {
 
   if (oxygenAfter < 0) state.status = 'lost-oxygen';
   else if (dose >= DOSE_LIMIT) state.status = 'lost-dose';
-  else if (state.mode === 'story' && state.day >= map.missionDays) state.status = 'won';
+  else if (state.mode === 'survival' && state.day >= map.missionDays) state.status = 'won';
   else {
     state.day++;
     const rng = rngFor(state);

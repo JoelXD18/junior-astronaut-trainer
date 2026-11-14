@@ -3,9 +3,11 @@
 import { t, setLang, lang, onLangChange, LANGUAGES } from './i18n.js';
 import { MAPS, DOSE_LIMIT, BUILDINGS, MAX_LEVEL, newGame, playDay, available, energyToday, isNight, forecast,
   batteryMax, oxygenMax, solarEnergy, batteryCap, tankCap, oxygenBonus, shieldBonus, shieldBlocks,
-  validSpot, buildProblem, build, upgradeCost, upgradeProblem, upgrade, moveBuilding } from './game.js';
+  validSpot, buildProblem, build, upgradeCost, upgradeProblem, upgrade, moveBuilding,
+  ESCAPE, partsCollected, partsNeeded, roverCost, roverProblem, sendRover, canRepair, repairAndLaunch } from './game.js';
 import { initScene, setMode, setLabels, updateScene, playStorm, syncBuildings, setSelected, onPickBuilding,
-  startPlacing, stopPlacing, resetView, setPlanet, playLanding, playLaunch, skipAnimation, resetLander } from './scene.js';
+  startPlacing, stopPlacing, resetView, setPlanet, playLanding, playLaunch, skipAnimation, resetLander,
+  setDebris, setCrashed, driveRover, onPickDebris } from './scene.js';
 import { isUnlocked, unlock, best, saveBest, unlockAll, setUnlockAll } from './progress.js';
 import { playMusic, setVolume, toggleMute, audioSettings, speak, stopSpeaking } from './audio.js';
 import { DEMOS } from './demos.js';
@@ -19,7 +21,7 @@ const modalRoot = document.getElementById('modal');
 let screen = 'menu';     // menu | map | difficulty | game | end | settings | credits
 let game = null;
 let choice = { oxygen: 0, shield: 0 };
-let pick = { map: 'moon', difficulty: 'normal', mode: 'story' };
+let pick = { map: 'moon', difficulty: 'normal', mode: 'escape' };
 let lastReport = null;   // report shown after ending a day
 let openTerm = null;     // glossary word currently open
 let showHelp = false;    // "how to play" tutorial (step by step)
@@ -143,9 +145,10 @@ function mapScreen() {
 
 function modeScreen() {
   const m = MAPS[pick.map];
-  return centered(windowHtml(esc(t('chooseMode')), `<div class="choice-cards">
-      <button class="choice" data-mode="story"><span class="c-ico">${icon('rocket')}</span><strong>${esc(t('modeStory'))}</strong><small>${esc(t('modeStoryDesc', { n: m.missionDays }))}</small></button>
-      <button class="choice" data-mode="survival"><span class="c-ico">${icon('trophy')}</span><strong>${esc(t('modeSurvival'))}</strong><small>${esc(t('modeSurvivalDesc'))}</small></button>
+  return centered(windowHtml(esc(t('chooseMode')), `<div class="choice-cards three">
+      <button class="choice" data-mode="escape"><span class="c-ico">${icon('rocket')}</span><strong>${esc(t('modeEscape'))}</strong><small>${esc(t('modeEscapeDesc', { n: ESCAPE.parts }))}</small></button>
+      <button class="choice" data-mode="survival"><span class="c-ico">${icon('shield')}</span><strong>${esc(t('modeSurvival'))}</strong><small>${esc(t('modeSurvivalDesc', { n: m.missionDays }))}</small></button>
+      <button class="choice" data-mode="infinite"><span class="c-ico">${icon('trophy')}</span><strong>${esc(t('modeInfinite'))}</strong><small>${esc(t('modeInfiniteDesc'))}</small></button>
     </div>`, { close: null }) + `<button class="btn grey back" data-go="map">← ${esc(t('back'))}</button>`);
 }
 
@@ -214,14 +217,15 @@ function gameScreen() {
   const fc = forecast(game);
   // Strip of days: the mission (story) or the current lunar day+night cycle (survival). Mars has none.
   let strip = '';
-  if (map.cycle || game.mode === 'story') {
-    const len = game.mode === 'story' ? map.missionDays : map.cycle;
-    const first = game.mode === 'story' ? 1 : game.day - ((game.day - 1) % map.cycle);
+  if (map.cycle || game.mode === 'survival') {
+    const len = game.mode === 'survival' ? map.missionDays : map.cycle;
+    const first = game.mode === 'survival' ? 1 : game.day - ((game.day - 1) % map.cycle);
     for (let i = 0; i < len; i++) { const d = first + i; strip += `<i class="${isNight(map, d) ? 'n' : 's'} ${d < game.day ? 'past' : ''} ${d === game.day ? 'now' : ''}"></i>`; }
   }
   const dayWord = t(game.map === 'mars' ? 'solLabel' : 'dayLabel');
-  const total = game.mode === 'story' ? `<small>/${map.missionDays}</small>` : '';
+  const total = game.mode === 'survival' ? `<small>/${map.missionDays}</small>` : '';
   const bottom = !ui ? dock()
+    : ui.kind === 'debris' ? debrisWindow()
     : ui.kind === 'build' ? buildWindow()
     : ui.kind === 'placing' ? placingBar()
     : selectedWindow();
@@ -233,6 +237,7 @@ function gameScreen() {
         <span class="day-text"><span class="day-label">${esc(dayWord)}</span><span class="day-num">${game.day}${total}</span></span>
       </button>
       ${strip ? `<div class="strip" aria-hidden="true">${strip}</div>` : ''}
+      ${game.mode === 'escape' ? `<button class="ribbon parts" data-term="Parts">${icon('gear')}<span>${esc(t('partsShort', { n: partsCollected(game), m: partsNeeded() }))}</span></button>` : ''}
       ${game.dust > 0 ? `<button class="ribbon dust" data-term="Dust">${icon('warning')}<span>${esc(t('dustShort', { n: game.dust }))}</span></button>` : ''}
       ${fc.warned
         ? `<button class="ribbon warn" data-term="Storm">${icon('warning')}<span>${esc(t('warnShort'))}</span>${fc.hint ? flareChip(fc.hint) : ''}</button>`
@@ -291,7 +296,9 @@ function dock() {
       <span class="slot-out">${lost > 0 ? esc(t('lostShort', { n: lost })) : esc(t('savedShort'))}</span>
     </div>
     <div class="dock-actions">
-      <button class="btn orange build" data-action="open-build" ${busy ? 'disabled' : ''}>${icon('hammer')}<span>${esc(t('build'))}</span></button>
+      ${game.mode === 'escape' && partsCollected(game) >= partsNeeded()
+        ? `<button class="btn orange build repair" data-action="repair" ${busy || !canRepair(game, freeEnergy()) ? 'disabled' : ''}>${icon('rocket')}<span>${esc(t('repairLaunch'))}</span><span class="price">${icon('energy')}${ESCAPE.repairCost}</span></button>`
+        : `<button class="btn orange build" data-action="open-build" ${busy ? 'disabled' : ''}>${icon('hammer')}<span>${esc(t('build'))}</span></button>`}
       <button class="btn green end" data-action="end-day" ${busy ? 'disabled' : ''}><span>${esc(t('endDay'))}</span>${icon('play')}</button>
     </div>
   </div>`;
@@ -345,7 +352,7 @@ function endScreen() {
   const key = { won: 'won', 'lost-oxygen': 'lostOxygen', 'lost-dose': 'lostDose' }[game.status];
   const done = game.status === 'won' ? map.missionDays : game.day - 1;
   const ico = game.status === 'won' ? 'trophy' : game.status === 'lost-oxygen' ? 'oxygen' : 'radiation';
-  const survival = game.mode === 'survival';
+  const survival = game.mode === 'infinite';
   return centered(windowHtml(esc(t(survival ? 'survivalEndTitle' : key + 'Title')), `
     <div class="end-ico">${icon(survival ? 'trophy' : ico)}</div>
     ${survival ? `<p class="record">${esc(t('survivalDays', { n: done }))}</p>
@@ -383,9 +390,26 @@ function creditsRoll() {
   </section>`;
 }
 
+function debrisWindow() {
+  const d = game.debris.find(x => x.id === ui.id);
+  if (!d || d.collected) { ui = null; return dock(); }
+  const cost = roverCost(d), problem = roverProblem(game, d, freeEnergy());
+  const dist = Math.round(Math.hypot(d.x - ESCAPE.landing[0], d.z - ESCAPE.landing[1]));
+  const warned = forecast(game).warned;
+  return windowHtml(`${icon('gear')} ${esc(t('partTitle'))}`, `
+    <p class="effect">${esc(t('partText', { m: dist }))}</p>
+    <p class="effect next">${esc(t('roverCostText', { e: cost, o: ESCAPE.suitOxygen }))}</p>
+    ${warned ? `<p class="hint bad">${icon('warning')} ${esc(t('roverStormWarn'))}</p>` : ''}
+    <div class="sel-actions">
+      <button class="btn green" data-action="send-rover" ${problem || busy ? 'disabled' : ''}><span>${esc(t('sendRover'))}</span><span class="price">${icon('energy')}${cost}</span></button>
+    </div>
+    ${problem && problem !== 'collected' ? `<p class="hint bad">${esc(t('rover_' + problem))}</p>` : ''}`, { cls: 'sel-win' });
+}
+
 function syncScene() {
   if (!has3d || !game) return;
   syncBuildings(game.buildings.map(b => ({ ...b, radius: BUILDINGS[b.type].radius })));
+  setDebris(game.mode === 'escape' ? game.debris : null);
   setSelected(ui?.kind === 'selected' ? ui.id : null);
 }
 
@@ -404,6 +428,7 @@ function reportHtml(r) {
     if (r.warned) items.push(['warning', t('falseAlarm'), '']);
     if (r.shield > 0) items.push(['shield', t('shieldUnused', { n: r.shield }), '']);
   }
+  if (r.outsideDose) items.push(['radiation', t('outsideStorm', { d: r.outsideDose }), 'bad']);
   if (r.spent) items.push(['hammer', t('spentMsg', { n: r.spent }), '']);
   items.push(['radiation', t('baseDoseMsg', { d: r.baseDose }), '']);
   items.push(['oxygen', t('oxygenMsg', { use: map.oxygenUse, left: game.oxygen }), game.oxygen <= map.oxygenUse ? 'bad' : '']);
@@ -427,6 +452,7 @@ function tutorialSteps() {
     { icon: 'shield', title: t('tutShield'), text: t('help3'), demo: 'shield', cls: 'c-shield' },
     { icon: 'battery', title: t(mars ? 'tutDust' : 'tutBattery'), text: mars ? t('help4mars') : t('help4', { day: map.nightStart }), demo: mars ? 'dust' : 'battery', cls: 'c-bat' },
     { icon: 'hammer', title: t('tutBuild'), text: t('help6'), demo: 'build', cls: 'c-build' },
+    ...(game.mode === 'escape' ? [{ icon: 'gear', title: t('tutParts'), text: t('helpParts', { n: ESCAPE.parts }), demo: 'build', cls: 'c-energy' }] : []),
     { icon: 'sun', title: t('tutReal'), text: t('sunHowGame'), demo: 'real', cls: 'c-energy' },
   ];
 }
@@ -463,7 +489,7 @@ function musicFor() {
   if (cinematic === 'landing') return 'landing';
   if (cinematic === 'launch' || screen === 'roll') return 'credits';
   if (screen === 'game') return showHelp ? 'tutorial' : 'game';
-  if (screen === 'end' && game?.status === 'won' && game.mode === 'story') return 'credits';
+  if (screen === 'end' && game?.status === 'won') return 'credits';
   return 'menu';
 }
 
@@ -502,6 +528,8 @@ function startGame() {
   ui = null; endInfo = {};
   if (!has3d) { showHelp = !helpSeen; return go('game'); }
   stopPlacing(); resetLander(); setPlanet(game.map);
+  setDebris(game.mode === 'escape' ? game.debris : null);
+  setCrashed(false);
   cinematic = 'landing';
   screen = 'game';
   playMusic('landing', { restart: true });
@@ -512,7 +540,7 @@ function startGame() {
     if (!p) return;
     if (phase !== lastPhase || !p.textContent) { lastPhase = phase; p.textContent = t('lp_' + phase + (game.map === 'mars' && phase === 'approach' ? '_mars' : '')); p.classList.remove('pop'); void p.offsetWidth; p.classList.add('pop'); }
   };
-  playLanding(() => { cinematic = null; showHelp = !helpSeen; helpStep = 0; render(); }, onProgress);
+  playLanding(() => { cinematic = null; showHelp = !helpSeen; helpStep = 0; if (game.mode === 'escape') setCrashed(true); render(); }, onProgress, { crash: game.mode === 'escape' });
   render();
 }
 
@@ -576,6 +604,18 @@ document.addEventListener('click', e => {
     case 'tut-back': helpStep = Math.max(0, helpStep - 1); stopSpeaking(); return render();
     case 'speak': { const s = tutorialSteps()[helpStep]; speak(s.title + '. ' + s.text, lang()); return; }
     case 'mute': toggleMute(); return render();
+    case 'send-rover': {
+      const id = ui.id;
+      sendRover(game, id, freeEnergy());
+      ui = null; busy = true;
+      driveRover(id, () => { busy = false; render(); });
+      return render();
+    }
+    case 'repair': {
+      repairAndLaunch(game, freeEnergy());
+      setCrashed(false);
+      return finishGame();
+    }
     case 'skip': if (has3d) skipAnimation(); return;
     case 'end-credits': return go('end');
     case 'toggle-unlock': setUnlockAll(!unlockAll()); return render();
@@ -607,7 +647,7 @@ document.addEventListener('keydown', e => {
 
 // End of a game: records, unlocks, and in story mode the escape + credits.
 function finishGame() {
-  if (game.mode === 'survival') endInfo.newRecord = saveBest(game.map, game.difficulty, game.day - 1);
+  if (game.mode === 'infinite') endInfo.newRecord = saveBest(game.map, game.difficulty, game.day - 1);
   if (game.status === 'won' && game.map === 'moon') endInfo.unlocked = unlock('mars');
   if (game.status === 'won' && has3d) {
     cinematic = 'launch';
@@ -618,6 +658,12 @@ function finishGame() {
   }
   go('end');
 }
+
+if (has3d) onPickDebris(id => {
+  if (screen !== 'game' || busy || cinematic || ui?.kind === 'placing') return;
+  ui = { kind: 'debris', id };
+  render();
+});
 
 if (has3d) onPickBuilding(id => {
   if (screen !== 'game' || busy || cinematic || ui?.kind === 'placing') return;

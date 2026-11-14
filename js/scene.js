@@ -566,6 +566,16 @@ function makeFlame() {
   return g;
 }
 
+// Thin smoke rising from the damaged ship.
+function makeSmoke() {
+  const n = 120, geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(n * 3), 3));
+  const p = new THREE.Points(geo, new THREE.PointsMaterial({ color: 0x9b9b9b, size: 1.4, transparent: true, opacity: .45, depthWrite: false }));
+  p.userData.seeds = Array.from({ length: n }, () => [Math.random(), (Math.random() - .5) * 2, (Math.random() - .5) * 2]);
+  p.position.set(-26, 0, 14);
+  return p;
+}
+
 function makeDust() {
   const n = 260, geo = new THREE.BufferGeometry();
   geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(n * 3), 3));
@@ -627,9 +637,94 @@ function marsDecor() {
   return shadow(g);
 }
 
+// A broken piece of the ship: gold foil panel, a bent strut, and a glowing ring so kids can spot it.
+function makePart(i) {
+  const g = new THREE.Group();
+  const foil = new THREE.MeshStandardMaterial({ color: 0xd8a63a, metalness: .85, roughness: .35 });
+  const grey = new THREE.MeshStandardMaterial({ color: 0x9aa0a8, metalness: .7, roughness: .4 });
+  const shapes = [
+    () => new THREE.Mesh(new THREE.BoxGeometry(1.4, .5, .9), foil),
+    () => new THREE.Mesh(new THREE.CylinderGeometry(.35, .5, 1.3, 10), grey),
+    () => new THREE.Mesh(new THREE.ConeGeometry(.7, 1.2, 8), grey),
+    () => new THREE.Mesh(new THREE.BoxGeometry(1.1, .3, 1.1), foil),
+    () => new THREE.Mesh(new THREE.TorusGeometry(.55, .15, 8, 16), grey),
+  ];
+  const main = shapes[i % shapes.length](); main.position.y = .4; main.rotation.set(.4 * i, i, .3); g.add(main);
+  const strut = new THREE.Mesh(new THREE.CylinderGeometry(.06, .06, 1.6, 6), grey);
+  strut.rotation.set(1.1, i, .5); strut.position.set(.4, .5, .2); g.add(strut);
+  const ring = new THREE.Mesh(new THREE.RingGeometry(1.5, 1.8, 40), new THREE.MeshBasicMaterial({ color: 0xffb300, transparent: true, opacity: .8, side: THREE.DoubleSide, depthWrite: false }));
+  ring.rotation.x = -Math.PI / 2; ring.position.y = .06; g.add(ring);
+  g.userData.ring = ring;
+  const el = document.createElement('div');
+  el.className = 'scene-label small t-part';
+  el.innerHTML = `<span class="i">${icon('gear')}</span>`;
+  const lab = new CSS2DObject(el); lab.position.y = 2.4; g.add(lab);
+  return shadow(g);
+}
+
+// A lunar rover, a bit like the Apollo one: open frame, four wire wheels, seats, antenna dish.
+function makeRover() {
+  const g = new THREE.Group();
+  const frame = metal(0xb9bec6, .5, .6), dark = metal(0x2f3238, .8, .3), gold = metal(0xd8a63a, .35, .85);
+  const deck = new THREE.Mesh(new THREE.BoxGeometry(3, .2, 1.8), frame); deck.position.y = .75; g.add(deck);
+  for (const [x, z] of [[-1.15, -1.05], [1.15, -1.05], [-1.15, 1.05], [1.15, 1.05]]) {
+    const w = new THREE.Mesh(new THREE.CylinderGeometry(.45, .45, .3, 18), dark);
+    w.rotation.x = Math.PI / 2; w.position.set(x, .45, z); g.add(w);
+    const fender = new THREE.Mesh(new THREE.CylinderGeometry(.55, .55, .34, 16, 1, true, 0, Math.PI), gold);
+    fender.rotation.x = Math.PI / 2; fender.rotation.z = Math.PI / 2; fender.position.set(x, .5, z); g.add(fender);
+  }
+  for (const z of [-.4, .4]) {
+    const seat = new THREE.Mesh(new THREE.BoxGeometry(.5, .5, .55), metal(0x3b5fa8, .6, .2)); seat.position.set(-.3, 1.05, z); g.add(seat);
+  }
+  const mast = new THREE.Mesh(new THREE.CylinderGeometry(.04, .04, 1.3), frame); mast.position.set(1.1, 1.45, 0); g.add(mast);
+  const dish = new THREE.Mesh(new THREE.SphereGeometry(.45, 16, 8, 0, Math.PI * 2, 0, Math.PI / 3), frame);
+  dish.position.set(1.1, 2.1, 0); dish.rotation.z = -.6; g.add(dish);
+  const box = new THREE.Mesh(new THREE.BoxGeometry(.6, .35, .9), gold); box.position.set(1.05, .98, 0); g.add(box);
+  return shadow(g);
+}
+
+export const ROVER_HOME = new THREE.Vector3(-13, 0, 26);
+const debrisObjs = new Map();
+
+// list: [{ id, x, z, collected }] – shows the parts still lying around.
+export function setDebris(list) {
+  if (!ok) return;
+  parts.debrisGroup.visible = !!list;
+  if (!list) return;
+  for (const d of list) {
+    let o = debrisObjs.get(d.id);
+    if (!o) { o = makePart(d.id); o.userData.debrisId = d.id; debrisObjs.set(d.id, o); parts.debrisGroup.add(o); }
+    if (!o.userData.flying) o.position.set(d.x, groundY(d.x, d.z), d.z);
+    o.userData.target = new THREE.Vector3(d.x, groundY(d.x, d.z), d.z);
+    if (!o.userData.carried) o.visible = !d.collected;
+  }
+  for (const [id, o] of debrisObjs) if (!list.some(d => d.id === id)) { o.traverse(x => { if (x.isCSS2DObject) x.element.remove(); }); parts.debrisGroup.remove(o); debrisObjs.delete(id); }
+  parts.rover.visible = true;
+}
+
+// The ship after a crash: tilted, with smoke. Repaired: upright again.
+export function setCrashed(on) {
+  if (!ok || !parts.lm) return;
+  parts.crashed = on;
+  if (!anim) parts.lm.rotation.set(on ? .12 : 0, .6, on ? .2 : 0);
+  parts.smoke.visible = on;
+}
+
+// The rover drives to a part, picks it up and brings it back to the ship.
+export function driveRover(id, done) {
+  const o = debrisObjs.get(id), r = parts.rover;
+  if (!ok || !o || !r) { done?.(); return; }
+  const target = o.userData.target.clone();
+  const stop = target.clone().add(new THREE.Vector3().subVectors(ROVER_HOME, target).setY(0).normalize().multiplyScalar(2.2));
+  parts.roverTrip = { o, from: ROVER_HOME.clone(), stop, t: 0, dist: ROVER_HOME.distanceTo(stop), done, picked: false };
+}
+
 function makeBase() {
   const base = new THREE.Group();
   parts.base = base;
+  parts.debrisGroup = new THREE.Group(); parts.debrisGroup.visible = false; base.add(parts.debrisGroup);
+  parts.rover = makeRover(); parts.rover.position.copy(ROVER_HOME); parts.rover.rotation.y = 2.2; parts.rover.visible = false; base.add(parts.rover);
+  parts.smoke = makeSmoke(); parts.smoke.visible = false; base.add(parts.smoke);
   base.add(shieldDome());
   const f = flag(); f.position.set(-21.5, 0, 19.5); f.rotation.y = .5; base.add(f);
 
@@ -716,6 +811,8 @@ const ray = new THREE.Raycaster(), ndc = new THREE.Vector2(), groundPlane = new 
 let pickHandler = null, placing = null, downAt = null;
 
 export function onPickBuilding(fn) { pickHandler = fn; }
+let debrisHandler = null;
+export function onPickDebris(fn) { debrisHandler = fn; }
 
 function toNdc(e) {
   const r = renderer.domElement.getBoundingClientRect();
@@ -765,6 +862,12 @@ function onUp(e) {
     return;
   }
   toNdc(e);
+  if (parts.debrisGroup.visible) { // a ship part?
+    const dh = ray.intersectObjects(parts.debrisGroup.children, true)[0];
+    let d = dh?.object;
+    while (d && d.userData.debrisId == null) d = d.parent;
+    if (d && d.visible) { debrisHandler?.(d.userData.debrisId); return; }
+  }
   const hit = ray.intersectObjects(parts.buildings.children, true)[0];
   let o = hit?.object;
   while (o && o.userData.buildingId == null) o = o.parent;
@@ -894,14 +997,16 @@ const ease = x => x < 0 ? 0 : x > 1 ? 1 : x * x * (3 - 2 * x);
 function GAME_CAM() { return window.innerWidth < 700 ? new THREE.Vector3(34, 62, 100) : new THREE.Vector3(44, 36, 80); }
 
 // The lander comes down from the sky onto the landing site, then the camera flies to the base view.
-export async function playLanding(done, onProgress) {
+export async function playLanding(done, onProgress, { crash = false } = {}) {
   if (!ok) { done?.(); return; }
   await Promise.race([lmReady, new Promise(r => setTimeout(r, 6000))]); // wait for the lander model
   if (!parts.lm) { done?.(); return; }
   parts.lm.position.y = 70;
   setMode('game', true);
   controls.enabled = false;
-  anim = { kind: 'landing', t: 0, done, onProgress };
+  anim = { kind: 'landing', t: 0, done, onProgress, crash };
+  parts.smoke.visible = false;
+  if (crash) for (const o of debrisObjs.values()) { o.userData.flying = true; o.visible = false; }
 }
 
 // The crew takes off and leaves the base. The camera follows the craft into the sky.
@@ -915,7 +1020,8 @@ export function playLaunch(done) {
 export function skipAnimation() {
   if (!anim) return;
   const a = anim; anim = null;
-  if (a.kind === 'landing') { parts.lm.position.copy(landingSpot()); parts.lm.rotation.set(0, .6, 0); parts.flame.visible = false; if (parts.earth) { parts.earth.position.copy(EARTH_POS); parts.earth.scale.setScalar(1); } setMode('game', true); }
+  if (a.kind === 'landing') { parts.lm.position.copy(landingSpot()); parts.lm.rotation.set(a.crash ? .12 : 0, .6, a.crash ? .2 : 0); if (a.crash) parts.smoke.visible = true;
+    for (const o of debrisObjs.values()) { o.userData.flying = false; if (o.userData.target) o.position.copy(o.userData.target); } parts.flame.visible = false; if (parts.earth) { parts.earth.position.copy(EARTH_POS); parts.earth.scale.setScalar(1); } setMode('game', true); }
   a.done?.();
 }
 
@@ -958,9 +1064,17 @@ function runAnim(dt) {
     } else if (a.t < T3) {
       const p = (a.t - T2) / (T3 - T2);
       lm.position.lerpVectors(P2, home, ease(Math.min(1, p * 1.15)));
-      lm.position.y = home.y + (P2.y - home.y) * Math.pow(Math.max(0, 1 - p * 1.15), 1.6);
-      lm.rotation.set(0, .6, 0); // upright for touchdown
-      if (p > .86 && !a.dusted) { a.dusted = true; burstDust(home); }
+      if (a.crash) { // engine trouble: it drops fast and hits the ground hard
+        lm.position.y = home.y + (P2.y - home.y) * Math.max(0, 1 - Math.pow(Math.min(1, p * 1.25), 2.2));
+        const hit = Math.max(0, p * 1.25 - 1) * 5;
+        lm.rotation.set(.12 * Math.min(1, hit), .6, .2 * Math.min(1, hit));
+        if (p * 1.25 >= 1 && !a.crashed) { a.crashed = true; a.dusted = true; burstDust(home); parts.smoke.visible = true; a.crashT = a.t; }
+        if (a.crashed) camera.position.add(new THREE.Vector3((Math.random() - .5), (Math.random() - .5), 0).multiplyScalar(Math.max(0, .8 - (a.t - a.crashT))));
+      } else {
+        lm.position.y = home.y + (P2.y - home.y) * Math.pow(Math.max(0, 1 - p * 1.15), 1.6);
+        lm.rotation.set(0, .6, 0); // upright for touchdown
+      }
+      if (!a.crash && p > .86 && !a.dusted) { a.dusted = true; burstDust(home); }
       camera.position.copy(groundCam);
       camera.lookAt(new THREE.Vector3(home.x, 7, home.z).addScaledVector(hz, 20));
       phase = 'final';
@@ -972,10 +1086,20 @@ function runAnim(dt) {
       camera.lookAt(new THREE.Vector3(home.x, 7, home.z).addScaledVector(hz, 20 * (1 - k)).lerp(new THREE.Vector3(-5, 0, 4), k));
       phase = 'landed';
     }
-    parts.flame.visible = a.t < T3 - .3;
+    if (a.crash && a.crashed) { // the broken parts fly out to where they will lie
+      const k = Math.min(1, (a.t - a.crashT) / 1.8);
+      for (const o of debrisObjs.values()) {
+        if (!o.userData.target) continue;
+        o.visible = true;
+        o.position.lerpVectors(home, o.userData.target, k).add(new THREE.Vector3(0, Math.sin(k * Math.PI) * 14, 0));
+        if (k >= 1) o.userData.flying = false;
+      }
+    }
+    if (a.crash && a.crashed && a.t > T3 - .4) lm.rotation.set(.12, .6, .2);
+    parts.flame.visible = a.crash && a.crashed ? false : a.t < T3 - .3;
     parts.flame.scale.set(flicker, flicker * (a.t < T1 ? 1.3 : 1), flicker);
     parts.flameLight.intensity = parts.flame.visible ? 60 * flicker : 0;
-    a.onProgress?.({ phase });
+    a.onProgress?.({ phase: a.crash && a.crashed ? 'crash' : phase });
     if (a.t > T4) { anim = null; if (parts.earth) { parts.earth.position.copy(EARTH_POS); parts.earth.scale.setScalar(1); } controls.target.set(-5, 0, 4); camera.position.copy(GAME_CAM()); controls.enabled = true; controls.update(); a.done?.(); }
   } else if (a.kind === 'launch') {
     const ign = 1.3, s = Math.max(0, a.t - ign);
@@ -1013,6 +1137,33 @@ function tick() {
   const k = 1 - Math.pow(.03, dt);
   const night = target.night && mode === 'game';
   if (anim) runAnim(Math.min(raw, .25)); // real time, even on slow devices
+
+  // Smoke from the damaged ship
+  if (parts.smoke.visible) {
+    const pos = parts.smoke.geometry.attributes.position;
+    parts.smoke.position.copy(parts.lm ? parts.lm.position : new THREE.Vector3(-26, 0, 14));
+    parts.smoke.userData.seeds.forEach(([s, dx, dz], i) => { const k = (time * .25 + s) % 1; pos.setXYZ(i, dx * (.5 + k * 2.5) + k * 3, 3 + k * 16, dz * (.5 + k * 2.5)); });
+    pos.needsUpdate = true;
+  }
+  // Ship parts: pulsing rings so they are easy to spot
+  for (const o of debrisObjs.values()) if (o.userData.ring) { o.userData.ring.visible = !o.userData.flying && !o.userData.carried; o.userData.ring.material.opacity = .45 + .4 * Math.sin(time * 3 + o.userData.debrisId); }
+  // Rover trip: out to the part, pick it up, back to the ship
+  const trip = parts.roverTrip;
+  if (trip) {
+    const speed = 12, r = parts.rover;
+    trip.t += Math.min(raw, .25);
+    const go = trip.dist / speed, all = go * 2 + .8;
+    let p, from, to;
+    if (trip.t < go) { p = trip.t / go; from = trip.from; to = trip.stop; }
+    else if (trip.t < go + .8) { p = 1; from = trip.from; to = trip.stop; if (!trip.picked) { trip.picked = true; trip.o.userData.carried = true; } }
+    else { p = Math.min(1, (trip.t - go - .8) / go); from = trip.stop; to = trip.from; }
+    r.position.lerpVectors(from, to, ease(p));
+    r.position.y = groundY(r.position.x, r.position.z) + Math.abs(Math.sin(trip.t * 9)) * .06;
+    const dir = new THREE.Vector3().subVectors(to, from);
+    if (dir.lengthSq() > .01) r.rotation.y = Math.atan2(dir.x, dir.z) - Math.PI / 2;
+    if (trip.picked) { trip.o.position.copy(r.position).add(new THREE.Vector3(0, 1.3, 0)); trip.o.scale.setScalar(.6); }
+    if (trip.t >= all) { trip.o.visible = false; trip.o.userData.carried = false; trip.o.scale.setScalar(1); parts.roverTrip = null; trip.done?.(); }
+  }
 
   // Dust thrown up by the rocket
   if (parts.dust.visible) {

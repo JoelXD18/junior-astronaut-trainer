@@ -468,3 +468,8 @@ button:focus-visible { outline: 3px solid #fff; outline-offset: 3px; }
 .cap-alt small { font: 800 13px var(--body); color: var(--muted); text-transform: uppercase; letter-spacing: 1px; }
 .cap-alt b { font: 400 28px var(--title); color: #7CFC9A; font-variant-numeric: tabular-nums; }
 .cinematic-on .scene-label { display: none !important; }
+
+.ribbon.parts { background: linear-gradient(#ffc65c, #c77700); font-size: 16px; }
+.dock-actions .repair { font-size: 16px; animation: alarm 1.4s ease-in-out infinite; }
+.dock-actions .repair .price { font-size: 15px; padding: 0 8px; }
+.scene-label.t-part { background: linear-gradient(#ffd54f, #f59f00); }
