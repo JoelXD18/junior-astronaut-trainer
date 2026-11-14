@@ -630,7 +630,7 @@ document.addEventListener('click', e => {
     case 'move': {
       const b = game.buildings.find(x => x.id === ui.id);
       ui = { kind: 'placing', type: b.type, moveId: b.id };
-      startPlacing({ type: b.type, level: b.level, radius: BUILDINGS[b.type].radius,
+      startPlacing({ type: b.type, level: b.level, radius: BUILDINGS[b.type].radius, moveId: b.id,
         valid: (x, z) => validSpot(game, b.type, x, z, b.id),
         done: (x, z) => { moveBuilding(game, b.id, x, z); ui = { kind: 'selected', id: b.id }; render(); } });
       return render();

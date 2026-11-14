@@ -794,7 +794,8 @@ export function syncBuildings(list) {
 
   // Cables from every building to the habitat
   parts.cables.children.slice().forEach(c => { c.geometry.dispose(); parts.cables.remove(c); });
-  for (const b of list) if (b.type !== 'shield') parts.cables.add(cable(new THREE.Vector3(b.x, 0, b.z), new THREE.Vector3(0, 0, 0)));
+  for (const o of objs.values()) o.holder.visible = o.holder.userData.buildingId !== movingId;
+  for (const b of list) if (b.type !== 'shield' && b.id !== movingId) parts.cables.add(cable(new THREE.Vector3(b.x, 0, b.z), new THREE.Vector3(0, 0, 0)));
   parts.batLeds = list.filter(b => b.type === 'battery').map(b => objs.get(b.id).holder.children[0].userData.leds);
   setSelected(selectedId);
 }
@@ -822,8 +823,12 @@ function toNdc(e) {
 function groundPoint(e) { toNdc(e); const p = new THREE.Vector3(); return ray.ray.intersectPlane(groundPlane, p) ? p : null; }
 
 // Ghost of the building that follows the pointer until the player taps a free spot.
-export function startPlacing({ type, level = 1, radius, valid, done }) {
+let movingId = null; // building being moved: hidden from its old spot until placed or cancelled
+export function startPlacing({ type, level = 1, radius, valid, done, moveId = null }) {
   stopPlacing();
+  movingId = moveId;
+  const old = moveId != null && objs.get(moveId);
+  if (old) { old.holder.visible = false; parts.ring.visible = false; }
   const ghost = BUILDERS[type](level);
   ghost.traverse(m => { if (m.isMesh) { m.material = m.material.clone(); m.material.transparent = true; m.material.opacity = .85; m.material.emissive?.setHex?.(0x224422); } });
   const foot = new THREE.Mesh(new THREE.CircleGeometry(radius, 40), new THREE.MeshBasicMaterial({ color: 0x69f0ae, transparent: true, opacity: .55, depthWrite: false }));
@@ -833,6 +838,7 @@ export function startPlacing({ type, level = 1, radius, valid, done }) {
   placing = { g, foot, valid, done, ok: false, x: 0, z: 0 };
 }
 export function stopPlacing() {
+  if (movingId != null) { const old = objs.get(movingId); if (old) old.holder.visible = true; movingId = null; }
   if (!placing) return;
   parts.base.remove(placing.g);
   placing = null;
