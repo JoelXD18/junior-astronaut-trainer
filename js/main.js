@@ -121,6 +121,7 @@ function menuScreen() {
       <span class="logo-small">${esc(t('logoTop'))}</span>
       <h1>${esc(t('logoMain'))}</h1>
       <span class="logo-sub">${esc(t('subtitle'))}</span>
+      <span class="event-badge">${icon('rocket')}<span>${esc(t('madeFor'))}</span></span>
     </div>
     <div class="stack">
       <button class="btn green xl" data-go="map">${icon('play')}<span>${esc(t('play'))}</span></button>
@@ -740,14 +741,26 @@ onWeather(render);
 loadSpaceWeather();
 render();
 
-// Opening: the camera flies in from space; the menu buttons appear when it arrives. A tap skips it.
+// Opening: "tap to start" (browsers only play sound after a tap), then the camera flies in from space
+// with the music, and the menu buttons appear when it arrives. Another tap skips the flight.
 if (has3d) {
   document.body.classList.add('intro');
+  const gate = document.createElement('button');
+  gate.className = 'tap-start';
+  gate.innerHTML = `<span class="ts-title">Base Commander</span><span class="ts-tap">${esc(t('tapToStart'))}</span>`;
+  document.body.appendChild(gate);
   const endIntro = () => {
     document.body.classList.remove('intro');
+    document.body.classList.add('intro-lock');
+    setTimeout(() => document.body.classList.remove('intro-lock'), 500);
     window.removeEventListener('pointerdown', skipIntro);
   };
   const skipIntro = () => { skipAnimation(); };
-  window.addEventListener('pointerdown', skipIntro);
-  setTimeout(() => playIntro(endIntro), 300);
+  gate.addEventListener('click', () => {
+    gate.remove();
+    playMusic('menu', { restart: true });
+    setTimeout(() => window.addEventListener('pointerdown', skipIntro), 200);
+    playIntro(endIntro);
+  }, { once: true });
+  onLangChange(() => { const s = gate.querySelector('.ts-tap'); if (s) s.textContent = t('tapToStart'); });
 }

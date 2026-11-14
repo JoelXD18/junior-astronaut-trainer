@@ -301,4 +301,6 @@ export default {
   r_storm_hurt: "Control, a solar storm just hit the base! The shield was not enough. The crew got extra radiation.",
   r_storm_real: "Copy, Base. That storm matches a real flare recorded by NASA: class {cls}, {date}. Look after your crew.",
   r_storm_copy: "Copy, Base. Look after your crew.",
+  tapToStart: "Tap to start",
+  madeFor: "Made for the NASA Space Apps Challenge 2026 · Salamanca",
 };

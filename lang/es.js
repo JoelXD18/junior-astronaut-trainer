@@ -296,4 +296,6 @@ export default {
   r_storm_hurt: "Control, ¡acaba de llegar una tormenta solar a la base! El escudo no ha bastado. La tripulación ha recibido radiación.",
   r_storm_real: "Recibido, Base. Esa tormenta corresponde a una erupción real registrada por la NASA: clase {cls}, {date}. Cuidad a la tripulación.",
   r_storm_copy: "Recibido, Base. Cuidad a la tripulación.",
+  tapToStart: "Toca para empezar",
+  madeFor: "Hecho para el NASA Space Apps Challenge 2026 · Salamanca",
 };

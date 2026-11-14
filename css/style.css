@@ -494,3 +494,18 @@ button:focus-visible { outline: 3px solid #fff; outline-offset: 3px; }
 .menu > *:nth-child(4) { transition-delay: .6s; }
 .menu > *:nth-child(5) { transition-delay: .7s; }
 body.intro .menu > * { opacity: 0; transform: translateY(24px); transition: none; }
+
+/* tap to start */
+.tap-start { position: fixed; inset: 0; z-index: 20; border: 0; background: radial-gradient(circle at 50% 40%, #0d1a3d, #02040c 70%);
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 28px; cursor: pointer; }
+.ts-title { font: 400 clamp(44px, 9vw, 96px)/1 var(--title); background: linear-gradient(#fff 30%, #9fd3ff); -webkit-background-clip: text; background-clip: text; color: transparent;
+  -webkit-text-stroke: 3px var(--ink); filter: drop-shadow(0 6px 0 var(--ink)); }
+.ts-tap { font: 400 clamp(20px, 3.5vw, 30px) var(--title); color: var(--gold); text-shadow: 0 3px 0 var(--ink); animation: tapPulse 1.4s ease-in-out infinite; }
+@keyframes tapPulse { 50% { opacity: .45; transform: scale(.96); } }
+/* event badge (text only) */
+.event-badge { display: inline-flex; align-items: center; gap: 8px; margin-top: 10px; padding: 6px 14px; border-radius: 999px;
+  font: 400 15px var(--title); color: #fff; background: linear-gradient(90deg, #1e3a8a, #0b1d4f); border: 2px solid var(--ink); box-shadow: 0 3px 0 var(--ink); }
+.event-badge .ico { font-size: 20px; }
+@media (max-width: 640px) { .event-badge { font-size: 12px; padding: 4px 10px; } }
+
+body.intro .menu, body.intro-lock .menu { pointer-events: none; }
