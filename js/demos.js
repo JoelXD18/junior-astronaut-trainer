@@ -87,4 +87,23 @@ export const DEMOS = {
     <path d="M190 62 Q230 30 262 50" fill="none" stroke="${C.rad}" stroke-width="6" stroke-linecap="round" style="animation:blink 1s infinite"/>
     ${['C', 'M', 'X'].map((c, i) => `<g transform="translate(${70 + i * 90} 150)"><rect x="-22" y="-14" width="44" height="26" rx="8" fill="${['#f9a825', '#f4511e', '#b71c1c'][i]}" stroke="${C.ink}" stroke-width="3" style="animation:pulse 1.5s ${i * .3}s infinite;transform-box:fill-box;transform-origin:center"/><text class="lbl" x="0" y="5" text-anchor="middle">${c}</text></g>`).join('')}
     <text class="lbl" x="160" y="24" text-anchor="middle">NASA DONKI</text>`),
+
+  // escape mode: the rover drives out to a ship part, waits there for the day(s) of the trip and brings it back
+  rover: (t) => frame(`${ground()}
+    <g transform="translate(52 140) rotate(-10)"><path d="M-22 0 L-14 -34 L14 -34 L22 0 Z" fill="#d8a63a" stroke="${C.ink}" stroke-width="3"/><rect x="-12" y="-48" width="24" height="16" rx="4" fill="#cfd8dc" stroke="${C.ink}" stroke-width="3"/></g>
+    ${[0, 1, 2].map(i => `<circle cx="${58 + i * 4}" cy="${88 - i * 14}" r="${5 + i * 2}" fill="#9e9e9e" opacity=".5" style="animation:blink 2s ${i * .4}s infinite"/>`).join('')}
+    <g class="part"><circle cx="262" cy="132" r="14" fill="none" stroke="#ffb300" stroke-width="3" style="animation:blink 1s infinite"/><text x="262" y="138" text-anchor="middle" font-size="16">⚙️</text></g>
+    <g class="car"><g class="face"><rect x="-20" y="-20" width="40" height="10" rx="3" fill="#b0bec5" stroke="${C.ink}" stroke-width="2.5"/><rect x="8" y="-34" width="3" height="14" fill="${C.ink}"/><circle cx="10" cy="-36" r="5" fill="#eceff1" stroke="${C.ink}" stroke-width="2"/>
+      <circle cx="-12" cy="-6" r="7" fill="#37474f" stroke="${C.ink}" stroke-width="2.5"/><circle cx="12" cy="-6" r="7" fill="#37474f" stroke="${C.ink}" stroke-width="2.5"/></g>
+      <text class="carried" x="0" y="-24" text-anchor="middle" font-size="14">⚙️</text></g>
+    <g transform="translate(160 40)"><rect x="-52" y="-15" width="104" height="28" rx="14" fill="#2b3866" stroke="${C.ink}" stroke-width="3"/><text class="lbl" x="0" y="5" text-anchor="middle">${t.trip}</text></g>
+    <text class="lbl" x="52" y="168" text-anchor="middle">${t.ship}</text>`,
+    `.car{animation:drive 6s ease-in-out infinite}
+     .face{animation:turn 6s steps(1) infinite}
+     .carried{opacity:0;animation:carry 6s steps(1) infinite}
+     .part{animation:gone 6s steps(1) infinite}
+     @keyframes drive{0%{transform:translate(85px,140px)}35%,55%{transform:translate(240px,140px)}90%,100%{transform:translate(85px,140px)}}
+     @keyframes turn{0%{transform:scaleX(1)}55%{transform:scaleX(-1)}90%{transform:scaleX(1)}}
+     @keyframes carry{0%{opacity:0}55%{opacity:1}92%{opacity:0}}
+     @keyframes gone{0%{opacity:1}55%{opacity:0}100%{opacity:1}}`),
 };

@@ -171,35 +171,35 @@
    },
    "control|Your mission: the robots have already built your base down there. Keep the crew safe for 14 days. The Sun gives you energy, but watch out for solar storms and the long lunar night.": {
     "file": "assets/voice/en/control-e0189d64ad.mp3",
-    "dur": 11.68
+    "dur": 10.45
    },
    "control|Your mission: land the new ship next to your base, which the robots have already built, and test it.": {
     "file": "assets/voice/en/control-4b46aaeabf.mp3",
-    "dur": 5.41
+    "dur": 5.38
    },
    "control|Your base is ready and waiting down there. Your mission: stay as long as you can. Every day you last teaches us how to live in space.": {
     "file": "assets/voice/en/control-ff0ba72b32.mp3",
-    "dur": 8.59
+    "dur": 7.68
    },
    "control|Your mission: the robots have already built your base down there. Keep the crew safe for 16 sols. A sol is one day on Mars.": {
     "file": "assets/voice/en/control-abc1e95ed5.mp3",
-    "dur": 8.65
+    "dur": 7.76
    },
    "control|On Mars there are two kinds of storm. Solar storms come from the Sun and bring radiation: power up the shield. Dust storms are wind full of red dust: they cover your solar panels, so you get less energy.": {
     "file": "assets/voice/en/control-92f0e3a9d4.mp3",
-    "dur": 12.64
+    "dur": 11.55
    },
    "control|Base, Mission Control here. A dust storm is starting: wind full of red dust. For 2 sols your solar panels will make about half the energy. It is not radiation, so the shield does not help.": {
     "file": "assets/voice/en/control-0b5d75c1c0.mp3",
-    "dur": 11.05
+    "dur": 10.37
    },
    "control|Base, Mission Control here. A dust storm is starting: wind full of red dust. For 3 sols your solar panels will make about half the energy. It is not radiation, so the shield does not help.": {
     "file": "assets/voice/en/control-5de52f76e7.mp3",
-    "dur": 11.26
+    "dur": 10.21
    },
    "control|Base, Mission Control here. A dust storm is starting: wind full of red dust. For 4 sols your solar panels will make about half the energy. It is not radiation, so the shield does not help.": {
     "file": "assets/voice/en/control-6083d94963.mp3",
-    "dur": 12.02
+    "dur": 10.24
    }
   },
   "es": {
@@ -373,35 +373,35 @@
    },
    "control|Vuestra misión: los robots ya han montado vuestra base ahí abajo. Mantened a salvo a la tripulación 14 días. El Sol os da energía, pero cuidado con las tormentas solares y la larga noche lunar.": {
     "file": "assets/voice/es/control-f825d83e92.mp3",
-    "dur": 12.46
+    "dur": 11.1
    },
    "control|Vuestra misión: aterrizar la nave nueva junto a vuestra base, que ya montaron los robots, y probarla.": {
     "file": "assets/voice/es/control-1babf46412.mp3",
-    "dur": 5.93
+    "dur": 5.38
    },
    "control|Vuestra base ya está lista ahí abajo. Vuestra misión: aguantar todo lo que podáis. Cada día que resistís nos enseña a vivir en el espacio.": {
     "file": "assets/voice/es/control-83424b0e52.mp3",
-    "dur": 8.72
+    "dur": 7.58
    },
    "control|Vuestra misión: los robots ya han montado vuestra base ahí abajo. Mantened a salvo a la tripulación 16 soles. Un sol es un día en Marte.": {
     "file": "assets/voice/es/control-7cde23938e.mp3",
-    "dur": 8.8
+    "dur": 7.84
    },
    "control|En Marte hay dos tipos de tormenta. Las tormentas solares vienen del Sol y traen radiación: encended el escudo. Las tormentas de polvo son viento lleno de polvo rojo: tapan los paneles solares y os dan menos energía.": {
     "file": "assets/voice/es/control-6c2df59dde.mp3",
-    "dur": 12.59
+    "dur": 11.57
    },
    "control|Base, aquí Control de Misión. Empieza una tormenta de polvo: viento lleno de polvo rojo. Durante 2 soles vuestros paneles darán más o menos la mitad de energía. No es radiación, así que el escudo no ayuda.": {
     "file": "assets/voice/es/control-6e58cdb0dc.mp3",
-    "dur": 12.72
+    "dur": 11.81
    },
    "control|Base, aquí Control de Misión. Empieza una tormenta de polvo: viento lleno de polvo rojo. Durante 3 soles vuestros paneles darán más o menos la mitad de energía. No es radiación, así que el escudo no ayuda.": {
     "file": "assets/voice/es/control-df45150d74.mp3",
-    "dur": 12.3
+    "dur": 11.89
    },
    "control|Base, aquí Control de Misión. Empieza una tormenta de polvo: viento lleno de polvo rojo. Durante 4 soles vuestros paneles darán más o menos la mitad de energía. No es radiación, así que el escudo no ayuda.": {
     "file": "assets/voice/es/control-b345ccd334.mp3",
-    "dur": 12.64
+    "dur": 12.02
    }
   }
  },
@@ -410,6 +410,6 @@
   "crew": "Charon",
   "control": "Kore",
   "narrator": "Leda",
-  "model": "gemini-3.8-flash-tts"
+  "model": "gemini-2.5-flash-preview-tts"
  }
 }

@@ -483,7 +483,7 @@ function tutorialSteps() {
     { icon: 'shield', title: t('tutShield'), text: t('help3'), demo: 'shield', cls: 'c-shield' },
     { icon: 'battery', title: t(mars ? 'tutDust' : 'tutBattery'), text: mars ? t('help4mars') : t('help4', { day: map.nightStart }), demo: mars ? 'dust' : 'battery', cls: 'c-bat' },
     { icon: 'hammer', title: t('tutBuild'), text: t('help6'), demo: 'build', cls: 'c-build' },
-    ...(game.mode === 'escape' ? [{ icon: 'gear', title: t('tutParts'), text: t('helpParts', { n: ESCAPE.parts }), demo: 'build', cls: 'c-energy' }] : []),
+    ...(game.mode === 'escape' ? [{ icon: 'gear', title: t('tutParts'), text: t('helpParts', { n: ESCAPE.parts }), demo: 'rover', cls: 'c-energy' }] : []),
     { icon: 'sun', title: t('tutReal'), text: t('sunHowGame'), demo: 'real', cls: 'c-energy' },
   ];
 }
@@ -491,7 +491,7 @@ function tutorialSteps() {
 function helpHtml() {
   const steps = tutorialSteps(), s = steps[helpStep], last = helpStep === steps.length - 1;
   const words = { sun: t('demoSun'), energy: t('energyLabel'), machine: t('demoMachine'), shield: t('shieldLabel'), battery: t('battery'),
-    day: t('demoDay'), night: t('night'), dust: t('termDust'), build: t('build') };
+    day: t('demoDay'), night: t('night'), dust: t('termDust'), build: t('build'), trip: t('demoTrip'), ship: t('demoShip') };
   const dots = steps.map((_, i) => `<i class="${i === helpStep ? 'on' : i < helpStep ? 'done' : ''}"></i>`).join('');
   return windowHtml(`${icon(s.icon)} ${esc(s.title)} <span class="tut-count">${helpStep + 1}/${steps.length}</span>`, `
     <div class="tut ${s.cls}">

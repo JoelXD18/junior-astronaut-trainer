@@ -154,6 +154,9 @@ const TAKES = [];
 for (const [lang, L] of Object.entries(LANGS)) {
   const say = lang === 'es' ? 'en español de España' : 'in English';
   const radio = radioLines(L).filter(l => !MISSING || !manifest.voice[lang]?.[l.who + '|' + l.text]);
+  // this model only reads reliably with two voices: if only Mission Control is missing, add one crew line
+  // first (it is cut off and not saved again), so the take keeps the same two voices as the rest of the game
+  if (radio.length && radio.every(l => l.who === 'control')) radio.unshift({ who: 'crew', text: fill(L.r_crew_engine), filler: true });
   if (radio.length) TAKES.push({ id: 'radio-' + lang + (MISSING ? '-new' : ''), lang, lines: radio,
     speakers: [['Crew', VOICE.crew], ['Control', VOICE.control]].filter(([n]) => radio.some(l => (l.who === 'crew' ? 'Crew' : 'Control') === n)),
     prompt: (lang === 'es'
@@ -196,6 +199,7 @@ for (const take of TAKES.filter(t => (ONLY ? t.id === ONLY : !done(t) && !t.alig
   manifest.voice[take.lang] ||= {};
   fs.mkdirSync(path.join(OUT, take.lang), { recursive: true });
   take.lines.forEach((l, i) => {
+    if (l.filler) return;
     const [a, b] = parts[i];
     const rel = `assets/voice/${take.lang}/${l.who}-${hash(l.text)}.mp3`;
     const piece = path.join(TMP, 'piece.wav');

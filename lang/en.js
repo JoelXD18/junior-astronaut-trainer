@@ -333,4 +333,6 @@ export default {
   loseBanner: "MISSION FAILED",
   loseWhy: "Why?",
   roverHitReport: "A strong storm hit the rover outside! It is damaged: it will come back 1 day late, and it will need a repair.",
+  demoTrip: "Trip: 1–2 days",
+  demoShip: "Your ship",
 };

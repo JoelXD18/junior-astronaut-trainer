@@ -328,4 +328,6 @@ export default {
   loseBanner: "MISIÓN FALLIDA",
   loseWhy: "¿Por qué?",
   roverHitReport: "¡Una tormenta fuerte ha pillado al rover fuera! Está dañado: volverá 1 día tarde y habrá que repararlo.",
+  demoTrip: "Viaje: 1–2 días",
+  demoShip: "Tu nave",
 };
