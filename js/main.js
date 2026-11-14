@@ -1,6 +1,10 @@
 // Screens and controls. Every text comes from t() so the language can change at any moment.
 import { t, setLang, lang, onLangChange, LANGUAGES } from './i18n.js';
 import { MAPS, DOSE_LIMIT, newGame, playDay, available, energyToday, isNight, forecast } from './game.js';
+import { initScene, mountScene, updateScene, playStorm } from './scene.js';
+
+const has3d = initScene();
+let busy = false; // true while a solar storm animation is playing
 
 const app = document.getElementById('app');
 const modalRoot = document.getElementById('modal');
@@ -101,7 +105,9 @@ function gameScreen() {
   const night = isNight(map, game.day);
   const fc = forecast(game);
 
-  return `<section class="game ${night ? 'is-night' : ''}">
+  return `<section class="game ${night ? 'is-night' : ''} ${has3d ? 'with-3d' : ''}">
+    <div class="scene-slot" id="scene-slot"></div>
+    <div class="panel">
     <header class="game-top">
       <div>
         <h2>${esc(t('dayOf', { day: game.day, total: map.missionDays }))}</h2>
@@ -136,8 +142,9 @@ function gameScreen() {
       ${lost > 0 ? `<p class="alert">${esc(t('batteryFullWarn', { n: lost }))}</p>` : ''}
     </div>
 
-    <button class="big primary end-day" data-action="end-day">${esc(t('endDay'))}</button>
+    <button class="big primary end-day" data-action="end-day" ${busy ? 'disabled' : ''}>${esc(t('endDay'))}</button>
     ${night ? `<p class="note">${esc(t('gameNote'))}</p>` : ''}
+    </div>
   </section>`;
 }
 
@@ -183,6 +190,7 @@ function creditsScreen() {
     <h2>${esc(t('credits'))}</h2>
     <p>${esc(t('creditsText'))}</p>
     <p>${esc(t('creditsGame'))}</p>
+    <p>${esc(t('creditsTools'))}</p>
     <h3>${esc(t('creditsData'))}</h3>
     <p>${esc(t('creditsDataSoon'))}</p>
     <button class="link" data-go="menu">← ${esc(t('back'))}</button>
@@ -235,6 +243,16 @@ function render() {
   modalRoot.innerHTML = modal;
   modalRoot.hidden = !modal;
   document.title = t('title');
+  if (screen === 'game' && game) {
+    const map = MAPS[game.map];
+    const left = available(game) - choice.oxygen - choice.shield;
+    updateScene({
+      night: isNight(map, game.day),
+      oxygen: choice.oxygen, shield: choice.shield,
+      battery: Math.min(map.batteryMax, left), batteryMax: map.batteryMax,
+    });
+    mountScene(document.getElementById('scene-slot'));
+  }
 }
 
 function startGame() {
@@ -259,13 +277,28 @@ document.addEventListener('click', e => {
     return render();
   }
   switch (d.action) {
-    case 'end-day':
-      lastReport = playDay(game, choice);
-      if (game.status === 'playing') {
-        const total = available(game);
-        choice = { oxygen: Math.min(MAPS[game.map].oxygenUse, total), shield: 0 };
+    case 'end-day': {
+      if (busy) return;
+      const strength = game.today.strength; // the storm (if any) that hits at the end of today
+      const showReport = () => {
+        busy = false;
+        lastReport = playDay(game, choice);
+        if (game.status === 'playing') {
+          const total = available(game);
+          choice = { oxygen: Math.min(MAPS[game.map].oxygenUse, total), shield: 0 };
+        }
+        render();
+      };
+      if (strength > 0 && has3d) {
+        // Let the player watch the storm hit the base before reading the report.
+        busy = true;
+        playStorm(strength, Math.min(choice.shield, strength));
+        render();
+        document.getElementById('scene-slot')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        return setTimeout(showReport, 2600);
       }
-      return render();
+      return showReport();
+    }
     case 'close-report':
       lastReport = null;
       if (game.status !== 'playing') return go('end');

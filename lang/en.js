@@ -75,6 +75,7 @@ export default {
 
   creditsText: 'Made for the NASA Space Apps Challenge 2026 (challenge: “Build a Junior Astronaut Mission Trainer”).',
   creditsGame: 'Game idea and design: JoelXD18. Programming help: Claude (AI assistant by Anthropic).',
+  creditsTools: '3D graphics: three.js (MIT license).',
   creditsData: 'Data used in the game',
   creditsDataSoon: 'Coming soon: real space weather from NASA DONKI.',
   gameNote: 'In the game, the lunar night is shorter. A real lunar night lasts about 14 Earth days!',
