@@ -939,7 +939,7 @@ export function initScene() {
 
   setMode('menu', true);
   const el = renderer.domElement;
-  window.__jamt = { camera, parts, THREE, scene, get state() { return { planet, mode, target, sun: sunLight.intensity, amb: ambient.intensity, bg: scene.background.getHexString(), sky: skyColor.getHexString() }; } }; // for testing in the browser console
+  window.__jamt = { camera, parts, THREE, scene, storm: (s, b) => playStorm(s, b), seek: s => { if (anim) anim.t = s; }, get state() { return { planet, mode, target, sun: sunLight.intensity, amb: ambient.intensity, bg: scene.background.getHexString(), sky: skyColor.getHexString() }; } }; // for testing in the browser console
   el.addEventListener('pointerdown', e => { downAt = [e.clientX, e.clientY]; });
   el.addEventListener('pointermove', onMove);
   el.addEventListener('pointerup', onUp);
