@@ -89,6 +89,7 @@ function makeTerrain() {
     const dist = Math.hypot(x, z);
     let y = (fbm(x * .012, z * .012, 5) - .5) * 14 + (fbm(x * .08, z * .08, 3) - .5) * 1.2;
     y *= THREE.MathUtils.smoothstep(dist, 20, 70); // flat ground under the base
+    y *= THREE.MathUtils.smoothstep(Math.hypot(x - HOME.x, z - HOME.z), 15, 45); // and where the crew walks
     for (const c of craters) {
       const d = Math.hypot(x - c.x, z - c.z) / c.r;
       if (d < 1) y -= c.d * (1 - d * d);
@@ -154,6 +155,7 @@ function makeMarsTerrain(tex) {
     const x = pos.getX(i), z = pos.getZ(i), dist = Math.hypot(x, z);
     let y = (fbm(x * .007, z * .007, 5) - .5) * 26 + (fbm(x * .06, z * .06, 3) - .5) * 1.6;
     y *= THREE.MathUtils.smoothstep(dist, 22, 90);
+    y *= THREE.MathUtils.smoothstep(Math.hypot(x - HOME.x, z - HOME.z), 15, 45);
     // ridged mountains far from the base
     const ridge = 1 - Math.abs(2 * fbm(x * .0045 + 9, z * .0045 - 4, 5) - 1);
     const far = THREE.MathUtils.smoothstep(dist, 120, 300);
@@ -628,31 +630,128 @@ function bootprintTexture() {
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
 }
 
-// Things only used in the first-person moonwalk: boot, glove and the footprint left behind.
+// Things only used in the first-person moonwalk: Apollo-style boot and suit leg, suit arm and glove,
+// and the footprint left behind.
+const SUIT = () => new THREE.MeshStandardMaterial({ color: 0xeeeeea, roughness: .85 });
+
+// A cylinder stretched between two points (for arm and leg pieces).
+function limb(r1, r2, mat) {
+  const m = new THREE.Mesh(new THREE.CylinderGeometry(r2, r1, 1, 16, 1), mat);
+  m.userData.limb = true;
+  return m;
+}
+const UPY = new THREE.Vector3(0, 1, 0);
+function placeLimb(m, from, to) {
+  const d = new THREE.Vector3().subVectors(to, from);
+  m.position.copy(from).addScaledVector(d, .5);
+  m.quaternion.setFromUnitVectors(UPY, d.clone().normalize());
+  m.scale.set(1, d.length(), 1);
+}
+
+// Top view outline of the boot sole (x forward, metres).
+function soleShape(s = 1) {
+  const sh = new THREE.Shape();
+  sh.moveTo(-.17 * s, 0);
+  sh.bezierCurveTo(-.17 * s, -.07 * s, -.06 * s, -.075 * s, .02 * s, -.07 * s);
+  sh.bezierCurveTo(.12 * s, -.075 * s, .19 * s, -.06 * s, .19 * s, 0);
+  sh.bezierCurveTo(.19 * s, .06 * s, .12 * s, .075 * s, .02 * s, .07 * s);
+  sh.bezierCurveTo(-.06 * s, .075 * s, -.17 * s, .07 * s, -.17 * s, 0);
+  return sh;
+}
+
+function makeBoot() {
+  const boot = new THREE.Group();
+  const suit = SUIT();
+  const sole = new THREE.Mesh(new THREE.ExtrudeGeometry(soleShape(), { depth: .05, bevelEnabled: true, bevelThickness: .015, bevelSize: .035, bevelSegments: 2 }),
+    new THREE.MeshStandardMaterial({ color: 0x55637c, roughness: .9 }));
+  sole.rotation.x = -Math.PI / 2; boot.add(sole);
+  // ridges of the tread on the side of the sole
+  for (let i = -6; i <= 7; i++) {
+    const r = new THREE.Mesh(new THREE.BoxGeometry(.012, .03, .16), new THREE.MeshStandardMaterial({ color: 0x4f596a }));
+    r.position.set(i * .024, .02, 0); boot.add(r);
+  }
+  const bootMat = new THREE.MeshStandardMaterial({ color: 0xd6d1c4, roughness: .8 });
+  const upper = new THREE.Mesh(new THREE.ExtrudeGeometry(soleShape(.9), { depth: .09, bevelEnabled: true, bevelThickness: .04, bevelSize: .03, bevelSegments: 4 }), bootMat);
+  upper.rotation.x = -Math.PI / 2; upper.position.y = .06; boot.add(upper);
+  const toe = new THREE.Mesh(new THREE.SphereGeometry(.075, 16, 10), new THREE.MeshStandardMaterial({ color: 0x9aa3b0, roughness: .6 }));
+  toe.scale.set(1.25, .75, 1); toe.position.set(.11, .12, 0); boot.add(toe);
+  const ankle = new THREE.Mesh(new THREE.CylinderGeometry(.085, .1, .26, 16), bootMat);
+  ankle.position.set(-.07, .27, 0); boot.add(ankle);
+  const strapMat = new THREE.MeshStandardMaterial({ color: 0x3f5f9f, roughness: .6 });
+  for (const y of [.2, .33]) { const strap = new THREE.Mesh(new THREE.TorusGeometry(.095, .014, 8, 24), strapMat); strap.rotation.x = Math.PI / 2; strap.position.set(-.07, y, 0); boot.add(strap); }
+  const tongue = new THREE.Mesh(new THREE.BoxGeometry(.16, .03, .07), new THREE.MeshStandardMaterial({ color: 0xc9c9c4 }));
+  tongue.position.set(.03, .17, 0); tongue.rotation.z = -.35; boot.add(tongue);
+  return boot;
+}
+
+// Apollo glove: light grey hand, blue fingertips, wrist ring; fingers curl around a vertical pole.
+function makeGlove() {
+  const g = new THREE.Group();
+  const skin = new THREE.MeshStandardMaterial({ color: 0xc9ccd2, roughness: .7 });
+  const tips = new THREE.MeshStandardMaterial({ color: 0x3d5ca8, roughness: .6 });
+  const palm = new THREE.Mesh(new THREE.SphereGeometry(.06, 16, 12), skin);
+  palm.scale.set(.75, 1.2, 1); palm.position.set(0, 0, .055); g.add(palm);
+  for (let i = 0; i < 4; i++) { // fingers wrap round the pole (pole runs along y at the origin)
+    const y = .045 - i * .03;
+    for (const [ang, mat] of [[.9, skin], [2.2, skin], [3.1, tips]]) {
+      const f = new THREE.Mesh(new THREE.SphereGeometry(.017, 10, 8), mat);
+      f.position.set(Math.sin(ang) * .045, y, Math.cos(ang) * .045); g.add(f);
+    }
+  }
+  const thumb = new THREE.Mesh(new THREE.CapsuleGeometry(.016, .05, 4, 8), tips);
+  thumb.position.set(-.05, .07, .02); thumb.rotation.z = .6; g.add(thumb);
+  const ring = new THREE.Mesh(new THREE.TorusGeometry(.055, .014, 10, 28), new THREE.MeshStandardMaterial({ color: 0x2f5fb5, metalness: .8, roughness: .3 }));
+  ring.position.set(0, -.005, .12); g.add(ring); // wrist ring where the glove locks to the suit
+  g.userData.wrist = new THREE.Vector3(0, -.005, .13);
+  return g;
+}
+
 function makeEvaProps() {
   const g = new THREE.Group();
-  const white = new THREE.MeshStandardMaterial({ color: 0xf2f2f2, roughness: .7 });
-  const boot = new THREE.Group();
-  const sole = new THREE.Mesh(new THREE.BoxGeometry(.38, .07, .17), new THREE.MeshStandardMaterial({ color: 0x5b5f66, roughness: .9 }));
-  sole.position.y = .035; boot.add(sole);
-  const upper = new THREE.Mesh(new THREE.CapsuleGeometry(.1, .22, 6, 12), white);
-  upper.position.set(-.05, .2, 0); boot.add(upper);
-  const toe = new THREE.Mesh(new THREE.SphereGeometry(.1, 12, 8), white);
-  toe.scale.set(1.3, .7, .9); toe.position.set(.1, .09, 0); boot.add(toe);
-  boot.rotation.y = ALONG; boot.visible = false;
-  const glove = new THREE.Group();
-  const hand = new THREE.Mesh(new THREE.SphereGeometry(.075, 14, 10), white); hand.scale.set(1, 1.2, .9); glove.add(hand);
-  const cuff = new THREE.Mesh(new THREE.CylinderGeometry(.07, .08, .22, 12), new THREE.MeshStandardMaterial({ color: 0x3f6fd8, roughness: .6 }));
-  cuff.position.y = -.17; glove.add(cuff);
-  glove.visible = false;
+  const suit = SUIT();
+  const boot = makeBoot(); boot.rotation.y = ALONG; boot.scale.setScalar(1.25); boot.visible = false;
+  const thigh = limb(.085, .078, suit), shin = limb(.075, .07, suit), knee = new THREE.Mesh(new THREE.SphereGeometry(.08, 14, 10), suit);
+  const leg = new THREE.Group(); leg.add(thigh, shin, knee); leg.visible = false;
+  const glove = makeGlove(); glove.scale.setScalar(1.7); glove.visible = false;
+  const upperArm = limb(.085, .075, suit), foreArm = limb(.075, .065, suit), elbow = new THREE.Mesh(new THREE.SphereGeometry(.08, 14, 10), suit);
+  const arm = new THREE.Group(); arm.add(upperArm, foreArm, elbow); arm.visible = false;
   const print = new THREE.Mesh(new THREE.PlaneGeometry(.4, .18), new THREE.MeshBasicMaterial({ map: bootprintTexture(), transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 }));
   print.rotation.set(-Math.PI / 2, 0, ALONG); print.position.copy(STEP_AT).setY(.04); print.visible = false;
-  g.add(boot, glove, print);
-  parts.boot = boot; parts.glove = glove; parts.print = print;
+  g.add(boot, leg, glove, arm, print);
+  Object.assign(parts, { boot, leg, thigh, shin, knee, glove, arm, upperArm, foreArm, elbow, print });
   // helmet lamp for the moonwalk
   parts.lamp = new THREE.SpotLight(0xfff2dd, 25, 30, .6, .5, 1.2); parts.lamp.visible = false;
   g.add(parts.lamp, parts.lamp.target);
   return g;
+}
+
+// Where the camera's right / forward point, for attaching the arm and leg to "your" body.
+function camAxes() {
+  camera.updateMatrixWorld();
+  const right = new THREE.Vector3().setFromMatrixColumn(camera.matrixWorld, 0);
+  const fwd = camera.getWorldDirection(new THREE.Vector3());
+  return { right, fwd };
+}
+
+// The leg follows the boot: hip under the camera, knee bent forward.
+function poseLeg() {
+  const { right, fwd } = camAxes();
+  const ankle = parts.boot.localToWorld(new THREE.Vector3(-.07, .4, 0));
+  const flat = fwd.clone().setY(0).normalize();
+  const hip = camera.position.clone().addScaledVector(right, .25).add(new THREE.Vector3(0, -.85, 0)).addScaledVector(flat, -.2);
+  const knee = hip.clone().lerp(ankle, .5).addScaledVector(flat, -.06).add(new THREE.Vector3(0, .08, 0));
+  placeLimb(parts.thigh, hip, knee); placeLimb(parts.shin, knee, ankle); parts.knee.position.copy(knee);
+}
+
+// The arm reaches from your right shoulder to the glove.
+function poseArm() {
+  const { right, fwd } = camAxes();
+  const gl = parts.glove;
+  gl.updateMatrixWorld();
+  const wrist = gl.localToWorld(gl.userData.wrist.clone());
+  const shoulder = camera.position.clone().addScaledVector(right, .3).add(new THREE.Vector3(0, -.32, 0)).addScaledVector(fwd, -.05);
+  const elbow = shoulder.clone().lerp(wrist, .5).addScaledVector(right, .12).add(new THREE.Vector3(0, -.12, 0));
+  placeLimb(parts.upperArm, shoulder, elbow); placeLimb(parts.foreArm, elbow, wrist); parts.elbow.position.copy(elbow);
 }
 
 function makeBase() {
@@ -860,7 +959,7 @@ export function initScene() {
 
   setMode('menu', true);
   const el = renderer.domElement;
-  window.__jamt = { camera, parts, THREE }; // for testing in the browser console
+  window.__jamt = { camera, parts, THREE, seek: s => { if (anim) anim.t = s; } }; // for testing in the browser console
   el.addEventListener('pointerdown', e => { downAt = [e.clientX, e.clientY]; });
   el.addEventListener('pointermove', onMove);
   el.addEventListener('pointerup', onUp);
@@ -955,8 +1054,7 @@ export function skipAnimation() {
 function endEva() {
   if (parts.flag) { parts.flag.visible = true; parts.flag.position.copy(FLAG_AT); parts.flag.children[2].scale.x = 1; parts.flag.children[2].position.x = .65; }
   if (parts.print) parts.print.visible = true;
-  if (parts.boot) parts.boot.visible = false;
-  if (parts.glove) parts.glove.visible = false;
+  for (const k of ['boot', 'leg', 'glove', 'arm']) if (parts[k]) parts[k].visible = false;
   parts.astronauts?.forEach(a => { a.visible = true; });
   camera.near = .5; camera.updateProjectionMatrix();
   if (parts.lamp) parts.lamp.visible = false;
@@ -1030,31 +1128,43 @@ function runAnim(dt) {
         camera.lookAt(STEP_AT.clone().addScaledVector(hz, 3 * (1 - k)).setY(1.4 * (1 - k)));
         phase = 'ladder';
       } else if (t < E4) { // the first step and the bootprint
-        camera.position.copy(home).addScaledVector(hz, 4.8).addScaledVector(perp, -.25).setY(1.7);
-        camera.lookAt(STEP_AT.clone().addScaledVector(hz, .3));
+        camera.position.copy(home).addScaledVector(hz, 5.55).addScaledVector(perp, -.35).setY(1.7);
+        camera.lookAt(STEP_AT.clone().addScaledVector(hz, .2).addScaledVector(perp, -.1).setY(.05));
         const s = t - E3, b = parts.boot;
-        b.visible = s < 2.7;
-        const high = STEP_AT.clone().addScaledVector(hz, -.7).setY(1);
+        b.visible = parts.leg.visible = s < 2.7;
+        const high = STEP_AT.clone().addScaledVector(hz, -.35).setY(.55);
         if (s < 1) b.position.lerpVectors(high, STEP_AT, ease(s));
         else if (s < 1.9) b.position.copy(STEP_AT).setY(-.01 * Math.min(1, (s - 1) * 4)); // presses into the dust
         else b.position.lerpVectors(STEP_AT, STEP_AT.clone().addScaledVector(hz, .5).setY(.9), ease((s - 1.9) / .8));
         parts.print.visible = s > 1.9;
+        if (b.visible) poseLeg();
         phase = s > 1 ? 'step' : 'ladder';
       } else { // planting the flag
         const s = t - E4;
-        const camAt = home.clone().addScaledVector(hz, 4.8 + Math.min(1, s / 1.2) * 2.6).setY(1.7 + bob(.03) * (s < 1.2 ? 1 : 0));
+        const camAt = home.clone().addScaledVector(hz, 4.8 + Math.min(1, s / 1.2) * 2.6 - 1.2 * ease((s - 3.6) / 1.2)).setY(1.7 + bob(.03) * (s < 1.2 ? 1 : 0));
         camera.position.copy(camAt);
-        camera.lookAt(FLAG_AT.clone().setY(1.1));
+        camera.lookAt(FLAG_AT.clone().setY(1.1 + .7 * ease((s - 3.4) / 1.2)).addScaledVector(perp, .3 * ease((s - 3.4) / 1.2))); // look up as the flag opens
         const fl = parts.flag, cloth = fl.children[2];
         fl.visible = true;
-        const held = camAt.clone().addScaledVector(hz, .9).addScaledVector(perp, -.3).setY(.6);
-        if (s < 2.4) { fl.position.lerpVectors(held, FLAG_AT.clone().setY(.7), ease(s / 2.4)); cloth.scale.x = .06; }
-        else if (s < 3.1) { fl.position.copy(FLAG_AT).setY(.7 * (1 - ease((s - 2.4) / .7))); cloth.scale.x = .06; } // push it into the ground
-        else { fl.position.copy(FLAG_AT); cloth.scale.x = .06 + .94 * ease((s - 3.1) / .9); } // the flag opens
+        const held = camAt.clone().addScaledVector(hz, 1.1).addScaledVector(perp, -.22).setY(.35);
+        const over = FLAG_AT.clone().setY(.8);
+        let y;
+        if (s < 2.4) { fl.position.lerpVectors(held, over, ease(s / 2.4)); y = null; }
+        else if (s < 2.9) y = .8 - .45 * ease((s - 2.4) / .5);   // first push
+        else if (s < 3.2) y = .35 + .1 * ease((s - 2.9) / .3);  // lift a little
+        else if (s < 3.7) y = .45 - .45 * ease((s - 3.2) / .5); // second push: it's in!
+        else y = 0;
+        if (y !== null) fl.position.copy(FLAG_AT).setY(y);
+        cloth.scale.x = s < 3.7 ? .06 : .06 + .94 * ease((s - 3.7) / .9); // the flag opens
+        // your glove holds the pole, then lets go
         const gl = parts.glove;
-        gl.visible = s < 3.6;
-        gl.position.copy(fl.position).add(new THREE.Vector3(0, 1.05, 0)).addScaledVector(hz, -.06);
-        if (s > 3.1) gl.position.addScaledVector(hz, -(s - 3.1) * 1.5).setY(gl.position.y - (s - 3.1) * 1.2);
+        gl.visible = parts.arm.visible = s < 4.9;
+        const grip = fl.position.clone().add(new THREE.Vector3(0, 1.0, 0));
+        const release = Math.max(0, (s - 3.9) / 1);
+        gl.position.copy(grip).addScaledVector(hz, -release * .5).add(new THREE.Vector3(0, -release * .5, 0));
+        gl.lookAt(camera.position.x, gl.position.y, camera.position.z);
+        gl.rotateY(Math.PI); // palm faces away, fingers wrap round the pole
+        if (gl.visible) poseArm();
         phase = 'flag';
       }
     } else {
@@ -1063,7 +1173,7 @@ function runAnim(dt) {
       lm.position.copy(home);
       const k = ease((a.t - E5) / (T4 - E5));
       if (parts.earth) { parts.earth.position.lerpVectors(EARTH_CINE, EARTH_POS, k); parts.earth.scale.setScalar(1.8 - .8 * k); }
-      const from = home.clone().addScaledVector(hz, 7.4).setY(1.7);
+      const from = home.clone().addScaledVector(hz, 6.2).setY(1.7);
       camera.position.lerpVectors(from, GAME_CAM(), k);
       camera.lookAt(FLAG_AT.clone().setY(1.1).lerp(new THREE.Vector3(-5, 0, 4), k));
       phase = 'landed';

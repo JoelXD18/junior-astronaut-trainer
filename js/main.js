@@ -75,6 +75,25 @@ const MUSIC = [
   { title: 'Metropolis of Progress (Cinematic Orchestral)', author: 'Luis_Humanoide', url: 'https://pixabay.com/es/music/titulo-principal-metropolis-of-progress-cinematic-orchestral-298820/' },
 ];
 
+// Inside of the space helmet: padded frame round the visor, gasket, gold tint, reflections, breath.
+const HELMET_SVG = `<svg viewBox="0 0 1000 600" preserveAspectRatio="none">
+  <defs>
+    <mask id="visor-hole"><rect width="1000" height="600" fill="#fff"/>
+      <path d="M95 70 Q500 -18 905 70 Q985 300 905 520 Q500 610 95 520 Q15 300 95 70 Z" fill="#000"/></mask>
+    <linearGradient id="hel-in" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2b2f38"/><stop offset=".5" stop-color="#14161b"/><stop offset="1" stop-color="#2b2f38"/></linearGradient>
+    <radialGradient id="hel-tint" cx=".5" cy=".45" r=".7"><stop offset=".55" stop-color="#ffcf6e" stop-opacity="0"/><stop offset="1" stop-color="#ffb43c" stop-opacity=".22"/></radialGradient>
+    <radialGradient id="breath" cx=".5" cy="1" r=".5"><stop offset="0" stop-color="#fff" stop-opacity=".22"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></radialGradient>
+  </defs>
+  <rect width="1000" height="600" fill="url(#hel-tint)"/>
+  <ellipse class="breath" cx="500" cy="610" rx="260" ry="120" fill="url(#breath)"/>
+  <path d="M170 95 Q420 40 640 70" fill="none" stroke="#fff" stroke-opacity=".16" stroke-width="16" stroke-linecap="round"/>
+  <path d="M760 120 Q850 210 870 330" fill="none" stroke="#fff" stroke-opacity=".08" stroke-width="10" stroke-linecap="round"/>
+  <rect width="1000" height="600" fill="url(#hel-in)" mask="url(#visor-hole)"/>
+  <path d="M95 70 Q500 -18 905 70 Q985 300 905 520 Q500 610 95 520 Q15 300 95 70 Z" fill="none" stroke="#5c626e" stroke-width="10"/>
+  <path d="M95 70 Q500 -18 905 70 Q985 300 905 520 Q500 610 95 520 Q15 300 95 70 Z" fill="none" stroke="#0b0c10" stroke-width="3" transform="translate(500 300) scale(1.03) translate(-500 -300)"/>
+  <g fill="#3a3f49" stroke="#0b0c10" stroke-width="2"><circle cx="40" cy="300" r="14"/><circle cx="960" cy="300" r="14"/></g>
+</svg>`;
+
 const BICON = { solar: 'sun', battery: 'battery', tank: 'tank', oxygen: 'oxygen', shield: 'shield' };
 const freeEnergy = () => available(game) - choice.oxygen - choice.shield;
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -255,7 +274,7 @@ function gameScreen() {
 
     <div class="bottom">${bottom}</div>
   </section>
-  ${cinematic === 'landing' ? `<div class="helmet" id="helmet" aria-hidden="true"><i class="glare"></i></div><div class="landing-cap"><span class="cap-phase" id="cap-phase"></span><span class="cap-who" id="cap-who"></span></div>` : ''}
+  ${cinematic === 'landing' ? `<div class="helmet" id="helmet" aria-hidden="true">${HELMET_SVG}</div><div class="landing-cap"><span class="cap-phase" id="cap-phase"></span><span class="cap-who" id="cap-who"></span></div>` : ''}
   ${cinematic ? `<button class="btn grey small skip" data-action="skip">${esc(t('skip'))} ⏭</button>` : ''}`;
 }
 
