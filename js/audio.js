@@ -93,7 +93,7 @@ export function stopSpeaking() { stopClip(); if ('speechSynthesis' in window) sp
 // tools/make-audio.mjs records every line once (ElevenLabs) and writes assets/voice/manifest.json with
 // the exact length of each clip. Knowing the lengths, the animations are timed so voice and picture match.
 let manifest = { voice: {}, sfx: {} };
-fetch('assets/voice/manifest.json').then(r => (r.ok ? r.json() : null)).then(m => { if (m) manifest = m; }).catch(() => {});
+fetch('assets/voice/manifest.json', { cache: 'no-cache' }).then(r => (r.ok ? r.json() : null)).then(m => { if (m) manifest = m; }).catch(() => {});
 const clipFor = (who, text, lang) => manifest.voice?.[lang]?.[who + '|' + text] || null;
 let clip = null;
 function playClip(c, done) {
@@ -175,8 +175,16 @@ function nextRadio() {
   if (!('speechSynthesis' in window)) { guard = setTimeout(next, 1500 + l.text.length * 75); return; }
   // if speech is not available or never ends, move on after a reading time
   guard = setTimeout(next, 1500 + l.text.length * 75);
-  const voices = speechSynthesis.getVoices();
-  if (!voices.length || settings.muted) return;
+  if (settings.muted) return;
+  // the browser loads its voices a moment after the page: wait for them instead of skipping the first line
+  if (!speechSynthesis.getVoices().length) {
+    const go = () => { speechSynthesis.removeEventListener('voiceschanged', go); if (!finished) sayLine(l, next); };
+    speechSynthesis.addEventListener('voiceschanged', go);
+    return;
+  }
+  sayLine(l, next);
+}
+function sayLine(l, next) {
   const v = pickVoices(l.lang)[l.who];
   const u = new SpeechSynthesisUtterance(l.text);
   u.lang = l.lang === 'es' ? 'es-ES' : 'en-US';

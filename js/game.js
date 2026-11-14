@@ -57,13 +57,17 @@ export const MAPS = {
 export const MODES = ['escape', 'survival', 'infinite'];
 export const ESCAPE = {
   parts: 5,            // pieces of the ship to bring back
-  roverBase: 1,        // energy to start the rover…
-  roverPerMeters: 22,  // …plus 1 energy for every 22 m of distance (there and back)
-  suitOxygen: 1,       // oxygen the driver uses outside
-  outsideDose: 5,      // extra radiation per storm point for a crew caught outside (no shield there!)
+  roverBase: 0,        // energy to start the rover…
+  roverPerMeters: 30,  // …plus 1 energy for every 30 m of distance (there and back)
+  suitOxygen: 1,       // oxygen for the driver's suit on each trip
+  farTrip: 40,         // parts further than this (metres) take 2 days to bring back; nearer ones take 1 day
+  roverRepair: 3,      // energy to fix the rover after a storm breaks it
+  breakStorm: 2,       // a storm this strong (or more) breaks the rover if it is outside
+  outsideDose: 3,      // extra radiation per storm point for a crew caught outside (no shield there!)
   repairCost: 6,       // energy to repair the ship once every part is back
-  startBattery: 14,    // the ship's batteries survived the crash
+  startBattery: 20,    // the ship's batteries survived the crash
   landing: [-26, 14],  // where the ship came down
+  days: { moon: 21, mars: 18 }, // the crew's food lasts this long: repair the ship before it runs out
 };
 
 // Buildings. Everything is paid with energy, so building today means less energy for oxygen,
@@ -183,7 +187,7 @@ export function newGame({ map = 'moon', difficulty = 'normal', mode = 'survival'
     nextId: 1,
     buildings: [],
     today: null,       // weather that will hit today (hidden from the player)
-    status: 'playing', // playing | won | lost-oxygen | lost-dose
+    status: 'playing', // playing | won | lost-oxygen | lost-dose | lost-time (escape: not repaired in time)
     history: [],
     pool: flares.map(f => ({ t: f.t, cls: f.cls, link: f.link })),
     activity,
@@ -200,7 +204,7 @@ export function newGame({ map = 'moon', difficulty = 'normal', mode = 'survival'
 // When the ship crashes, its broken parts land all around the base, some near and some far.
 function scatterDebris(state, rng) {
   state.debris = [];
-  state.outsideToday = false;
+  state.rover = { status: 'home', target: null, daysLeft: 0 }; // home | out | broken
   const [lx, lz] = ESCAPE.landing;
   let tries = 0;
   while (state.debris.length < ESCAPE.parts && tries++ < 500) {
@@ -216,6 +220,12 @@ function scatterDebris(state, rng) {
 export function partsCollected(state) { return (state.debris || []).filter(d => d.collected).length; }
 export function partsNeeded() { return ESCAPE.parts; }
 
+const tripDist = d => Math.hypot(d.x - ESCAPE.landing[0], d.z - ESCAPE.landing[1]);
+// Days the rover needs to bring a part back (it is outside the base all that time).
+export function roverDays(d) { return tripDist(d) > ESCAPE.farTrip ? 2 : 1; }
+// Last day to repair the ship in escape mode (the crew's food runs out after it).
+export function escapeDeadline(state) { return ESCAPE.days[state.map]; }
+
 // Energy for a rover trip from the base to a part and back.
 export function roverCost(d) {
   const dist = Math.hypot(d.x - ESCAPE.landing[0], d.z - ESCAPE.landing[1]);
@@ -225,21 +235,33 @@ export function roverCost(d) {
 // Why the rover can't go for this part now (or null).
 export function roverProblem(state, d, budget = available(state)) {
   if (d.collected) return 'collected';
-  if (state.outsideToday) return 'roverBusy';
+  if (state.rover.status === 'out') return 'roverBusy';
+  if (state.rover.status === 'broken') return 'roverBroken';
   if (state.oxygen < ESCAPE.suitOxygen + 1) return 'noOxygen';
   if (budget < roverCost(d)) return 'noEnergy';
   return null;
 }
 
-// Send the rover: pays energy now (like building) and a little oxygen; the part is back the same day.
+// Send the rover: pays energy now (like building). It comes back with the part at the end of the last day
+// of the trip; every day outside the driver uses suit oxygen and has no shield against storms.
 export function sendRover(state, id, budget) {
   const d = state.debris.find(x => x.id === id);
   if (!d || roverProblem(state, d, budget)) throw new Error('Rover cannot go');
   state.spent += roverCost(d);
   state.oxygen -= ESCAPE.suitOxygen;
-  state.outsideToday = true;
-  d.collected = true;
+  state.rover = { status: 'out', target: id, daysLeft: roverDays(d) };
   return d;
+}
+
+export function roverRepairProblem(state, budget = available(state)) {
+  if (state.rover?.status !== 'broken') return 'notBroken';
+  if (budget < ESCAPE.roverRepair) return 'noEnergy';
+  return null;
+}
+export function repairRover(state, budget) {
+  if (roverRepairProblem(state, budget)) throw new Error('Cannot repair rover');
+  state.spent += ESCAPE.roverRepair;
+  state.rover = { status: 'home', target: null, daysLeft: 0 };
 }
 
 export function canRepair(state, budget = available(state)) {
@@ -349,15 +371,24 @@ export function playDay(state, { oxygen = 0, shield = 0 }) {
   const shieldPower = shield > 0 ? shield + shieldBonus(shieldLevel(state)) : 0;
   const blocked = Math.min(shieldPower, storm);
   const stormDose = (storm - blocked) * DOSE_PER_STORM_POINT;
-  const outsideDose = state.outsideToday && storm > 0 ? storm * ESCAPE.outsideDose : 0; // no shield outside the base
+  const out = state.rover?.status === 'out';
+  const outsideDose = out && storm > 0 ? storm * ESCAPE.outsideDose : 0; // no shield outside the base
   const dose = state.dose + map.baseDose + stormDose + outsideDose;
 
   const report = {
     day: state.day, night: isNight(map, state.day), energy: energyToday(state), spent: state.spent,
     oxygen, shield, shieldPower, o2Bonus, wasted, oxygenLost, storm, blocked, warned: state.today.warned, flare: state.today.flare,
-    stormDose, baseDose: map.baseDose, outsideDose, outside: !!state.outsideToday,
+    stormDose, baseDose: map.baseDose, outsideDose, outside: out,
   };
-  state.outsideToday = false;
+  // the rover: a strong storm breaks it (the part stays where it was); otherwise one day less to go
+  if (out) {
+    if (storm >= ESCAPE.breakStorm) { report.roverBroken = state.rover.target; state.rover = { status: 'broken', target: null, daysLeft: 0 }; }
+    else if (--state.rover.daysLeft <= 0) {
+      const d = state.debris.find(x => x.id === state.rover.target);
+      d.collected = true; report.partBack = d.id;
+      state.rover = { status: 'home', target: null, daysLeft: 0 };
+    } else report.roverDaysLeft = state.rover.daysLeft;
+  }
 
   state.oxygen = Math.max(0, oxygenAfter);
   state.battery = battery;
@@ -368,6 +399,7 @@ export function playDay(state, { oxygen = 0, shield = 0 }) {
   if (oxygenAfter < 0) state.status = 'lost-oxygen';
   else if (dose >= DOSE_LIMIT) state.status = 'lost-dose';
   else if (state.mode === 'survival' && state.day >= map.missionDays) state.status = 'won';
+  else if (state.mode === 'escape' && state.day >= escapeDeadline(state)) state.status = 'lost-time';
   else {
     state.day++;
     const rng = rngFor(state);

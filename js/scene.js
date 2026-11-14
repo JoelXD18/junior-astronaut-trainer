@@ -602,9 +602,12 @@ async function loadModels(base) {
   });
   load('perseverance').then(rover => { // NASA's Perseverance rover, only on Mars
     if (!rover) return;
-    parts.rover = placeModel(rover, 2.2, -12, 27, 2.4);
-    parts.rover.visible = planet === 'mars';
-    base.add(parts.rover);
+    parts.perse = placeModel(rover, 2.2, ROVER_HOME.x, ROVER_HOME.z, 2.4);
+    parts.perse.position.y = groundY(ROVER_HOME.x, ROVER_HOME.z);
+    parts.perse.userData.forward = PERSE_FORWARD;
+    parts.perse.userData.sign = brokenSign(); parts.perse.add(parts.perse.userData.sign);
+    parts.perse.visible = planet === 'mars';
+    base.add(parts.perse);
   });
   const astro = await load('astronaut');
   if (astro) {
@@ -655,11 +658,18 @@ function makePart(i) {
   const ring = new THREE.Mesh(new THREE.RingGeometry(1.5, 1.8, 40), new THREE.MeshBasicMaterial({ color: 0xffb300, transparent: true, opacity: .8, side: THREE.DoubleSide, depthWrite: false }));
   ring.rotation.x = -Math.PI / 2; ring.position.y = .06; g.add(ring);
   g.userData.ring = ring;
+  // a much bigger invisible ball around the part, so it is easy to tap (also on a phone)
+  const hit = new THREE.Mesh(new THREE.SphereGeometry(3.2, 12, 8), new THREE.MeshBasicMaterial({ colorWrite: false, depthWrite: false }));
+  hit.position.y = 1; g.add(hit);
   const el = document.createElement('div');
   el.className = 'scene-label small t-part';
+  el.style.pointerEvents = 'auto'; el.style.cursor = 'pointer';
   el.innerHTML = `<span class="i">${icon('gear')}</span>`;
+  el.addEventListener('click', e => { e.stopPropagation(); if (g.visible && !g.userData.carried) debrisHandler?.(g.userData.debrisId); });
   const lab = new CSS2DObject(el); lab.position.y = 2.4; g.add(lab);
-  return shadow(g);
+  g.userData.label = lab;
+  shadow(g); hit.castShadow = hit.receiveShadow = false;
+  return g;
 }
 
 // A lunar rover, a bit like the Apollo one: open frame, four wire wheels, seats, antenna dish.
@@ -670,6 +680,8 @@ function makeRover() {
   for (const [x, z] of [[-1.15, -1.05], [1.15, -1.05], [-1.15, 1.05], [1.15, 1.05]]) {
     const w = new THREE.Mesh(new THREE.CylinderGeometry(.45, .45, .3, 18), dark);
     w.rotation.x = Math.PI / 2; w.position.set(x, .45, z); g.add(w);
+    for (const a of [0, Math.PI / 2]) { const sp = new THREE.Mesh(new THREE.BoxGeometry(.8, .32, .07), frame); sp.rotation.y = a; w.add(sp); }
+    (g.userData.wheels ||= []).push(w);
     const fender = new THREE.Mesh(new THREE.CylinderGeometry(.55, .55, .34, 16, 1, true, 0, Math.PI), gold);
     fender.rotation.x = Math.PI / 2; fender.rotation.z = Math.PI / 2; fender.position.set(x, .5, z); g.add(fender);
   }
@@ -680,10 +692,43 @@ function makeRover() {
   const dish = new THREE.Mesh(new THREE.SphereGeometry(.45, 16, 8, 0, Math.PI * 2, 0, Math.PI / 3), frame);
   dish.position.set(1.1, 2.1, 0); dish.rotation.z = -.6; g.add(dish);
   const box = new THREE.Mesh(new THREE.BoxGeometry(.6, .35, .9), gold); box.position.set(1.05, .98, 0); g.add(box);
+  g.userData.forward = 0; // drives towards +x
   return shadow(g);
 }
 
+// A small red sign over the rover when a storm has broken it.
+function brokenSign() {
+  const el = document.createElement('div');
+  el.className = 'scene-label small t-broken';
+  el.innerHTML = `<span class="i">${icon('warning')}</span>`;
+  const lab = new CSS2DObject(el); lab.position.y = 3.4; lab.visible = false;
+  return lab;
+}
+// The rover used for the escape mode: the Apollo-style one on the Moon, Perseverance on Mars.
+const curRover = () => (planet === 'mars' && parts.perse ? parts.perse : parts.lrv);
+function roverStop(id) {
+  const o = debrisObjs.get(id);
+  if (!o) return ROVER_HOME.clone();
+  const target = o.userData.target.clone();
+  return target.add(new THREE.Vector3().subVectors(ROVER_HOME, target).setY(0).normalize().multiplyScalar(3));
+}
+function placeRover(r, pos, broken) {
+  r.position.set(pos.x, groundY(pos.x, pos.z), pos.z);
+  r.userData.broken = broken;
+  if (r.userData.sign) r.userData.sign.visible = broken;
+}
+
+// Show the rover where the game says it is (when it is not driving).
+export function setRover(rv) {
+  if (!ok || parts.roverTrip) return;
+  const r = curRover(); if (!r) return;
+  if (!rv || rv.status === 'home') placeRover(r, ROVER_HOME, false);
+  else if (rv.status === 'out') placeRover(r, roverStop(rv.target), false);
+  else placeRover(r, ROVER_HOME, true);
+}
+
 export const ROVER_HOME = new THREE.Vector3(-13, 0, 26);
+const PERSE_FORWARD = -Math.PI / 2; // its mast and arm point to +z
 const debrisObjs = new Map();
 
 // list: [{ id, x, z, collected }] – shows the parts still lying around.
@@ -699,7 +744,8 @@ export function setDebris(list) {
     if (!o.userData.carried) o.visible = !d.collected;
   }
   for (const [id, o] of debrisObjs) if (!list.some(d => d.id === id)) { o.traverse(x => { if (x.isCSS2DObject) x.element.remove(); }); parts.debrisGroup.remove(o); debrisObjs.delete(id); }
-  parts.rover.visible = true;
+  if (parts.lrv) parts.lrv.visible = planet !== 'mars';
+  if (parts.perse) parts.perse.visible = planet === 'mars';
 }
 
 // The ship after a crash: tilted, with smoke. Repaired: upright again.
@@ -710,20 +756,32 @@ export function setCrashed(on) {
   parts.smoke.visible = on;
 }
 
-// The rover drives to a part, picks it up and brings it back to the ship.
+// The rover drives out to a part and waits there (the trip takes one or two days).
 export function driveRover(id, done) {
-  const o = debrisObjs.get(id), r = parts.rover;
-  if (!ok || !o || !r) { done?.(); return; }
-  const target = o.userData.target.clone();
-  const stop = target.clone().add(new THREE.Vector3().subVectors(ROVER_HOME, target).setY(0).normalize().multiplyScalar(2.2));
-  parts.roverTrip = { o, from: ROVER_HOME.clone(), stop, t: 0, dist: ROVER_HOME.distanceTo(stop), done, picked: false };
+  const r = curRover();
+  if (!ok || !r) { done?.(); return; }
+  placeRover(r, ROVER_HOME, false);
+  parts.roverTrip = { r, from: ROVER_HOME.clone(), to: roverStop(id), t: 0, speed: 6, done };
+  parts.roverTrip.dur = parts.roverTrip.from.distanceTo(parts.roverTrip.to) / 6;
+}
+// Back to the ship: with the part loaded, or broken by a storm (slowly, without the part).
+export function returnRover(id, { withPart = false, broken = false } = {}, done) {
+  const r = curRover(), o = debrisObjs.get(id);
+  if (!ok || !r) { done?.(); return; }
+  const from = roverStop(id);
+  placeRover(r, from, broken);
+  if (withPart && o) o.userData.carried = true;
+  const speed = broken ? 2.5 : 6;
+  parts.roverTrip = { r, from, to: ROVER_HOME.clone(), t: 0, speed, dur: from.distanceTo(ROVER_HOME) / speed, carry: withPart ? o : null, broken,
+    done: () => { if (withPart && o) { o.visible = false; o.userData.carried = false; o.scale.setScalar(1); } done?.(); } };
 }
 
 function makeBase() {
   const base = new THREE.Group();
   parts.base = base;
   parts.debrisGroup = new THREE.Group(); parts.debrisGroup.visible = false; base.add(parts.debrisGroup);
-  parts.rover = makeRover(); parts.rover.position.copy(ROVER_HOME); parts.rover.rotation.y = 2.2; parts.rover.visible = false; base.add(parts.rover);
+  parts.lrv = makeRover(); parts.lrv.position.copy(ROVER_HOME); parts.lrv.rotation.y = 2.2; parts.lrv.visible = false; base.add(parts.lrv);
+  parts.lrv.userData.sign = brokenSign(); parts.lrv.add(parts.lrv.userData.sign);
   parts.smoke = makeSmoke(); parts.smoke.visible = false; base.add(parts.smoke);
   base.add(shieldDome());
   const f = flag(); f.position.set(-21.5, 0, 19.5); f.rotation.y = .5; base.add(f);
@@ -994,7 +1052,8 @@ export function setPlanet(p) {
   for (const o of objs.values()) o.key = ''; // rebuild buildings in the Mars (or Moon) style
   if (parts.lm && !anim) { parts.lm.position.copy(landingSpot()); parts.lm.rotation.set(0, .6, 0); }
   if (parts.earth) parts.earth.visible = !mars;
-  if (parts.rover) parts.rover.visible = mars;
+  if (parts.perse) parts.perse.visible = mars;
+  if (parts.lrv) parts.lrv.visible = !mars && parts.debrisGroup.visible;
   parts.sun.scale.setScalar(mars ? 170 : 260); // the Sun looks smaller from Mars
   // on the bright Martian ground an added-light shield is invisible: draw it as a normal see-through dome
   parts.shield.blending = mars ? THREE.NormalBlending : THREE.AdditiveBlending;
@@ -1189,23 +1248,31 @@ function tick() {
     pos.needsUpdate = true;
   }
   // Ship parts: pulsing rings so they are easy to spot
-  for (const o of debrisObjs.values()) if (o.userData.ring) { o.userData.ring.visible = !o.userData.flying && !o.userData.carried; o.userData.ring.material.opacity = .45 + .4 * Math.sin(time * 3 + o.userData.debrisId); }
+  for (const o of debrisObjs.values()) if (o.userData.ring) {
+    const show = o.visible && !o.userData.flying && !o.userData.carried && parts.debrisGroup.visible;
+    o.userData.ring.visible = show; o.userData.label.visible = show; // CSS labels do not hide with their parent
+    o.userData.ring.material.opacity = .45 + .4 * Math.sin(time * 3 + o.userData.debrisId);
+  }
+  for (const r of [parts.lrv, parts.perse]) if (r?.userData.sign) r.userData.sign.visible = !!r.userData.broken && r.visible;
   // Rover trip: out to the part, pick it up, back to the ship
   const trip = parts.roverTrip;
   if (trip) {
-    const speed = 12, r = parts.rover;
-    trip.t += Math.min(raw, .25);
-    const go = trip.dist / speed, all = go * 2 + .8;
-    let p, from, to;
-    if (trip.t < go) { p = trip.t / go; from = trip.from; to = trip.stop; }
-    else if (trip.t < go + .8) { p = 1; from = trip.from; to = trip.stop; if (!trip.picked) { trip.picked = true; trip.o.userData.carried = true; } }
-    else { p = Math.min(1, (trip.t - go - .8) / go); from = trip.stop; to = trip.from; }
-    r.position.lerpVectors(from, to, ease(p));
-    r.position.y = groundY(r.position.x, r.position.z) + Math.abs(Math.sin(trip.t * 9)) * .06;
-    const dir = new THREE.Vector3().subVectors(to, from);
-    if (dir.lengthSq() > .01) r.rotation.y = Math.atan2(dir.x, dir.z) - Math.PI / 2;
-    if (trip.picked) { trip.o.position.copy(r.position).add(new THREE.Vector3(0, 1.3, 0)); trip.o.scale.setScalar(.6); }
-    if (trip.t >= all) { trip.o.visible = false; trip.o.userData.carried = false; trip.o.scale.setScalar(1); parts.roverTrip = null; trip.done?.(); }
+    const r = trip.r, step = Math.min(raw, .25);
+    // first turn on the spot to face the way, then drive (slowing down at the end)
+    const dir = new THREE.Vector3().subVectors(trip.to, trip.from).setY(0);
+    const want = Math.atan2(-dir.z, dir.x) - (r.userData.forward || 0);
+    let diff = ((want - r.rotation.y + Math.PI) % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI) - Math.PI;
+    r.rotation.y += Math.sign(diff) * Math.min(Math.abs(diff), step * 2.2);
+    const turning = Math.abs(diff) > .05;
+    if (!turning) trip.t += step;
+    const p = Math.min(1, trip.t / trip.dur), e = p < .85 ? p / .85 * .9 : .9 + ease((p - .85) / .15) * .1;
+    r.position.lerpVectors(trip.from, trip.to, Math.min(1, e));
+    const bump = trip.broken ? Math.abs(Math.sin(trip.t * 5)) * .25 : Math.abs(Math.sin(trip.t * 9)) * .05;
+    r.position.y = groundY(r.position.x, r.position.z) + bump;
+    r.rotation.z = trip.broken ? .12 + Math.sin(trip.t * 5) * .06 : 0;
+    for (const w of r.userData.wheels || []) w.rotation.y -= (turning ? 1.5 : trip.speed / .45) * step;
+    if (trip.carry) { trip.carry.position.copy(r.position).add(new THREE.Vector3(0, 1.4, 0)); trip.carry.scale.setScalar(.6); }
+    if (p >= 1) { parts.roverTrip = null; trip.done?.(); }
   }
 
   // Dust thrown up by the rocket

@@ -61,7 +61,7 @@ Mars is unlocked by winning on the Moon (or in Settings, for teachers and judges
   [Robo Cop (Synthwave)](https://pixabay.com/es/music/sintetizador-robo-cop-synthwave-100bpm-117s-12714/) by Sub_Clair,
   [Metropolis of Progress (Cinematic Orchestral)](https://pixabay.com/es/music/titulo-principal-metropolis-of-progress-cinematic-orchestral-298820/) by Luis_Humanoide.
 - Fonts: Lilita One and Nunito (Google Fonts, SIL Open Font License).
-- Voices: the browser's built-in speech synthesis (no recorded voices).
+- Voices: generated with Google Gemini text-to-speech (AI voices Charon, Kore and Leda), recorded once with `tools/make-voices-gemini.mjs`; the radio lines get a radio-interference effect with ffmpeg. If a clip is missing, the browser's own speech synthesis reads the line.
 - Sound effects (engine, landing, crash, launch, alarm, storm, building, rover): made in code with the Web Audio API, no sound files.
 - Game idea and design: JoelXD18 (team RAMOS).
 
@@ -71,7 +71,7 @@ The game idea, the modes, the look and every design choice are the creator's. An
 (**Claude Code, by Anthropic**) wrote the code under his direction, offered options with pros and cons when he asked
 (he chose), looked up and summarised the NASA data sources, wrote the English/Spanish texts and the radio script,
 and balanced the numbers by simulating thousands of games. **All code in this repository was written with AI
-assistance.** No AI-generated images, video or music are used; the voices are the browser's text-to-speech.
+assistance.** No AI-generated images, video or music are used. The voices are AI-generated (Google Gemini text-to-speech) from texts written for the game.
 
 ## Run locally
 

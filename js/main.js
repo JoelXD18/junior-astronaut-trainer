@@ -4,10 +4,11 @@ import { t, setLang, lang, onLangChange, LANGUAGES } from './i18n.js';
 import { MAPS, DOSE_LIMIT, BUILDINGS, MAX_LEVEL, newGame, playDay, available, energyToday, isNight, forecast,
   batteryMax, oxygenMax, solarEnergy, batteryCap, tankCap, oxygenBonus, shieldBonus, shieldBlocks,
   validSpot, buildProblem, build, upgradeCost, upgradeProblem, upgrade, moveBuilding,
-  ESCAPE, partsCollected, partsNeeded, roverCost, roverProblem, sendRover, canRepair, repairAndLaunch } from './game.js';
+  ESCAPE, partsCollected, partsNeeded, roverCost, roverProblem, sendRover, canRepair, repairAndLaunch,
+  roverDays, escapeDeadline, roverRepairProblem, repairRover } from './game.js';
 import { initScene, setMode, setLabels, updateScene, playStorm, syncBuildings, setSelected, onPickBuilding,
   startPlacing, stopPlacing, resetView, setPlanet, playLanding, playLaunch, skipAnimation, resetLander, playIntro,
-  setDebris, setCrashed, driveRover, onPickDebris } from './scene.js';
+  setDebris, setCrashed, driveRover, returnRover, setRover, onPickDebris } from './scene.js';
 import { isUnlocked, unlock, best, saveBest, unlockAll, setUnlockAll } from './progress.js';
 import { playMusic, setVolume, toggleMute, audioSettings, speak, stopSpeaking, radio, stopRadio, radioBusy, radioTime, sfx } from './audio.js';
 import { DEMOS } from './demos.js';
@@ -225,7 +226,8 @@ function gameScreen() {
     for (let i = 0; i < len; i++) { const d = first + i; strip += `<i class="${isNight(map, d) ? 'n' : 's'} ${d < game.day ? 'past' : ''} ${d === game.day ? 'now' : ''}"></i>`; }
   }
   const dayWord = t(game.map === 'mars' ? 'solLabel' : 'dayLabel');
-  const total = game.mode === 'survival' ? `<small>/${map.missionDays}</small>` : '';
+  const limit = game.mode === 'survival' ? map.missionDays : game.mode === 'escape' ? escapeDeadline(game) : 0;
+  const total = limit ? `<small>/${limit}</small>` : '';
   const bottom = !ui ? dock()
     : ui.kind === 'debris' ? debrisWindow()
     : ui.kind === 'build' ? buildWindow()
@@ -240,6 +242,7 @@ function gameScreen() {
       </button>
       ${strip ? `<div class="strip" aria-hidden="true">${strip}</div>` : ''}
       ${game.mode === 'escape' ? `<button class="ribbon parts" data-term="Parts">${icon('gear')}<span>${esc(t('partsShort', { n: partsCollected(game), m: partsNeeded() }))}</span></button>` : ''}
+      ${roverRibbon()}
       ${game.dust > 0 ? `<button class="ribbon dust" data-term="Dust">${icon('warning')}<span>${esc(t('dustShort', { n: game.dust }))}</span></button>` : ''}
       ${fc.warned
         ? `<button class="ribbon warn" data-term="Storm">${icon('warning')}<span>${esc(t('warnShort'))}</span>${fc.hint ? flareChip(fc.hint) : ''}</button>`
@@ -352,19 +355,21 @@ function selectedWindow() {
 
 function endScreen() {
   const map = MAPS[game.map];
-  const key = { won: 'won', 'lost-oxygen': 'lostOxygen', 'lost-dose': 'lostDose' }[game.status];
-  const done = game.status === 'won' ? map.missionDays : game.day - 1;
-  const ico = game.status === 'won' ? 'trophy' : game.status === 'lost-oxygen' ? 'oxygen' : 'radiation';
+  const key = { won: game.mode === 'escape' ? 'wonEscape' : 'won', 'lost-oxygen': 'lostOxygen', 'lost-dose': 'lostDose', 'lost-time': 'lostTime' }[game.status];
+  const done = game.status === 'won' && game.mode === 'survival' ? map.missionDays : game.status === 'won' ? game.day : game.status === 'lost-time' ? game.day : game.day - 1;
+  const ico = game.status === 'won' ? 'trophy' : game.status === 'lost-oxygen' ? 'oxygen' : game.status === 'lost-time' ? 'gear' : 'radiation';
   const survival = game.mode === 'infinite';
   return centered(windowHtml(esc(t(survival ? 'survivalEndTitle' : key + 'Title')), `
     <div class="end-ico">${icon(survival ? 'trophy' : ico)}</div>
     ${survival ? `<p class="record">${esc(t('survivalDays', { n: done }))}</p>
       <p class="small">${esc(t(endInfo.newRecord ? 'newRecord' : 'bestRecord', { n: best(game.map, game.difficulty) }))}</p>` : ''}
-    <p>${esc(t(key + 'Text'))}</p>
+    <p>${esc(t(key + 'Text', { n: map.oxygenUse, d: escapeDeadline(game) }))}</p>
+    ${game.status !== 'won' ? `<p class="end-tip">${icon('question')} ${esc(t(key + 'Tip'))}</p>` : ''}
     ${endInfo.unlocked ? `<p class="unlocked">${icon('mars')} ${esc(t('marsUnlocked'))}</p>` : ''}
     <div class="end-stats">
       <span>${icon('sun')} ${esc(t('daysSurvived', { n: done }))}</span>
       <span>${icon('radiation')} ${esc(t('finalDose', { d: game.dose }))}</span>
+      ${game.mode === 'escape' ? `<span>${icon('gear')} ${esc(t('partsShort', { n: partsCollected(game), m: partsNeeded() }))}</span>` : ''}
     </div>
     <div class="stack">
       <button class="btn green" data-action="again"><span>${esc(t('playAgain'))}</span></button>
@@ -393,6 +398,14 @@ function creditsRoll() {
   </section>`;
 }
 
+function roverRibbon() {
+  const rv = game.mode === 'escape' && game.rover;
+  if (!rv || rv.status === 'home') return '';
+  if (rv.status === 'out') return `<button class="ribbon rover-out" data-term="Parts">${icon('gear')}<span>${esc(t(rv.daysLeft > 1 ? 'roverOutDays' : 'roverOutTonight', { n: rv.daysLeft }))}</span></button>`;
+  const problem = roverRepairProblem(game, freeEnergy());
+  return `<button class="ribbon rover-broken" data-action="repair-rover" ${problem || busy ? 'disabled' : ''}>${icon('warning')}<span>${esc(t('roverBrokenFix'))}</span><span class="price">${icon('energy')}${ESCAPE.roverRepair}</span></button>`;
+}
+
 function debrisWindow() {
   const d = game.debris.find(x => x.id === ui.id);
   if (!d || d.collected) { ui = null; return dock(); }
@@ -401,18 +414,19 @@ function debrisWindow() {
   const warned = forecast(game).warned;
   return windowHtml(`${icon('gear')} ${esc(t('partTitle'))}`, `
     <p class="effect">${esc(t('partText', { m: dist }))}</p>
-    <p class="effect next">${esc(t('roverCostText', { e: cost, o: ESCAPE.suitOxygen }))}</p>
-    ${warned ? `<p class="hint bad">${icon('warning')} ${esc(t('roverStormWarn'))}</p>` : ''}
+    <p class="effect next">${esc(t('roverCostText', { e: cost, o: ESCAPE.suitOxygen, d: roverDays(d) }))}</p>
+    ${warned ? `<p class="notice bad">${icon('warning')} ${esc(t('roverStormWarn'))}</p>` : ''}
+    ${problem && problem !== 'collected' ? `<p class="notice bad">${icon('warning')} ${esc(t('rover_' + problem, { n: game.rover.daysLeft }))}</p>` : ''}
     <div class="sel-actions">
       <button class="btn green" data-action="send-rover" ${problem || busy ? 'disabled' : ''}><span>${esc(t('sendRover'))}</span><span class="price">${icon('energy')}${cost}</span></button>
-    </div>
-    ${problem && problem !== 'collected' ? `<p class="hint bad">${esc(t('rover_' + problem))}</p>` : ''}`, { cls: 'sel-win' });
+    </div>`, { cls: 'sel-win' });
 }
 
 function syncScene() {
   if (!has3d || !game) return;
   syncBuildings(game.buildings.map(b => ({ ...b, radius: BUILDINGS[b.type].radius })));
   setDebris(game.mode === 'escape' ? game.debris : null);
+  if (game.mode === 'escape') setRover(game.rover);
   setSelected(ui?.kind === 'selected' ? ui.id : null);
 }
 
@@ -432,7 +446,14 @@ function reportHtml(r) {
     if (r.shield > 0) items.push(['shield', t('shieldUnused', { n: r.shield }), '']);
   }
   if (r.outsideDose) items.push(['radiation', t('outsideStorm', { d: r.outsideDose }), 'bad']);
-  if (r.spent) items.push(['hammer', t('spentMsg', { n: r.spent }), '']);
+  if (r.partBack) items.push(['gear', t('partBackReport', { n: partsCollected(game), m: partsNeeded() }), 'good']);
+  if (r.roverBroken) items.push(['warning', t('roverBrokenReport', { e: ESCAPE.roverRepair }), 'bad']);
+  if (r.roverDaysLeft) items.push(['gear', t('roverStillOut', { n: r.roverDaysLeft }), '']);
+  if (game.mode === 'escape' && r.status === 'playing') {
+    const left = escapeDeadline(game) - game.day + 1;
+    if (left <= 4) items.push(['warning', t('escapeDaysLeft', { n: left }), 'bad']);
+  }
+  if (r.spent) items.push(['hammer', t(game.mode === 'escape' ? 'spentMsgEscape' : 'spentMsg', { n: r.spent }), '']);
   items.push(['radiation', t('baseDoseMsg', { d: r.baseDose }), '']);
   items.push(['oxygen', t('oxygenMsg', { use: map.oxygenUse, left: game.oxygen }), game.oxygen <= map.oxygenUse ? 'bad' : '']);
   if (r.oxygenLost > 0) items.push(['oxygen', t('oxygenTankFull', { n: r.oxygenLost }), 'bad']);
@@ -657,6 +678,11 @@ document.addEventListener('click', e => {
         busy = false;
         lastReport = playDay(game, choice);
         if (game.status === 'playing') choice = defaultChoice();
+        const r = lastReport;
+        if (has3d && r.partBack) { busy = true; returnRover(r.partBack, { withPart: true }, () => { busy = false; render(); }); }
+        if (has3d && r.roverBroken) { busy = true; returnRover(r.roverBroken, { broken: true }, () => { busy = false; render(); }); }
+        if (r.partBack) radio([{ who: 'crew', text: t('r_rover_back', { n: partsCollected(game), m: partsNeeded() }) }], lang(), showRadioLine);
+        if (r.roverBroken) radio([{ who: 'crew', text: t('r_rover_broken') }], lang(), showRadioLine);
         render();
       };
       if (strength > 0 && has3d) {
@@ -686,6 +712,11 @@ document.addEventListener('click', e => {
       sendRover(game, id, freeEnergy());
       ui = null; busy = true;
       driveRover(id, () => { busy = false; render(); });
+      return render();
+    }
+    case 'repair-rover': {
+      repairRover(game, freeEnergy());
+      sfx('build');
       return render();
     }
     case 'repair': {

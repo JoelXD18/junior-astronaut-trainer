@@ -1,1 +1,383 @@
-{"voice":{},"sfx":{}}
+{
+ "voice": {
+  "en": {
+   "control|Space Apps lander, this is Mission Control. Welcome to the NASA Space Apps mission. You are approaching the Moon.": {
+    "file": "assets/voice/en/control-5ee18b495d.mp3",
+    "dur": 6.79
+   },
+   "control|Space Apps lander, this is Mission Control. Welcome to the NASA Space Apps mission. You are approaching Mars.": {
+    "file": "assets/voice/en/control-dccaa93c7a.mp3",
+    "dur": 6.77
+   },
+   "crew|Copy, Control. We can see the Moon below us, and the Earth behind. What a view!": {
+    "file": "assets/voice/en/crew-4248fb8464.mp3",
+    "dur": 4.62
+   },
+   "crew|Copy, Control. We can see the red surface of Mars below us. What a view!": {
+    "file": "assets/voice/en/crew-14ac82ec0c.mp3",
+    "dur": 4.05
+   },
+   "crew|Engine on. Braking for descent.": {
+    "file": "assets/voice/en/crew-7928cba4fe.mp3",
+    "dur": 1.91
+   },
+   "control|Roger. You are go for landing.": {
+    "file": "assets/voice/en/control-0c91fddd6b.mp3",
+    "dur": 1.67
+   },
+   "crew|Final descent. Easy, easy… contact light!": {
+    "file": "assets/voice/en/crew-12fc9a62c1.mp3",
+    "dur": 3.55
+   },
+   "crew|Control, Space Apps Base here. The lander has landed!": {
+    "file": "assets/voice/en/crew-05356278ea.mp3",
+    "dur": 2.66
+   },
+   "crew|Control, Space Apps Base here. We have landed on Mars!": {
+    "file": "assets/voice/en/crew-b00fff62f7.mp3",
+    "dur": 3.06
+   },
+   "control|We copy you on the ground. Great job, crew. Now keep the base safe!": {
+    "file": "assets/voice/en/control-460737c6a7.mp3",
+    "dur": 4
+   },
+   "crew|Mayday, mayday! Engine failure! Hold on!": {
+    "file": "assets/voice/en/crew-0ecac5f207.mp3",
+    "dur": 2.87
+   },
+   "control|Crew, are you okay? Find the broken parts and repair the ship. We are with you!": {
+    "file": "assets/voice/en/control-8ab493ae5e.mp3",
+    "dur": 4.57
+   },
+   "control|Your mission: build the first base here and keep the crew safe for 14 days. The Sun gives you energy, but watch out for solar storms and the long night.": {
+    "file": "assets/voice/en/control-6a94267ea1.mp3",
+    "dur": 8.54
+   },
+   "control|Your mission: build the first base here and keep the crew safe for 16 days. The Sun gives you energy, but watch out for solar storms and the long night.": {
+    "file": "assets/voice/en/control-59714aeafb.mp3",
+    "dur": 8.46
+   },
+   "control|Your mission: set up a base and test it. Check your systems before landing.": {
+    "file": "assets/voice/en/control-616e8162aa.mp3",
+    "dur": 4.18
+   },
+   "control|Your mission: stay as long as you can. Every day you last teaches us how to live in space.": {
+    "file": "assets/voice/en/control-28a60b4ac8.mp3",
+    "dur": 5.04
+   },
+   "control|We copy you on the ground. Remember: 14 days. Share your energy well and keep the crew safe!": {
+    "file": "assets/voice/en/control-a3e7428884.mp3",
+    "dur": 5.83
+   },
+   "control|We copy you on the ground. Remember: 16 days. Share your energy well and keep the crew safe!": {
+    "file": "assets/voice/en/control-ef661da2d5.mp3",
+    "dur": 5.83
+   },
+   "control|Hang on, we are with you. Find the broken parts with the rover and repair the ship to come home!": {
+    "file": "assets/voice/en/control-77fb3bac7e.mp3",
+    "dur": 4.96
+   },
+   "control|We copy you on the ground. Now stay as long as you can. Good luck, crew!": {
+    "file": "assets/voice/en/control-67994d5f8b.mp3",
+    "dur": 3.97
+   },
+   "control|Base, Mission Control here. Scientists saw a class C flare on the Sun. A solar storm may hit you today: power up the shield!": {
+    "file": "assets/voice/en/control-1013e48f6b.mp3",
+    "dur": 7.58
+   },
+   "control|Base, Mission Control here. Scientists saw a class M flare on the Sun. A solar storm may hit you today: power up the shield!": {
+    "file": "assets/voice/en/control-6bd79c4a24.mp3",
+    "dur": 7.6
+   },
+   "control|Base, Mission Control here. Scientists saw a class X flare on the Sun. A solar storm may hit you today: power up the shield!": {
+    "file": "assets/voice/en/control-d986b2cbec.mp3",
+    "dur": 7.6
+   },
+   "crew|Control, a solar storm just hit the base! The shield stopped it. The crew is fine.": {
+    "file": "assets/voice/en/crew-f37d142a06.mp3",
+    "dur": 4.57
+   },
+   "crew|Control, a solar storm just hit the base! The shield was not enough. The crew got extra radiation.": {
+    "file": "assets/voice/en/crew-4a0502f93f.mp3",
+    "dur": 5.49
+   },
+   "control|Copy, Base. Look after your crew.": {
+    "file": "assets/voice/en/control-1837e1d797.mp3",
+    "dur": 1.91
+   },
+   "control|Base, Mission Control here. The ship is ready. You are go for launch!": {
+    "file": "assets/voice/en/control-5be4091080.mp3",
+    "dur": 3.68
+   },
+   "crew|Engines on… and liftoff! We are going home!": {
+    "file": "assets/voice/en/crew-6e90e310ca.mp3",
+    "dur": 2.93
+   },
+   "control|Copy, Base. That storm matches a real class C flare recorded by NASA. Look after your crew.": {
+    "file": "assets/voice/en/control-cc3f28d966.mp3",
+    "dur": 5.38
+   },
+   "control|Copy, Base. That storm matches a real class M flare recorded by NASA. Look after your crew.": {
+    "file": "assets/voice/en/control-4d9727dfd7.mp3",
+    "dur": 5.51
+   },
+   "control|Copy, Base. That storm matches a real class X flare recorded by NASA. Look after your crew.": {
+    "file": "assets/voice/en/control-7c1f810bc9.mp3",
+    "dur": 5.54
+   },
+   "crew|Control, the rover is back with another ship part! That makes 1 of 5.": {
+    "file": "assets/voice/en/crew-d711817324.mp3",
+    "dur": 3.84
+   },
+   "crew|Control, the rover is back with another ship part! That makes 2 of 5.": {
+    "file": "assets/voice/en/crew-e80982fd5e.mp3",
+    "dur": 3.79
+   },
+   "crew|Control, the rover is back with another ship part! That makes 3 of 5.": {
+    "file": "assets/voice/en/crew-ae92425e3f.mp3",
+    "dur": 3.76
+   },
+   "crew|Control, the rover is back with another ship part! That makes 4 of 5.": {
+    "file": "assets/voice/en/crew-0196550012.mp3",
+    "dur": 3.71
+   },
+   "crew|Control, the rover is back with another ship part! That makes 5 of 5.": {
+    "file": "assets/voice/en/crew-1376e6ad17.mp3",
+    "dur": 3.68
+   },
+   "crew|Control, the storm broke our rover! We are driving back very slowly.": {
+    "file": "assets/voice/en/crew-67d64a17bf.mp3",
+    "dur": 3.66
+   },
+   "narrator|Energy. Every day you get energy from the Sun. You decide where it goes.": {
+    "file": "assets/voice/en/narrator-1a7422ad98.mp3",
+    "dur": 5.46
+   },
+   "narrator|Oxygen. Oxygen machine: your crew breathes 3 oxygen every day. If the tank is empty, the mission ends.": {
+    "file": "assets/voice/en/narrator-50efe2f92e.mp3",
+    "dur": 7.92
+   },
+   "narrator|Radiation shield. Shield: protects the crew from solar storms, but only on the day you power it. Watch the warnings!": {
+    "file": "assets/voice/en/narrator-09a29b3e91.mp3",
+    "dur": 7.84
+   },
+   "narrator|Battery and lunar night. Battery: energy you don’t use is saved. From day 8 it’s night: no Sun, so you’ll need it!": {
+    "file": "assets/voice/en/narrator-7a56146eab.mp3",
+    "dur": 8.72
+   },
+   "narrator|Building. Tap a building to upgrade or move it. Drag to turn the view, right-drag or two fingers to move it, wheel or pinch to zoom.": {
+    "file": "assets/voice/en/narrator-de06794125.mp3",
+    "dur": 8.8
+   },
+   "narrator|Repair the ship. Tap the 5 ship parts (yellow rings) and send the rover. Trips take 1 or 2 days and cost energy. Strong storms break the rover outside. You have until the day shown at the top to repair the ship!": {
+    "file": "assets/voice/en/narrator-b2df940892.mp3",
+    "dur": 13.87
+   },
+   "narrator|The real Sun. In this game, every solar storm is a real flare recorded by NASA in the last year. When the real Sun is more active, storms come more often.": {
+    "file": "assets/voice/en/narrator-b1639062c8.mp3",
+    "dur": 9.59
+   },
+   "narrator|Oxygen. Oxygen machine: your crew breathes 3 oxygen every day. If the tank is empty, the mission ends. On Mars, the machine takes oxygen out of the carbon dioxide in the air, like NASA’s MOXIE experiment, which really made oxygen on Mars in 2021.": {
+    "file": "assets/voice/en/narrator-86ddbeab63.mp3",
+    "dur": 22.99
+   },
+   "narrator|Battery and dust storms. Battery: energy you don’t use is saved. On Mars, dust storms can cut your solar power in half!": {
+    "file": "assets/voice/en/narrator-01a097efe4.mp3",
+    "dur": 14.79
+   }
+  },
+  "es": {
+   "control|Módulo Space Apps, aquí Control de Misión. Bienvenidos a la misión NASA Space Apps. Os estáis acercando a la Luna.": {
+    "file": "assets/voice/es/control-8e66fd965f.mp3",
+    "dur": 8.2
+   },
+   "control|Módulo Space Apps, aquí Control de Misión. Bienvenidos a la misión NASA Space Apps. Os estáis acercando a Marte.": {
+    "file": "assets/voice/es/control-131f80caf2.mp3",
+    "dur": 8.15
+   },
+   "crew|Recibido, Control. Vemos la Luna debajo y la Tierra detrás. ¡Qué vistas!": {
+    "file": "assets/voice/es/crew-b5e94606da.mp3",
+    "dur": 4.83
+   },
+   "crew|Recibido, Control. Vemos el suelo rojo de Marte debajo. ¡Qué vistas!": {
+    "file": "assets/voice/es/crew-bc254f0154.mp3",
+    "dur": 4.41
+   },
+   "crew|Motor encendido. Frenamos para bajar.": {
+    "file": "assets/voice/es/crew-07a868daf4.mp3",
+    "dur": 2.43
+   },
+   "control|Recibido. Tenéis permiso para aterrizar.": {
+    "file": "assets/voice/es/control-ab6ce410d5.mp3",
+    "dur": 2.64
+   },
+   "crew|Descenso final. Despacio, despacio… ¡luz de contacto!": {
+    "file": "assets/voice/es/crew-2b2635ca45.mp3",
+    "dur": 4.57
+   },
+   "crew|Control, aquí Base Space Apps. ¡El módulo ha aterrizado!": {
+    "file": "assets/voice/es/crew-47aed43662.mp3",
+    "dur": 3.66
+   },
+   "crew|Control, aquí Base Space Apps. ¡Hemos aterrizado en Marte!": {
+    "file": "assets/voice/es/crew-85181189ab.mp3",
+    "dur": 3.6
+   },
+   "control|Os recibimos en tierra. Buen trabajo, tripulación. ¡Ahora mantened la base a salvo!": {
+    "file": "assets/voice/es/control-04cbbba11e.mp3",
+    "dur": 5.36
+   },
+   "crew|¡Mayday, mayday! ¡Fallo del motor! ¡Agarraos!": {
+    "file": "assets/voice/es/crew-e48f15862b.mp3",
+    "dur": 3.21
+   },
+   "control|Tripulación, ¿estáis bien? Buscad las piezas rotas y reparad la nave. ¡Estamos con vosotros!": {
+    "file": "assets/voice/es/control-b5ece3e2c4.mp3",
+    "dur": 6.22
+   },
+   "control|Vuestra misión: montar aquí la primera base y mantener a salvo a la tripulación 14 días. El Sol os da energía, pero cuidado con las tormentas solares y la larga noche.": {
+    "file": "assets/voice/es/control-5bae34a1c7.mp3",
+    "dur": 10
+   },
+   "control|Vuestra misión: montar aquí la primera base y mantener a salvo a la tripulación 16 días. El Sol os da energía, pero cuidado con las tormentas solares y la larga noche.": {
+    "file": "assets/voice/es/control-e687a86c77.mp3",
+    "dur": 10.06
+   },
+   "control|Vuestra misión: montar una base y probarla. Revisad los sistemas antes de aterrizar.": {
+    "file": "assets/voice/es/control-67a79585a3.mp3",
+    "dur": 5.41
+   },
+   "control|Vuestra misión: aguantar todo lo que podáis. Cada día que resistís nos enseña a vivir en el espacio.": {
+    "file": "assets/voice/es/control-3e6d5b6a59.mp3",
+    "dur": 6.3
+   },
+   "control|Os recibimos en tierra. Recordad: 14 días. ¡Repartid bien la energía y cuidad a la tripulación!": {
+    "file": "assets/voice/es/control-da934a5c2c.mp3",
+    "dur": 6.69
+   },
+   "control|Os recibimos en tierra. Recordad: 16 días. ¡Repartid bien la energía y cuidad a la tripulación!": {
+    "file": "assets/voice/es/control-300e7e82c3.mp3",
+    "dur": 6.87
+   },
+   "control|Aguantad, estamos con vosotros. ¡Buscad las piezas rotas con el rover y reparad la nave para volver a casa!": {
+    "file": "assets/voice/es/control-9a02f77db7.mp3",
+    "dur": 6.48
+   },
+   "control|Os recibimos en tierra. Ahora aguantad todo lo que podáis. ¡Suerte, tripulación!": {
+    "file": "assets/voice/es/control-4ebc6efec0.mp3",
+    "dur": 5.3
+   },
+   "control|Base, aquí Control de Misión. Los científicos han visto una erupción de clase C en el Sol. Hoy os puede llegar una tormenta solar: ¡encended el escudo!": {
+    "file": "assets/voice/es/control-d56ae63bb7.mp3",
+    "dur": 8.88
+   },
+   "control|Base, aquí Control de Misión. Los científicos han visto una erupción de clase M en el Sol. Hoy os puede llegar una tormenta solar: ¡encended el escudo!": {
+    "file": "assets/voice/es/control-c7d0d2f6f3.mp3",
+    "dur": 8.96
+   },
+   "control|Base, aquí Control de Misión. Los científicos han visto una erupción de clase X en el Sol. Hoy os puede llegar una tormenta solar: ¡encended el escudo!": {
+    "file": "assets/voice/es/control-6dfb26e6fa.mp3",
+    "dur": 9.04
+   },
+   "crew|Control, ¡acaba de llegar una tormenta solar a la base! El escudo la ha parado. La tripulación está bien.": {
+    "file": "assets/voice/es/crew-354f1c9ce8.mp3",
+    "dur": 5.8
+   },
+   "crew|Control, ¡acaba de llegar una tormenta solar a la base! El escudo no ha bastado. La tripulación ha recibido radiación.": {
+    "file": "assets/voice/es/crew-9c4520f143.mp3",
+    "dur": 6.53
+   },
+   "control|Recibido, Base. Cuidad a la tripulación.": {
+    "file": "assets/voice/es/control-eaf0e14381.mp3",
+    "dur": 2.46
+   },
+   "control|Base, aquí Control de Misión. La nave está lista. ¡Podéis despegar!": {
+    "file": "assets/voice/es/control-9588715b14.mp3",
+    "dur": 4.39
+   },
+   "crew|Motores encendidos… ¡y despegamos! ¡Volvemos a casa!": {
+    "file": "assets/voice/es/crew-011c8d1a37.mp3",
+    "dur": 3.87
+   },
+   "control|Recibido, Base. Esa tormenta corresponde a una erupción real de clase C registrada por la NASA. Cuidad a la tripulación.": {
+    "file": "assets/voice/es/control-17db8386e7.mp3",
+    "dur": 6.97
+   },
+   "control|Recibido, Base. Esa tormenta corresponde a una erupción real de clase M registrada por la NASA. Cuidad a la tripulación.": {
+    "file": "assets/voice/es/control-d808ffaf7d.mp3",
+    "dur": 7.05
+   },
+   "control|Recibido, Base. Esa tormenta corresponde a una erupción real de clase X registrada por la NASA. Cuidad a la tripulación.": {
+    "file": "assets/voice/es/control-8524b330e7.mp3",
+    "dur": 7.16
+   },
+   "crew|Control, ¡el rover ha vuelto con otra pieza de la nave! Ya van 1 de 5.": {
+    "file": "assets/voice/es/crew-12971fe510.mp3",
+    "dur": 4.26
+   },
+   "crew|Control, ¡el rover ha vuelto con otra pieza de la nave! Ya van 2 de 5.": {
+    "file": "assets/voice/es/crew-ffec001db4.mp3",
+    "dur": 4.23
+   },
+   "crew|Control, ¡el rover ha vuelto con otra pieza de la nave! Ya van 3 de 5.": {
+    "file": "assets/voice/es/crew-14f923284c.mp3",
+    "dur": 4.28
+   },
+   "crew|Control, ¡el rover ha vuelto con otra pieza de la nave! Ya van 4 de 5.": {
+    "file": "assets/voice/es/crew-774fa3ef07.mp3",
+    "dur": 4.39
+   },
+   "crew|Control, ¡el rover ha vuelto con otra pieza de la nave! Ya van 5 de 5.": {
+    "file": "assets/voice/es/crew-32d5803001.mp3",
+    "dur": 4.36
+   },
+   "crew|Control, ¡la tormenta ha averiado el rover! Volvemos muy despacio.": {
+    "file": "assets/voice/es/crew-46e5ae2bde.mp3",
+    "dur": 3.87
+   },
+   "narrator|Energía. Cada día recibes energía del Sol. Tú decides adónde va.": {
+    "file": "assets/voice/es/narrator-46b90ce424.mp3",
+    "dur": 5.56
+   },
+   "narrator|Oxígeno. Máquina de oxígeno: tu tripulación respira 3 de oxígeno cada día. Si el tanque se vacía, la misión termina.": {
+    "file": "assets/voice/es/narrator-1dc0892b6b.mp3",
+    "dur": 7.58
+   },
+   "narrator|Escudo contra la radiación. Escudo: protege de las tormentas solares, pero solo el día que le das energía. ¡Atento a los avisos!": {
+    "file": "assets/voice/es/narrator-5494cca778.mp3",
+    "dur": 7.58
+   },
+   "narrator|Batería y noche lunar. Batería: la energía que no usas se guarda. Desde el día 8 es de noche: no hay Sol, ¡la necesitarás!": {
+    "file": "assets/voice/es/narrator-066d075773.mp3",
+    "dur": 9.06
+   },
+   "narrator|Construir. Toca un edificio para mejorarlo o moverlo. Arrastra para girar la vista, con el botón derecho o dos dedos para moverla, y la rueda o pellizcar para acercar.": {
+    "file": "assets/voice/es/narrator-34fe456457.mp3",
+    "dur": 9.67
+   },
+   "narrator|Repara la nave. Toca las 5 piezas de la nave (anillos amarillos) y manda el rover. Los viajes duran 1 o 2 días y cuestan energía. Las tormentas fuertes averían el rover fuera. ¡Tienes hasta el día que pone arriba para reparar la nave!": {
+    "file": "assets/voice/es/narrator-13993c0d8f.mp3",
+    "dur": 14.5
+   },
+   "narrator|El Sol real. En este juego, cada tormenta solar es una erupción real registrada por la NASA en el último año. Cuando el Sol real está más activo, hay más tormentas.": {
+    "file": "assets/voice/es/narrator-870ca0111a.mp3",
+    "dur": 9.27
+   },
+   "narrator|Oxígeno. Máquina de oxígeno: tu tripulación respira 3 de oxígeno cada día. Si el tanque se vacía, la misión termina. En Marte, la máquina saca oxígeno del dióxido de carbono del aire, como el experimento MOXIE de la NASA, que fabricó oxígeno en Marte de verdad en 2021.": {
+    "file": "assets/voice/es/narrator-fc09468117.mp3",
+    "dur": 16.82
+   },
+   "narrator|Batería y tormentas de polvo. Batería: la energía que no usas se guarda. En Marte, ¡las tormentas de polvo pueden dejar tus paneles a la mitad!": {
+    "file": "assets/voice/es/narrator-dbb78ce0f3.mp3",
+    "dur": 8.33
+   }
+  }
+ },
+ "sfx": {},
+ "voices": {
+  "crew": "Charon",
+  "control": "Kore",
+  "narrator": "Leda",
+  "model": "gemini-2.5-flash-preview-tts"
+ }
+}
