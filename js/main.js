@@ -6,7 +6,7 @@ import { MAPS, DOSE_LIMIT, BUILDINGS, MAX_LEVEL, newGame, playDay, available, en
   validSpot, buildProblem, build, upgradeCost, upgradeProblem, upgrade, moveBuilding,
   ESCAPE, partsCollected, partsNeeded, roverCost, roverProblem, sendRover, canRepair, repairAndLaunch } from './game.js';
 import { initScene, setMode, setLabels, updateScene, playStorm, syncBuildings, setSelected, onPickBuilding,
-  startPlacing, stopPlacing, resetView, setPlanet, playLanding, playLaunch, skipAnimation, resetLander,
+  startPlacing, stopPlacing, resetView, setPlanet, playLanding, playLaunch, skipAnimation, resetLander, playIntro,
   setDebris, setCrashed, driveRover, onPickDebris } from './scene.js';
 import { isUnlocked, unlock, best, saveBest, unlockAll, setUnlockAll } from './progress.js';
 import { playMusic, setVolume, toggleMute, audioSettings, speak, stopSpeaking, radio, stopRadio, radioBusy } from './audio.js';
@@ -739,3 +739,15 @@ onLangChange(render);
 onWeather(render);
 loadSpaceWeather();
 render();
+
+// Opening: the camera flies in from space; the menu buttons appear when it arrives. A tap skips it.
+if (has3d) {
+  document.body.classList.add('intro');
+  const endIntro = () => {
+    document.body.classList.remove('intro');
+    window.removeEventListener('pointerdown', skipIntro);
+  };
+  const skipIntro = () => { skipAnimation(); };
+  window.addEventListener('pointerdown', skipIntro);
+  setTimeout(() => playIntro(endIntro), 300);
+}

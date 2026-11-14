@@ -1027,9 +1027,17 @@ export function playLaunch(done) {
   parts.astronauts?.forEach(a => { a.visible = false; }); // the crew is on board
 }
 
+// Opening shot: from deep space, past the Earth, down to the Moon base where the menu is.
+export function playIntro(done) {
+  if (!ok) { done?.(); return; }
+  setMode('menu', true);
+  anim = { kind: 'intro', t: 0, done, end: camera.position.clone() };
+}
+
 export function skipAnimation() {
   if (!anim) return;
   const a = anim; anim = null;
+  if (a.kind === 'intro') { camera.position.copy(a.end); controls.update(); }
   if (a.kind === 'landing') { parts.lm.position.copy(landingSpot()); parts.lm.rotation.set(a.crash ? .12 : 0, .6, a.crash ? .2 : 0); if (a.crash) parts.smoke.visible = true;
     for (const o of debrisObjs.values()) { o.userData.flying = false; if (o.userData.target) o.position.copy(o.userData.target); } parts.flame.visible = false; if (parts.earth) { parts.earth.position.copy(EARTH_POS); parts.earth.scale.setScalar(1); } setMode('game', true); }
   a.done?.();
@@ -1040,6 +1048,21 @@ function runAnim(dt) {
   a.t += dt;
   const lm = parts.lm, home = a.home || (a.home = landingSpot());
   const flicker = .85 + Math.random() * .3;
+  if (a.kind === 'intro') {
+    const T = 6.5, p = Math.min(1, a.t / T), e = p < .5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) / 2;
+    const target = new THREE.Vector3(-6, 3, 6);
+    // start far away and high, with the Earth on the way, then glide down to the menu camera
+    const start = new THREE.Vector3(260, 520, 900);
+    const mid = new THREE.Vector3(60, 140, 260);
+    const q = 1 - e;
+    camera.position.set(
+      q * q * start.x + 2 * q * e * mid.x + e * e * a.end.x,
+      q * q * start.y + 2 * q * e * mid.y + e * e * a.end.y,
+      q * q * start.z + 2 * q * e * mid.z + e * e * a.end.z);
+    camera.lookAt(target.clone().lerp(EARTH_POS, .25 * (1 - e)));
+    if (p >= 1) { anim = null; controls.update(); a.done?.(); }
+    return;
+  }
   if (a.kind === 'landing') {
     // A film in three shots. The lander flies towards the Earth's direction, so the Earth is always
     // in the background, above the curved horizon of the Moon:

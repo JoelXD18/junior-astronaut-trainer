@@ -486,3 +486,11 @@ button:focus-visible { outline: 3px solid #fff; outline-offset: 3px; }
 #radio-sub.on { opacity: 1; transform: translate(-50%, 0); }
 #radio-sub b { color: var(--gold); font-family: var(--title); font-weight: 400; margin-right: 6px; }
 @media (max-width: 640px) { #radio-sub { bottom: 230px; font-size: 13px; } }
+
+/* opening: menu hidden while the camera flies in, then each part appears in turn */
+.menu > * { transition: opacity .7s ease, transform .7s ease; }
+.menu > *:nth-child(2) { transition-delay: .25s; }
+.menu > *:nth-child(3) { transition-delay: .45s; }
+.menu > *:nth-child(4) { transition-delay: .6s; }
+.menu > *:nth-child(5) { transition-delay: .7s; }
+body.intro .menu > * { opacity: 0; transform: translateY(24px); transition: none; }
