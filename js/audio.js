@@ -282,6 +282,12 @@ function synth(name, vol = 1) {
       noiseHit(c, out, now, { at: 1.3, len: .8, gain: .5, f: 600, f2: 100 });
       break;
     }
+    case 'lose': // alarm, then a sad falling tune and a low rumble
+      for (let i = 0; i < 4; i++) tone(c, out, now, { type: 'square', f: 660, f2: 440, at: i * .35, len: .28, gain: .08 });
+      [523, 466, 415, 349].forEach((f, i) => tone(c, out, now, { type: 'triangle', f, at: 1.6 + i * .45, len: i === 3 ? 1.6 : .42, gain: .2 }));
+      tone(c, out, now, { type: 'sawtooth', f: 90, f2: 40, at: 1.4, len: 3.5, gain: .06 });
+      noiseHit(c, out, now, { at: 1.4, len: 3.5, gain: .25, f: 300, f2: 60, brown: true });
+      break;
     case 'alarm':
       for (let i = 0; i < 3; i++) tone(c, out, now, { type: 'square', f: 880, at: i * .22, len: .13, gain: .09 });
       break;

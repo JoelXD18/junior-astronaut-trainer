@@ -380,14 +380,16 @@ export function playDay(state, { oxygen = 0, shield = 0 }) {
     oxygen, shield, shieldPower, o2Bonus, wasted, oxygenLost, storm, blocked, warned: state.today.warned, flare: state.today.flare,
     stormDose, baseDose: map.baseDose, outsideDose, outside: out,
   };
-  // the rover: a strong storm breaks it (the part stays where it was); otherwise one day less to go
+  // the rover: a strong storm damages it; it still brings the part, but limps (one day slower) and comes back broken
   if (out) {
-    if (storm >= ESCAPE.breakStorm) { report.roverBroken = state.rover.target; state.rover = { status: 'broken', target: null, daysLeft: 0 }; }
-    else if (--state.rover.daysLeft <= 0) {
-      const d = state.debris.find(x => x.id === state.rover.target);
+    const rv = state.rover;
+    if (storm >= ESCAPE.breakStorm && !rv.damaged) { rv.damaged = true; rv.daysLeft++; report.roverHit = true; }
+    if (--rv.daysLeft <= 0) {
+      const d = state.debris.find(x => x.id === rv.target);
       d.collected = true; report.partBack = d.id;
-      state.rover = { status: 'home', target: null, daysLeft: 0 };
-    } else report.roverDaysLeft = state.rover.daysLeft;
+      if (rv.damaged) report.roverBroken = d.id;
+      state.rover = { status: rv.damaged ? 'broken' : 'home', target: null, daysLeft: 0 };
+    } else report.roverDaysLeft = rv.daysLeft;
   }
 
   state.oxygen = Math.max(0, oxygenAfter);

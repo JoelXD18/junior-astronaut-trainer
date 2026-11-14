@@ -544,3 +544,25 @@ body.intro .menu, body.intro-lock .menu { pointer-events: none; }
 .credits-brand .brand-top { font-size: clamp(13px, 2.2vw, 20px); }
 .cr-brand { overflow: hidden; padding: 8px 7%; }
 .cr-brand { display: flex; justify-content: center; margin: 0 0 18px; }
+
+/* losing: red flash, vignette and a big banner */
+.lose-fx { position: fixed; inset: 0; z-index: 30; display: grid; place-items: center; cursor: pointer;
+  background: radial-gradient(circle, rgba(120, 0, 0, .15) 30%, rgba(170, 0, 0, .75) 100%); animation: loseFlash 1.4s ease-in-out 3; }
+@keyframes loseFlash { 0%, 100% { background-color: rgba(255, 0, 0, 0); } 15% { background-color: rgba(255, 30, 30, .35); } }
+.lf-box { display: grid; justify-items: center; gap: 10px; text-align: center; padding: 0 16px; animation: loseIn .7s cubic-bezier(.2, 1.6, .4, 1) both, loseShake .5s .7s; }
+@keyframes loseIn { from { transform: scale(2.4); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+@keyframes loseShake { 20%, 60% { transform: translateX(-10px) rotate(-1deg); } 40%, 80% { transform: translateX(10px) rotate(1deg); } }
+.lf-ico { font-size: clamp(64px, 14vw, 120px); color: #fff; filter: drop-shadow(0 0 18px #ff2a2a); }
+.lf-big { font: 900 clamp(26px, 6.2vw, 70px)/1.1 'Orbitron', var(--title); letter-spacing: .04em; max-width: 94vw; color: #ff3b30;
+  -webkit-text-stroke: 2px #2a0000; text-shadow: 0 0 24px rgba(255, 40, 40, .9), 0 5px 0 #2a0000; }
+.lf-why { font: 400 clamp(20px, 4vw, 34px) var(--title); color: #fff; text-shadow: 0 3px 0 #2a0000; padding: 6px 18px; border-radius: 12px; background: rgba(120, 0, 0, .6); }
+/* red end screen when you lose */
+.window.lost { border-color: #8a0f0f; box-shadow: 0 0 0 4px rgba(255, 50, 50, .35), 0 10px 0 var(--ink); }
+.window.lost .win-head { background: linear-gradient(#ff5a4a, #c81e1e); }
+.window.lost .win-head h2 { color: #fff; }
+.lose-cause { display: flex; align-items: center; gap: 14px; text-align: left; margin: 0 0 12px; padding: 12px 16px; border-radius: 14px;
+  background: #ffe1e1; color: #8a0f0f; border: 3px solid #e02424; }
+.lose-cause .lc-ico { font-size: 54px; flex: none; color: #e02424; }
+.lose-cause .lc-why { display: block; font-weight: 800; font-size: 14px; opacity: .8; }
+.lose-cause strong { display: block; font: 400 26px var(--title); color: #c81e1e; }
+.lose-fx ~ #radio-sub, body:has(.lose-fx) #radio-sub, body:has(.lose-fx) .skip { display: none !important; }

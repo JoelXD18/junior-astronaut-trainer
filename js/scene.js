@@ -723,7 +723,7 @@ export function setRover(rv) {
   if (!ok || parts.roverTrip) return;
   const r = curRover(); if (!r) return;
   if (!rv || rv.status === 'home') placeRover(r, ROVER_HOME, false);
-  else if (rv.status === 'out') placeRover(r, roverStop(rv.target), false);
+  else if (rv.status === 'out') placeRover(r, roverStop(rv.target), !!rv.damaged);
   else placeRover(r, ROVER_HOME, true);
 }
 
@@ -1088,6 +1088,13 @@ export function playLaunch(done, { length = 6.5 } = {}) {
   parts.astronauts?.forEach(a => { a.visible = false; }); // the crew is on board
 }
 
+// Losing: the camera slowly rises and pulls away from the base.
+export function playLose(done) {
+  if (!ok) { done?.(); return; }
+  controls.enabled = false;
+  anim = { kind: 'lose', t: 0, done, from: camera.position.clone() };
+}
+
 // Opening shot: from deep space, past the Earth, down to the Moon base where the menu is.
 export function playIntro(done) {
   if (!ok) { done?.(); return; }
@@ -1098,6 +1105,15 @@ export function playIntro(done) {
 export function skipAnimation() {
   if (!anim) return;
   const a = anim; anim = null;
+  if (a.kind === 'lose') {
+    const k = ease(Math.min(1, a.t / 5));
+    const away = new THREE.Vector3().subVectors(a.from, new THREE.Vector3(-5, 0, 4)).setY(0).normalize();
+    camera.position.copy(a.from).addScaledVector(away, 45 * k).add(new THREE.Vector3(0, 35 * k, 0));
+    camera.position.x += (Math.random() - .5) * .5 * (1 - k); // a shake at the start
+    camera.lookAt(-5, 0, 4);
+    if (a.t > 5) { anim = null; controls.enabled = true; controls.update(); a.done?.(); }
+    return;
+  }
   if (a.kind === 'intro') { camera.position.copy(a.end); controls.update(); }
   if (a.kind === 'landing') { parts.lm.position.copy(landingSpot()); parts.lm.rotation.set(a.crash ? .12 : 0, .6, a.crash ? .2 : 0); if (a.crash) parts.smoke.visible = true;
     for (const o of debrisObjs.values()) { o.userData.flying = false; if (o.userData.target) o.position.copy(o.userData.target); } parts.flame.visible = false; if (parts.earth) { parts.earth.position.copy(EARTH_POS); parts.earth.scale.setScalar(1); } setMode('game', true); }
@@ -1110,6 +1126,15 @@ function runAnim(dt) {
   a.waiting = false;
   const lm = parts.lm, home = a.home || (a.home = landingSpot());
   const flicker = .85 + Math.random() * .3;
+  if (a.kind === 'lose') {
+    const k = ease(Math.min(1, a.t / 5));
+    const away = new THREE.Vector3().subVectors(a.from, new THREE.Vector3(-5, 0, 4)).setY(0).normalize();
+    camera.position.copy(a.from).addScaledVector(away, 45 * k).add(new THREE.Vector3(0, 35 * k, 0));
+    camera.position.x += (Math.random() - .5) * .5 * (1 - k); // a shake at the start
+    camera.lookAt(-5, 0, 4);
+    if (a.t > 5) { anim = null; controls.enabled = true; controls.update(); a.done?.(); }
+    return;
+  }
   if (a.kind === 'intro') {
     const T = 6.5, p = Math.min(1, a.t / T), e = p < .5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) / 2;
     const target = new THREE.Vector3(-6, 3, 6);

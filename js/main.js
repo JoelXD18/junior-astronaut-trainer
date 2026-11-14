@@ -8,7 +8,7 @@ import { MAPS, DOSE_LIMIT, BUILDINGS, MAX_LEVEL, newGame, playDay, available, en
   roverDays, escapeDeadline, roverRepairProblem, repairRover } from './game.js';
 import { initScene, setMode, setLabels, updateScene, playStorm, syncBuildings, setSelected, onPickBuilding,
   startPlacing, stopPlacing, resetView, setPlanet, playLanding, playLaunch, skipAnimation, resetLander, playIntro,
-  setDebris, setCrashed, driveRover, returnRover, setRover, onPickDebris } from './scene.js';
+  setDebris, setCrashed, driveRover, returnRover, setRover, onPickDebris, playLose } from './scene.js';
 import { isUnlocked, unlock, best, saveBest, unlockAll, setUnlockAll } from './progress.js';
 import { playMusic, setVolume, toggleMute, audioSettings, speak, stopSpeaking, radio, stopRadio, radioBusy, radioTime, sfx } from './audio.js';
 import { DEMOS } from './demos.js';
@@ -360,8 +360,12 @@ function endScreen() {
   const done = game.status === 'won' && game.mode === 'survival' ? map.missionDays : game.status === 'won' ? game.day : game.status === 'lost-time' ? game.day : game.day - 1;
   const ico = game.status === 'won' ? 'trophy' : game.status === 'lost-oxygen' ? 'oxygen' : game.status === 'lost-time' ? 'gear' : 'radiation';
   const survival = game.mode === 'infinite';
-  return centered(windowHtml(esc(t(survival ? 'survivalEndTitle' : key + 'Title')), `
-    <div class="end-ico">${icon(survival ? 'trophy' : ico)}</div>
+  const lost = game.status !== 'won';
+  // losing: a red title ("Mission failed" / "Game over" in infinite mode) and a red box with the reason
+  const title = lost ? `${icon('warning')} ${esc(t(survival ? 'gameOver' : 'youLost'))}` : esc(t(key + 'Title'));
+  return centered(windowHtml(title, `
+    ${lost ? `<div class="lose-cause"><span class="lc-ico">${icon(ico)}</span><div><span class="lc-why">${esc(t('loseWhy'))}</span><strong>${esc(t(key + 'Title'))}</strong></div></div>`
+      : `<div class="end-ico">${icon(survival ? 'trophy' : ico)}</div>`}
     ${survival ? `<p class="record">${esc(t('survivalDays', { n: done }))}</p>
       <p class="small">${esc(t(endInfo.newRecord ? 'newRecord' : 'bestRecord', { n: best(game.map, game.difficulty) }))}</p>` : ''}
     <p>${esc(t(key + 'Text', { n: map.oxygenUse, d: escapeDeadline(game) }))}</p>
@@ -375,7 +379,7 @@ function endScreen() {
     <div class="stack">
       <button class="btn green" data-action="again"><span>${esc(t('playAgain'))}</span></button>
       <button class="btn blue" data-go="menu"><span>${esc(t('mainMenu'))}</span></button>
-    </div>`, { close: null, cls: 'end ' + game.status }));
+    </div>`, { close: null, cls: 'end ' + game.status + (lost ? ' lost' : '') }));
 }
 
 function creditsRoll() {
@@ -449,6 +453,7 @@ function reportHtml(r) {
   }
   if (r.outsideDose) items.push(['radiation', t('outsideStorm', { d: r.outsideDose }), 'bad']);
   if (r.partBack) items.push(['gear', t('partBackReport', { n: partsCollected(game), m: partsNeeded() }), 'good']);
+  if (r.roverHit) items.push(['warning', t('roverHitReport'), 'bad']);
   if (r.roverBroken) items.push(['warning', t('roverBrokenReport', { e: ESCAPE.roverRepair }), 'bad']);
   if (r.roverDaysLeft) items.push(['gear', t('roverStillOut', { n: r.roverDaysLeft }), '']);
   if (game.mode === 'escape' && r.status === 'playing') {
@@ -514,6 +519,7 @@ function termHtml(key) {
 function musicFor() {
   if (cinematic === 'landing') return 'landing';
   if (cinematic === 'launch' || screen === 'roll') return 'credits';
+  if (cinematic === 'lose') return null; // silence, only the alarm
   if (screen === 'game') return showHelp ? 'tutorial' : 'game';
   if (screen === 'end' && game?.status === 'won') return 'credits';
   return 'menu';
@@ -682,10 +688,10 @@ document.addEventListener('click', e => {
         lastReport = playDay(game, choice);
         if (game.status === 'playing') choice = defaultChoice();
         const r = lastReport;
-        if (has3d && r.partBack) { busy = true; returnRover(r.partBack, { withPart: true }, () => { busy = false; render(); }); }
-        if (has3d && r.roverBroken) { busy = true; returnRover(r.roverBroken, { broken: true }, () => { busy = false; render(); }); }
+        if (has3d && r.roverHit && !r.partBack) setRover(game.rover);
+        if (has3d && r.partBack) { busy = true; returnRover(r.partBack, { withPart: true, broken: !!r.roverBroken }, () => { busy = false; render(); }); }
+        if (r.roverHit) radio([{ who: 'crew', text: t('r_rover_broken') }], lang(), showRadioLine);
         if (r.partBack) radio([{ who: 'crew', text: t('r_rover_back', { n: partsCollected(game), m: partsNeeded() }) }], lang(), showRadioLine);
-        if (r.roverBroken) radio([{ who: 'crew', text: t('r_rover_broken') }], lang(), showRadioLine);
         if (r.dustStarted) radio([{ who: 'control', text: t('r_dust_start', { n: game.dust }) }], lang(), showRadioLine);
         render();
       };
@@ -771,7 +777,29 @@ function finishGame() {
     playLaunch(() => { cinematic = null; go('roll'); }, { length: Math.max(6.5, radioTime(lines, lang()) + .5) });
     return;
   }
+  if (has3d) return playLoseScene();
   go('end');
+}
+
+// You lost: alarm, the screen turns red, the camera slowly pulls away from the base, and a big banner says why.
+function playLoseScene() {
+  cinematic = 'lose';
+  stopRadio();
+  render();
+  sfx('lose');
+  const key = { 'lost-oxygen': 'lostOxygen', 'lost-dose': 'lostDose', 'lost-time': 'lostTime' }[game.status];
+  const ico = { 'lost-oxygen': 'oxygen', 'lost-dose': 'radiation', 'lost-time': 'gear' }[game.status];
+  const fx = document.createElement('div');
+  fx.className = 'lose-fx';
+  fx.innerHTML = `<div class="lf-box"><span class="lf-ico">${icon(ico)}</span>
+    <span class="lf-big">${esc(t(game.mode === 'infinite' ? 'gameOver' : 'loseBanner'))}</span>
+    <span class="lf-why">${esc(t(key + 'Title'))}</span></div>`;
+  document.body.appendChild(fx);
+  let done = false;
+  const end = () => { if (done) return; done = true; fx.remove(); cinematic = null; go('end'); };
+  fx.addEventListener('click', end);
+  playLose(() => {});
+  setTimeout(end, 5200);
 }
 
 if (has3d) onPickDebris(id => {
