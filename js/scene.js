@@ -1166,7 +1166,9 @@ function runAnim(dt) {
     const up = new THREE.Vector3(0, 1, 0);
     const hz = new THREE.Vector3().subVectors(EARTH_CINE, home).setY(0).normalize(); // towards the Earth
     const perp = new THREE.Vector3().crossVectors(up, hz);
-    const P0 = home.clone().addScaledVector(hz, -650).addScaledVector(perp, 90).setY(140);
+    // on Mars start closer in: the Martian ground fades out near its edge, and from out there it looked see-through
+    const P0 = planet === 'mars' ? home.clone().addScaledVector(hz, -260).addScaledVector(perp, 40).setY(110)
+      : home.clone().addScaledVector(hz, -650).addScaledVector(perp, 90).setY(140);
     const P1 = home.clone().addScaledVector(hz, -95).addScaledVector(perp, 12).setY(55);
     const P2 = home.clone().addScaledVector(hz, -6).setY(20);
     if (parts.earth && a.t < T3) { parts.earth.position.copy(EARTH_CINE); parts.earth.scale.setScalar(1.8); }
