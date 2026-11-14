@@ -19,8 +19,10 @@ const EARTH_CINE = new THREE.Vector3(-560, 250, -860); // higher in the sky for 
 const HOME = new THREE.Vector3(-26, 0, 14);              // landing site
 const HZ = new THREE.Vector3().subVectors(EARTH_CINE, HOME).setY(0).normalize(); // from the lander towards the Earth
 const PERP = new THREE.Vector3().crossVectors(new THREE.Vector3(0, 1, 0), HZ);
-const FLAG_AT = HOME.clone().addScaledVector(HZ, 9);
-const STEP_AT = HOME.clone().addScaledVector(HZ, 6).addScaledVector(PERP, .18);
+const FLAG_AT = HOME.clone().addScaledVector(HZ, 8.5).addScaledVector(PERP, -1.5);
+// The ladder is on this leg of the NASA lander model (found by trying each leg).
+const LADDER = new THREE.Vector3(Math.sin(-2.006), 0, Math.cos(-2.006));
+const STEP_AT = HOME.clone().addScaledVector(LADDER, 5.7);
 const ALONG = Math.atan2(-HZ.z, HZ.x); // rotation that lines an object up with HZ
 const SUN_POS = new THREE.Vector3(-402, -95, -1236);
 
@@ -492,7 +494,8 @@ function flag() {
   pole.position.y = 1.2; g.add(pole);
   const bar = new THREE.Mesh(new THREE.CylinderGeometry(.02, .02, 1.3, 6), metal(0xdddddd));
   bar.rotation.z = Math.PI / 2; bar.position.set(.65, 2.35, 0); g.add(bar);
-  const cloth = new THREE.Mesh(new THREE.PlaneGeometry(1.3, .8, 12, 4), new THREE.MeshStandardMaterial({ map: usFlagTexture(), side: THREE.DoubleSide, roughness: .9 }));
+  const flagTex = usFlagTexture();
+  const cloth = new THREE.Mesh(new THREE.PlaneGeometry(1.3, .8, 12, 4), new THREE.MeshStandardMaterial({ map: flagTex, emissive: 0xffffff, emissiveMap: flagTex, emissiveIntensity: .45, side: THREE.DoubleSide, roughness: .9 }));
   const p = cloth.geometry.attributes.position;
   for (let i = 0; i < p.count; i++) p.setZ(i, Math.sin(p.getX(i) * 4) * .05); // the famous wrinkles
   cloth.geometry.computeVertexNormals();
@@ -591,6 +594,9 @@ async function loadModels(base) {
   if (astro) {
     relaxArms(astro);
     const copy = astro.clone(); // clone before scaling, so both get the same real size
+    parts.evaAstro = placeModel(astro.clone(), 1.85, HOME.x, HOME.z, 0); // the one who climbs down first
+    parts.evaAstro.visible = false;
+    base.add(parts.evaAstro);
     parts.astronauts = [[-21, 17.5, 2.6], [6, 9, -1]].map(([x, z, r], i) => {
       const a = placeModel(i ? copy : astro, 1.85, x, z, r);
       a.userData.home = new THREE.Vector3(x, 0, z); a.userData.phase = i * 2;
@@ -630,135 +636,23 @@ function bootprintTexture() {
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
 }
 
-// Things only used in the first-person moonwalk: Apollo-style boot and suit leg, suit arm and glove,
-// and the footprint left behind.
-const SUIT = () => new THREE.MeshStandardMaterial({ color: 0xeeeeea, roughness: .85 });
-
-// A cylinder stretched between two points (for arm and leg pieces).
-function limb(r1, r2, mat) {
-  const m = new THREE.Mesh(new THREE.CylinderGeometry(r2, r1, 1, 16, 1), mat);
-  m.userData.limb = true;
-  return m;
-}
-const UPY = new THREE.Vector3(0, 1, 0);
-function placeLimb(m, from, to) {
-  const d = new THREE.Vector3().subVectors(to, from);
-  m.position.copy(from).addScaledVector(d, .5);
-  m.quaternion.setFromUnitVectors(UPY, d.clone().normalize());
-  m.scale.set(1, d.length(), 1);
-}
-
-// Top view outline of the boot sole (x forward, metres).
-function soleShape(s = 1) {
-  const sh = new THREE.Shape();
-  sh.moveTo(-.17 * s, 0);
-  sh.bezierCurveTo(-.17 * s, -.07 * s, -.06 * s, -.075 * s, .02 * s, -.07 * s);
-  sh.bezierCurveTo(.12 * s, -.075 * s, .19 * s, -.06 * s, .19 * s, 0);
-  sh.bezierCurveTo(.19 * s, .06 * s, .12 * s, .075 * s, .02 * s, .07 * s);
-  sh.bezierCurveTo(-.06 * s, .075 * s, -.17 * s, .07 * s, -.17 * s, 0);
-  return sh;
-}
-
-function makeBoot() {
-  const boot = new THREE.Group();
-  const suit = SUIT();
-  const sole = new THREE.Mesh(new THREE.ExtrudeGeometry(soleShape(), { depth: .05, bevelEnabled: true, bevelThickness: .015, bevelSize: .035, bevelSegments: 2 }),
-    new THREE.MeshStandardMaterial({ color: 0x55637c, roughness: .9 }));
-  sole.rotation.x = -Math.PI / 2; boot.add(sole);
-  // ridges of the tread on the side of the sole
-  for (let i = -6; i <= 7; i++) {
-    const r = new THREE.Mesh(new THREE.BoxGeometry(.012, .03, .16), new THREE.MeshStandardMaterial({ color: 0x4f596a }));
-    r.position.set(i * .024, .02, 0); boot.add(r);
-  }
-  const bootMat = new THREE.MeshStandardMaterial({ color: 0xd6d1c4, roughness: .8 });
-  const upper = new THREE.Mesh(new THREE.ExtrudeGeometry(soleShape(.9), { depth: .09, bevelEnabled: true, bevelThickness: .04, bevelSize: .03, bevelSegments: 4 }), bootMat);
-  upper.rotation.x = -Math.PI / 2; upper.position.y = .06; boot.add(upper);
-  const toe = new THREE.Mesh(new THREE.SphereGeometry(.075, 16, 10), new THREE.MeshStandardMaterial({ color: 0x9aa3b0, roughness: .6 }));
-  toe.scale.set(1.25, .75, 1); toe.position.set(.11, .12, 0); boot.add(toe);
-  const ankle = new THREE.Mesh(new THREE.CylinderGeometry(.085, .1, .26, 16), bootMat);
-  ankle.position.set(-.07, .27, 0); boot.add(ankle);
-  const strapMat = new THREE.MeshStandardMaterial({ color: 0x3f5f9f, roughness: .6 });
-  for (const y of [.2, .33]) { const strap = new THREE.Mesh(new THREE.TorusGeometry(.095, .014, 8, 24), strapMat); strap.rotation.x = Math.PI / 2; strap.position.set(-.07, y, 0); boot.add(strap); }
-  const tongue = new THREE.Mesh(new THREE.BoxGeometry(.16, .03, .07), new THREE.MeshStandardMaterial({ color: 0xc9c9c4 }));
-  tongue.position.set(.03, .17, 0); tongue.rotation.z = -.35; boot.add(tongue);
-  return boot;
-}
-
-// Apollo glove: light grey hand, blue fingertips, wrist ring; fingers curl around a vertical pole.
-function makeGlove() {
-  const g = new THREE.Group();
-  const skin = new THREE.MeshStandardMaterial({ color: 0xc9ccd2, roughness: .7 });
-  const tips = new THREE.MeshStandardMaterial({ color: 0x3d5ca8, roughness: .6 });
-  const palm = new THREE.Mesh(new THREE.SphereGeometry(.06, 16, 12), skin);
-  palm.scale.set(.75, 1.2, 1); palm.position.set(0, 0, .055); g.add(palm);
-  for (let i = 0; i < 4; i++) { // fingers wrap round the pole (pole runs along y at the origin)
-    const y = .045 - i * .03;
-    for (const [ang, mat] of [[.9, skin], [2.2, skin], [3.1, tips]]) {
-      const f = new THREE.Mesh(new THREE.SphereGeometry(.017, 10, 8), mat);
-      f.position.set(Math.sin(ang) * .045, y, Math.cos(ang) * .045); g.add(f);
-    }
-  }
-  const thumb = new THREE.Mesh(new THREE.CapsuleGeometry(.016, .05, 4, 8), tips);
-  thumb.position.set(-.05, .07, .02); thumb.rotation.z = .6; g.add(thumb);
-  const ring = new THREE.Mesh(new THREE.TorusGeometry(.055, .014, 10, 28), new THREE.MeshStandardMaterial({ color: 0x2f5fb5, metalness: .8, roughness: .3 }));
-  ring.position.set(0, -.005, .12); g.add(ring); // wrist ring where the glove locks to the suit
-  g.userData.wrist = new THREE.Vector3(0, -.005, .13);
-  return g;
-}
-
+// The footprint left by the first step (the moonwalk is filmed from outside).
 function makeEvaProps() {
   const g = new THREE.Group();
-  const suit = SUIT();
-  const boot = makeBoot(); boot.rotation.y = ALONG; boot.scale.setScalar(1.25); boot.visible = false;
-  const thigh = limb(.085, .078, suit), shin = limb(.075, .07, suit), knee = new THREE.Mesh(new THREE.SphereGeometry(.08, 14, 10), suit);
-  const leg = new THREE.Group(); leg.add(thigh, shin, knee); leg.visible = false;
-  const glove = makeGlove(); glove.scale.setScalar(1.7); glove.visible = false;
-  const upperArm = limb(.085, .075, suit), foreArm = limb(.075, .065, suit), elbow = new THREE.Mesh(new THREE.SphereGeometry(.08, 14, 10), suit);
-  const arm = new THREE.Group(); arm.add(upperArm, foreArm, elbow); arm.visible = false;
   const print = new THREE.Mesh(new THREE.PlaneGeometry(.4, .18), new THREE.MeshBasicMaterial({ map: bootprintTexture(), transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 }));
   print.rotation.set(-Math.PI / 2, 0, ALONG); print.position.copy(STEP_AT).setY(.04); print.visible = false;
-  g.add(boot, leg, glove, arm, print);
-  Object.assign(parts, { boot, leg, thigh, shin, knee, glove, arm, upperArm, foreArm, elbow, print });
-  // helmet lamp for the moonwalk
-  parts.lamp = new THREE.SpotLight(0xfff2dd, 25, 30, .6, .5, 1.2); parts.lamp.visible = false;
-  g.add(parts.lamp, parts.lamp.target);
+  g.add(print);
+  parts.print = print;
+  // soft light from the camera side during the film (like sunlight bounced off the bright lunar ground)
+  parts.fill = new THREE.DirectionalLight(0xfff4e6, 0); g.add(parts.fill, parts.fill.target);
   return g;
-}
-
-// Where the camera's right / forward point, for attaching the arm and leg to "your" body.
-function camAxes() {
-  camera.updateMatrixWorld();
-  const right = new THREE.Vector3().setFromMatrixColumn(camera.matrixWorld, 0);
-  const fwd = camera.getWorldDirection(new THREE.Vector3());
-  return { right, fwd };
-}
-
-// The leg follows the boot: hip under the camera, knee bent forward.
-function poseLeg() {
-  const { right, fwd } = camAxes();
-  const ankle = parts.boot.localToWorld(new THREE.Vector3(-.07, .4, 0));
-  const flat = fwd.clone().setY(0).normalize();
-  const hip = camera.position.clone().addScaledVector(right, .25).add(new THREE.Vector3(0, -.85, 0)).addScaledVector(flat, -.2);
-  const knee = hip.clone().lerp(ankle, .5).addScaledVector(flat, -.06).add(new THREE.Vector3(0, .08, 0));
-  placeLimb(parts.thigh, hip, knee); placeLimb(parts.shin, knee, ankle); parts.knee.position.copy(knee);
-}
-
-// The arm reaches from your right shoulder to the glove.
-function poseArm() {
-  const { right, fwd } = camAxes();
-  const gl = parts.glove;
-  gl.updateMatrixWorld();
-  const wrist = gl.localToWorld(gl.userData.wrist.clone());
-  const shoulder = camera.position.clone().addScaledVector(right, .3).add(new THREE.Vector3(0, -.32, 0)).addScaledVector(fwd, -.05);
-  const elbow = shoulder.clone().lerp(wrist, .5).addScaledVector(right, .12).add(new THREE.Vector3(0, -.12, 0));
-  placeLimb(parts.upperArm, shoulder, elbow); placeLimb(parts.foreArm, elbow, wrist); parts.elbow.position.copy(elbow);
 }
 
 function makeBase() {
   const base = new THREE.Group();
   parts.base = base;
   base.add(shieldDome());
-  const f = flag(); f.position.copy(FLAG_AT); f.rotation.y = ALONG + Math.PI / 2 + .5; base.add(f);
+  const f = flag(); f.position.copy(FLAG_AT); f.rotation.y = ALONG - Math.PI / 2 + .3; base.add(f);
   parts.flag = f;
   base.add(makeEvaProps());
 
@@ -1054,11 +948,14 @@ export function skipAnimation() {
 function endEva() {
   if (parts.flag) { parts.flag.visible = true; parts.flag.position.copy(FLAG_AT); parts.flag.children[2].scale.x = 1; parts.flag.children[2].position.x = .65; }
   if (parts.print) parts.print.visible = true;
-  for (const k of ['boot', 'leg', 'glove', 'arm']) if (parts[k]) parts[k].visible = false;
+  if (parts.evaAstro) parts.evaAstro.visible = false;
+  if (parts.fill) parts.fill.intensity = 0;
   parts.astronauts?.forEach(a => { a.visible = true; });
-  camera.near = .5; camera.updateProjectionMatrix();
-  if (parts.lamp) parts.lamp.visible = false;
 }
+
+// Turn the astronaut model to face a direction on the ground.
+const ASTRO_FACE = 0; // the NASA model looks along +z
+function face(obj, dir) { obj.rotation.y = Math.atan2(dir.x, dir.z) + ASTRO_FACE; }
 
 function runAnim(dt) {
   const a = anim;
@@ -1071,7 +968,7 @@ function runAnim(dt) {
     // 1) wide shot over the Moon (0–10 s)  2) closer, braking (10–17 s)
     // 3) from the ground, looking up as it touches down (17–21 s), then fly to the base view.
     const T1 = 10, T2 = 17, T3 = 21;
-    const E1 = 22.4, E2 = 25.4, E3 = 28.6, E4 = 32.4, E5 = 37.6, T4 = 40.6; // moonwalk times
+    const E1 = 22.4, E2 = 27.4, E3 = 29.8, E4 = 33.6, E5 = 38.4, T4 = 41.2; // moonwalk times
     const up = new THREE.Vector3(0, 1, 0);
     const hz = new THREE.Vector3().subVectors(EARTH_CINE, home).setY(0).normalize(); // towards the Earth
     const perp = new THREE.Vector3().crossVectors(up, hz);
@@ -1112,70 +1009,79 @@ function runAnim(dt) {
       camera.lookAt(new THREE.Vector3(home.x, 7, home.z).addScaledVector(hz, 20));
       phase = 'final';
     } else if (a.t < E5) {
-      // ---- first person, through the helmet visor ----
+      // ---- moonwalk seen from outside ----
       lm.position.copy(home);
-      if (camera.near > .1) { camera.near = .05; camera.updateProjectionMatrix(); }
-      parts.lamp.visible = true; parts.lamp.position.copy(camera.position); parts.lamp.target.position.copy(camera.position).add(camera.getWorldDirection(new THREE.Vector3()).multiplyScalar(5));
-      const t = a.t, bob = s => Math.sin(t * 7) * s;
-      if (t < E2) { // at the hatch, looking out at the Moon and the Earth
-        const k = ease((t - E1) / (E2 - E1));
-        camera.position.copy(home).addScaledVector(hz, 3).setY(3.4);
-        camera.lookAt(home.clone().addScaledVector(hz, 30).addScaledVector(perp, -6 + 9 * k).setY(5 - 3 * k));
-        phase = 'exit';
-      } else if (t < E3) { // climbing down the ladder
-        const k = ease((t - E2) / (E3 - E2));
-        camera.position.copy(home).addScaledVector(hz, 3 + 1.8 * k).setY(3.4 - 1.7 * k + bob(.05));
-        camera.lookAt(STEP_AT.clone().addScaledVector(hz, 3 * (1 - k)).setY(1.4 * (1 - k)));
+      parts.fill.intensity = 1.6; parts.fill.position.copy(camera.position).add(new THREE.Vector3(0, 6, 0)); parts.fill.target.position.copy(home);
+      const t = a.t, as = parts.evaAstro;
+      const hop = s => Math.abs(Math.sin(s)) * .22; // low gravity: little bunny hops
+      const ladder = home.clone().addScaledVector(LADDER, 4.4); // middle of the ladder
+      if (as) as.visible = true;
+      if (t < E2) { // climbing down the ladder, facing the lander
+        const p = (t - E1) / (E2 - E1);
+        const steps = 6, q = p * steps, frac = q - Math.floor(q);
+        const y = 3.1 * (1 - (Math.floor(q) + ease(frac)) / steps);
+        // down the sloping ladder: it leans out from the lander towards its foot pad
+        as?.position.copy(home).addScaledVector(LADDER, 3.8 + .9 * (1 - y / 3.1)).setY(Math.max(0, y));
+        if (as) face(as, LADDER.clone().negate());
+        camera.position.copy(home).addScaledVector(perp, 9).addScaledVector(hz, 4).setY(2.4);
+        camera.lookAt(ladder.clone().setY(1.6));
         phase = 'ladder';
-      } else if (t < E4) { // the first step and the bootprint
-        camera.position.copy(home).addScaledVector(hz, 5.55).addScaledVector(perp, -.35).setY(1.7);
-        camera.lookAt(STEP_AT.clone().addScaledVector(hz, .2).addScaledVector(perp, -.1).setY(.05));
-        const s = t - E3, b = parts.boot;
-        b.visible = parts.leg.visible = s < 2.7;
-        const high = STEP_AT.clone().addScaledVector(hz, -.35).setY(.55);
-        if (s < 1) b.position.lerpVectors(high, STEP_AT, ease(s));
-        else if (s < 1.9) b.position.copy(STEP_AT).setY(-.01 * Math.min(1, (s - 1) * 4)); // presses into the dust
-        else b.position.lerpVectors(STEP_AT, STEP_AT.clone().addScaledVector(hz, .5).setY(.9), ease((s - 1.9) / .8));
-        parts.print.visible = s > 1.9;
-        if (b.visible) poseLeg();
-        phase = s > 1 ? 'step' : 'ladder';
-      } else { // planting the flag
+      } else if (t < E3) { // turns round and takes the first step: the bootprint
+        const p = (t - E2) / (E3 - E2);
+        const from = home.clone().addScaledVector(LADDER, 4.7), to = STEP_AT.clone();
+        if (as) {
+          as.position.lerpVectors(from, to, ease(Math.min(1, p * 1.4)));
+          as.position.y = p < .72 ? Math.sin(Math.min(1, p * 1.4) * Math.PI) * .25 : 0;
+          const turn = ease(Math.min(1, p * 2.5));
+          face(as, LADDER.clone().negate().lerp(LADDER, turn).add(perp.clone().multiplyScalar(.01)).normalize());
+        }
+        parts.print.visible = p > .7;
+        const k = ease(Math.min(1, p * 1.5));
+        camera.position.copy(home).addScaledVector(perp, 9).addScaledVector(hz, 4).setY(2.4)
+          .lerp(STEP_AT.clone().addScaledVector(perp, 3.2).addScaledVector(hz, 2.4).setY(1.3), k);
+        camera.lookAt(ladder.clone().setY(1.6).lerp(STEP_AT.clone().setY(.4), k));
+        phase = p > .5 ? 'step' : 'ladder';
+      } else if (t < E4) { // walks to the flag spot, carrying the flag
+        const p = (t - E3) / (E4 - E3);
+        const stand = FLAG_AT.clone().addScaledVector(perp, .9).addScaledVector(hz, -.4);
+        if (as) {
+          as.position.lerpVectors(STEP_AT, stand, ease(p));
+          as.position.y = hop(t * 6) * (p < .95 ? 1 : 0);
+          face(as, new THREE.Vector3().subVectors(stand, STEP_AT).setY(0).normalize());
+        }
+        const fl = parts.flag, cloth = fl.children[2];
+        fl.visible = true; cloth.scale.x = .06;
+        if (as) fl.position.copy(as.position).addScaledVector(perp, -.45).add(new THREE.Vector3(0, .35, 0));
+        const cam = FLAG_AT.clone().addScaledVector(hz, -7.5).addScaledVector(perp, -3.5).setY(1.6);
+        const k = ease(Math.min(1, p * 1.6));
+        camera.position.copy(STEP_AT.clone().addScaledVector(perp, 3.2).addScaledVector(hz, 2.4).setY(1.3)).lerp(cam, k);
+        camera.lookAt((as ? as.position.clone() : FLAG_AT.clone()).setY(1.1));
+        phase = 'walk';
+      } else { // plants the flag; the Earth shines behind it
         const s = t - E4;
-        const camAt = home.clone().addScaledVector(hz, 4.8 + Math.min(1, s / 1.2) * 2.6 - 1.2 * ease((s - 3.6) / 1.2)).setY(1.7 + bob(.03) * (s < 1.2 ? 1 : 0));
-        camera.position.copy(camAt);
-        camera.lookAt(FLAG_AT.clone().setY(1.1 + .7 * ease((s - 3.4) / 1.2)).addScaledVector(perp, .3 * ease((s - 3.4) / 1.2))); // look up as the flag opens
         const fl = parts.flag, cloth = fl.children[2];
         fl.visible = true;
-        const held = camAt.clone().addScaledVector(hz, 1.1).addScaledVector(perp, -.22).setY(.35);
-        const over = FLAG_AT.clone().setY(.8);
-        let y;
-        if (s < 2.4) { fl.position.lerpVectors(held, over, ease(s / 2.4)); y = null; }
-        else if (s < 2.9) y = .8 - .45 * ease((s - 2.4) / .5);   // first push
-        else if (s < 3.2) y = .35 + .1 * ease((s - 2.9) / .3);  // lift a little
-        else if (s < 3.7) y = .45 - .45 * ease((s - 3.2) / .5); // second push: it's in!
-        else y = 0;
-        if (y !== null) fl.position.copy(FLAG_AT).setY(y);
-        cloth.scale.x = s < 3.7 ? .06 : .06 + .94 * ease((s - 3.7) / .9); // the flag opens
-        // your glove holds the pole, then lets go
-        const gl = parts.glove;
-        gl.visible = parts.arm.visible = s < 4.9;
-        const grip = fl.position.clone().add(new THREE.Vector3(0, 1.0, 0));
-        const release = Math.max(0, (s - 3.9) / 1);
-        gl.position.copy(grip).addScaledVector(hz, -release * .5).add(new THREE.Vector3(0, -release * .5, 0));
-        gl.lookAt(camera.position.x, gl.position.y, camera.position.z);
-        gl.rotateY(Math.PI); // palm faces away, fingers wrap round the pole
-        if (gl.visible) poseArm();
+        const held = (as ? as.position.clone() : FLAG_AT.clone()).addScaledVector(perp, -.45).setY(.35);
+        if (s < 1) fl.position.lerpVectors(held, FLAG_AT.clone().setY(.8), ease(s));
+        else if (s < 1.5) fl.position.copy(FLAG_AT).setY(.8 - .45 * ease((s - 1) / .5));
+        else if (s < 1.8) fl.position.copy(FLAG_AT).setY(.35 + .1 * ease((s - 1.5) / .3));
+        else fl.position.copy(FLAG_AT).setY(Math.max(0, .45 - .45 * ease((s - 1.8) / .5)));
+        cloth.scale.x = s < 2.3 ? .06 : .06 + .94 * ease((s - 2.3) / 1);
+        if (as) { as.position.copy(FLAG_AT).addScaledVector(perp, .9).addScaledVector(hz, -.4).setY(0); face(as, new THREE.Vector3().subVectors(FLAG_AT, as.position).setY(0).normalize()); }
+        camera.position.copy(FLAG_AT).addScaledVector(hz, -7.5).addScaledVector(perp, 4).setY(1.6)
+          .lerp(FLAG_AT.clone().addScaledVector(hz, -5.5).addScaledVector(perp, -2.5).setY(1.3), ease(s / 4));
+        camera.lookAt(FLAG_AT.clone().setY(1.5).addScaledVector(hz, 4 * ease(s / 4)).add(new THREE.Vector3(0, 1.5 * ease(s / 4), 0)));
         phase = 'flag';
       }
     } else {
       // back to the base view
-      if (camera.near < .5) endEva();
+      if (!a.ended) { a.ended = true; endEva(); }
       lm.position.copy(home);
       const k = ease((a.t - E5) / (T4 - E5));
       if (parts.earth) { parts.earth.position.lerpVectors(EARTH_CINE, EARTH_POS, k); parts.earth.scale.setScalar(1.8 - .8 * k); }
-      const from = home.clone().addScaledVector(hz, 6.2).setY(1.7);
+      const from = FLAG_AT.clone().addScaledVector(hz, -5.5).addScaledVector(perp, -2.5).setY(1.3);
       camera.position.lerpVectors(from, GAME_CAM(), k);
-      camera.lookAt(FLAG_AT.clone().setY(1.1).lerp(new THREE.Vector3(-5, 0, 4), k));
+      camera.lookAt(FLAG_AT.clone().setY(1.5).lerp(new THREE.Vector3(-5, 0, 4), k));
       phase = 'landed';
     }
     parts.flame.visible = a.t < T3 - .3;
