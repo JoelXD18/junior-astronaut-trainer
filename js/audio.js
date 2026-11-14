@@ -85,3 +85,58 @@ export function speak(text, lang) {
   return true;
 }
 export function stopSpeaking() { if ('speechSynthesis' in window) speechSynthesis.cancel(); setDuck(false); }
+
+// ---------- mission radio ----------
+// Apollo radio had short beeps ("Quindar tones") at the start and end of each message from Mission Control.
+let ctx = null;
+function beep(freq, when = 0, len = .25) {
+  try {
+    ctx ||= new (window.AudioContext || window.webkitAudioContext)();
+    const o = ctx.createOscillator(), g = ctx.createGain();
+    o.type = 'sine'; o.frequency.value = freq;
+    g.gain.value = settings.muted ? 0 : .08 * settings.volume + .02;
+    o.connect(g).connect(ctx.destination);
+    o.start(ctx.currentTime + when); o.stop(ctx.currentTime + when + len);
+  } catch { /* no Web Audio: no beeps */ }
+}
+
+function pickVoices(lang) {
+  const all = ('speechSynthesis' in window) ? speechSynthesis.getVoices().filter(v => v.lang.startsWith(lang)) : [];
+  const male = all.find(v => /male|jorge|pablo|alvaro|david|daniel|guy|mark|george|diego/i.test(v.name) && !/female/i.test(v.name));
+  return { crew: male || all[0] || null, control: all.find(v => v !== (male || all[0])) || all[0] || null };
+}
+
+let radioQueue = [], radioOn = false;
+// lines: [{ who: 'crew' | 'control', text }]; onLine(line) is called when each line starts (for subtitles).
+export function radio(lines, lang, onLine) {
+  if (!('speechSynthesis' in window)) { onLine?.(lines[lines.length - 1]); return; }
+  radioQueue.push(...lines.map(l => ({ ...l, lang, onLine })));
+  if (!radioOn) nextRadio();
+}
+function nextRadio() {
+  const l = radioQueue.shift();
+  if (!l) { radioOn = false; setDuck(false); return; }
+  radioOn = true;
+  l.onLine?.(l); // subtitle right away (also works when the browser has no voices)
+  let finished = false;
+  const next = () => { if (finished) return; finished = true; clearTimeout(guard); if (l.who === 'control') beep(2475); setTimeout(nextRadio, 350); };
+  // if speech is not available or never ends, move on after a reading time
+  const guard = setTimeout(next, 1500 + l.text.length * 75);
+  const voices = speechSynthesis.getVoices();
+  if (!voices.length || settings.muted) return;
+  const v = pickVoices(l.lang)[l.who];
+  const u = new SpeechSynthesisUtterance(l.text);
+  u.lang = l.lang === 'es' ? 'es-ES' : 'en-US';
+  if (v) u.voice = v;
+  u.rate = l.who === 'crew' ? 1.02 : 1.08;
+  u.pitch = l.who === 'crew' ? .8 : 1.15;
+  u.onend = u.onerror = next;
+  setDuck(true);
+  if (l.who === 'control') beep(2525);
+  setTimeout(() => speechSynthesis.speak(u), l.who === 'control' ? 300 : 0);
+}
+export function stopRadio() {
+  radioQueue = []; radioOn = false;
+  if ('speechSynthesis' in window) speechSynthesis.cancel();
+  setDuck(false);
+}

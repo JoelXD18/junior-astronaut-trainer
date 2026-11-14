@@ -9,7 +9,7 @@ import { initScene, setMode, setLabels, updateScene, playStorm, syncBuildings, s
   startPlacing, stopPlacing, resetView, setPlanet, playLanding, playLaunch, skipAnimation, resetLander,
   setDebris, setCrashed, driveRover, onPickDebris } from './scene.js';
 import { isUnlocked, unlock, best, saveBest, unlockAll, setUnlockAll } from './progress.js';
-import { playMusic, setVolume, toggleMute, audioSettings, speak, stopSpeaking } from './audio.js';
+import { playMusic, setVolume, toggleMute, audioSettings, speak, stopSpeaking, radio, stopRadio } from './audio.js';
 import { DEMOS } from './demos.js';
 import { icon } from './icons.js';
 import { loadSpaceWeather, getWeather, onWeather, flareStrength } from './spaceweather.js';
@@ -93,6 +93,7 @@ function effectText(type, level) {
 }
 
 function go(next) {
+  if (next === 'menu') stopRadio();
   if (next === 'menu' && has3d) { resetLander(); stopPlacing(); setPlanet('moon'); }
   screen = next; render();
 }
@@ -260,7 +261,7 @@ function gameScreen() {
 
     <div class="bottom">${bottom}</div>
   </section>
-  ${cinematic === 'landing' ? `<div class="landing-cap"><span class="cap-phase" id="cap-phase"></span></div>` : ''}
+  ${cinematic === 'landing' ? `<div class="landing-cap"><span class="cap-who" id="cap-who"></span><span class="cap-phase" id="cap-phase"></span></div>` : ''}
   ${cinematic ? `<button class="btn grey small skip" data-action="skip">${esc(t('skip'))} ⏭</button>` : ''}`;
 }
 
@@ -527,7 +528,7 @@ function startGame() {
   game = newGame({ map: pick.map, difficulty: pick.difficulty, mode: pick.mode, flares: w ? w.pool : [], activity: w ? w.activity.factor : 1 });
   choice = defaultChoice();
   ui = null; endInfo = {};
-  if (!has3d) { showHelp = !helpSeen; return go('game'); }
+  if (!has3d) { showHelp = true; helpStep = 0; return go('game'); }
   stopPlacing(); resetLander(); setPlanet(game.map);
   setDebris(game.mode === 'escape' ? game.debris : null);
   setCrashed(false);
@@ -536,13 +537,39 @@ function startGame() {
   playMusic('landing', { restart: true });
   // Captions during the landing (updated every frame without redrawing the screen)
   let lastPhase = '';
-  const onProgress = ({ phase }) => {
-    const p = document.getElementById('cap-phase');
+  // Mission radio: the crew and Mission Control talk during the landing; subtitles show who speaks.
+  let subtitle = null;
+  const showLine = l => {
+    subtitle = l;
+    const p = document.getElementById('cap-phase'), who = document.getElementById('cap-who');
     if (!p) return;
-    if (phase !== lastPhase || !p.textContent) { lastPhase = phase; p.textContent = t('lp_' + phase + (game.map === 'mars' && phase === 'approach' ? '_mars' : '')); p.classList.remove('pop'); void p.offsetWidth; p.classList.add('pop'); }
+    p.textContent = l.text; p.classList.remove('pop'); void p.offsetWidth; p.classList.add('pop');
+    if (who) who.textContent = t(l.who === 'crew' ? 'radioCrew' : 'radioControl');
   };
-  playLanding(() => { cinematic = null; showHelp = !helpSeen; helpStep = 0; if (game.mode === 'escape') setCrashed(true); render(); }, onProgress, { crash: game.mode === 'escape' });
+  const said = new Set();
+  const onProgress = ({ phase }) => {
+    if (subtitle && !document.getElementById('cap-phase')?.textContent) showLine(subtitle); // screen was redrawn
+    if (said.has(phase)) return;
+    said.add(phase);
+    const mars = game.map === 'mars';
+    const lines = radioScript(phase, mars);
+    if (lines.length) radio(lines, lang(), showLine);
+  };
+  playLanding(() => { cinematic = null; showHelp = true; helpStep = 0; if (game.mode === 'escape') setCrashed(true); render(); }, onProgress, { crash: game.mode === 'escape' });
   render();
+}
+
+// What the crew (C) and Mission Control (M) say in each part of the landing.
+function radioScript(phase, mars) {
+  const L = (who, key) => ({ who, text: t(key) });
+  switch (phase) {
+    case 'approach': return [L('control', mars ? 'r_ctrl_hello_mars' : 'r_ctrl_hello'), L('crew', mars ? 'r_crew_see_mars' : 'r_crew_see')];
+    case 'braking': return [L('crew', 'r_crew_engine'), L('control', 'r_ctrl_go')];
+    case 'final': return [L('crew', 'r_crew_final')];
+    case 'crash': return [L('crew', 'r_crew_mayday'), L('control', 'r_ctrl_mayday')];
+    case 'landed': return [L('crew', mars ? 'r_crew_landed_mars' : 'r_crew_landed'), L('control', 'r_ctrl_welcome')];
+    default: return [];
+  }
 }
 
 function beginPlacing(type) {
@@ -617,7 +644,7 @@ document.addEventListener('click', e => {
       setCrashed(false);
       return finishGame();
     }
-    case 'skip': if (has3d) skipAnimation(); return;
+    case 'skip': stopRadio(); if (has3d) skipAnimation(); return;
     case 'end-credits': return go('end');
     case 'toggle-unlock': setUnlockAll(!unlockAll()); return render();
     case 'sun': showSun = true; return render();

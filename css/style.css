@@ -460,7 +460,7 @@ button:focus-visible { outline: 3px solid #fff; outline-offset: 3px; }
 .credit-list a { color: #9fd3ff; }
 
 /* landing captions, like a mission control readout */
-.landing-cap { position: fixed; left: 50%; bottom: 9%; transform: translateX(-50%); display: grid; justify-items: center; gap: 8px; z-index: 3; pointer-events: none; text-align: center; }
+.landing-cap { position: fixed; left: 50%; bottom: 13%; width: min(760px, 92vw); transform: translateX(-50%); display: grid; justify-items: center; gap: 8px; z-index: 3; pointer-events: none; text-align: center; }
 .cap-phase { font: 400 clamp(18px, 3vw, 28px) var(--title); color: #fff; text-shadow: -2px -2px 0 var(--ink), 2px -2px 0 var(--ink), -2px 2px 0 var(--ink), 2px 2px 0 var(--ink), 0 4px 0 var(--ink); }
 .cap-phase.pop { animation: cappop .6s ease-out; }
 @keyframes cappop { from { transform: scale(.7); opacity: 0; } }
@@ -475,3 +475,6 @@ button:focus-visible { outline: 3px solid #fff; outline-offset: 3px; }
 .scene-label.t-part { background: linear-gradient(#ffd54f, #f59f00); }
 
 .orb-of { font: 800 11px var(--body); color: #4a2a00; }
+
+.cap-who { font: 400 15px var(--title); color: var(--gold); text-shadow: 0 2px 0 var(--ink); }
+.cap-phase { max-width: min(760px, 92vw); }
