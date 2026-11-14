@@ -988,6 +988,9 @@ export function initScene() {
 
   parts.moonGround = makeTerrain();
   parts.marsGround = makeMarsTerrain(parts.moonTex);
+  // the ground is "transparent" only so its far edge can fade out: draw it before every other see-through thing
+  // (shield, glass, rings), or it would be painted over them and hide them
+  parts.moonGround.renderOrder = parts.marsGround.renderOrder = -1;
   parts.marsGround.visible = false;
   scene.add(parts.moonGround, parts.marsGround, makeSky(), makeBase());
   parts.dust = makeDust(); scene.add(parts.dust);
