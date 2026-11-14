@@ -119,7 +119,7 @@ function menuScreen() {
   return `<section class="menu">
     <div class="logo">
       <span class="logo-small">${esc(t('logoTop'))}</span>
-      <h1>${esc(t('logoMain'))}</h1>
+      ${brandTitle()}
       <span class="logo-sub">${esc(t('subtitle'))}</span>
       <span class="event-badge">${icon('rocket')}<span>${esc(t('madeFor'))}</span></span>
     </div>
@@ -741,13 +741,30 @@ onWeather(render);
 loadSpaceWeather();
 render();
 
+// Game title in a space-agency style: wide capitals, an orbit ring with a satellite, a red mission stripe.
+function brandTitle() {
+  const words = t('logoMain').split(' ');
+  const top = words.length > 1 ? words.slice(0, -1).join(' ') : '';
+  const main = words[words.length - 1];
+  const ring = 'M20,80 a280,52 0 1,0 560,0 a280,52 0 1,0 -560,0';
+  return `<div class="brand" role="heading" aria-level="1" aria-label="${esc(t('logoMain'))}">
+    <svg class="brand-orbit" viewBox="0 0 600 160" aria-hidden="true">
+      <path d="${ring}" transform="rotate(-8 300 80)" />
+      <g transform="rotate(-8 300 80)"><circle r="7" class="sat"><animateMotion dur="9s" repeatCount="indefinite" path="${ring}" /></circle></g>
+    </svg>
+    ${top ? `<span class="brand-top">${esc(top)}</span>` : ''}
+    <span class="brand-main">${esc(main)}</span>
+    <span class="brand-stripe"></span>
+  </div>`;
+}
+
 // Opening: "tap to start" (browsers only play sound after a tap), then the camera flies in from space
 // with the music, and the menu buttons appear when it arrives. Another tap skips the flight.
 if (has3d) {
   document.body.classList.add('intro');
   const gate = document.createElement('button');
   gate.className = 'tap-start';
-  gate.innerHTML = `<span class="ts-title">Base Commander</span><span class="ts-tap">${esc(t('tapToStart'))}</span>`;
+  gate.innerHTML = `${brandTitle()}<span class="ts-tap">${esc(t('tapToStart'))}</span>`;
   document.body.appendChild(gate);
   const endIntro = () => {
     document.body.classList.remove('intro');
