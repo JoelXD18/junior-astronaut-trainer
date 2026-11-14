@@ -17,6 +17,11 @@ const parts = { labels: {}, lights: [] };
 const storm = { active: false, t: 0, strength: 0, blocked: 0, points: null };
 let target = { night: false, oxygen: 0, shield: 0, battery: 0, batteryMax: 1 };
 let mode = 'menu';
+let planet = 'moon';
+let anim = null; // landing / launch animation in progress
+let lmReady = Promise.resolve();
+const MARS_SKY = new THREE.Color(0xb98a5c), BLACK = new THREE.Color(0x000000), FLASH = new THREE.Color(0x300508);
+const skyColor = new THREE.Color(0x000000);
 let ok = true;
 const clock = new THREE.Clock();
 
@@ -82,6 +87,7 @@ function makeTerrain() {
   const tex = regolithTexture();
   tex.repeat.set(90, 90);
   const mat = new THREE.MeshStandardMaterial({ map: tex, bumpMap: tex, bumpScale: 1.2, roughness: 1, metalness: 0, color: 0xb9b6b0 });
+  parts.groundMat = mat;
   const mesh = new THREE.Mesh(geo, mat);
   mesh.receiveShadow = true;
 
@@ -90,7 +96,8 @@ function makeTerrain() {
   const rp = rockGeo.attributes.position;
   for (let i = 0; i < rp.count; i++) rp.setXYZ(i, rp.getX(i) * (1 + (hash(i, 1) - .5) * .5), rp.getY(i) * (.6 + hash(i, 2) * .3), rp.getZ(i) * (1 + (hash(i, 3) - .5) * .5));
   rockGeo.computeVertexNormals();
-  const rocks = new THREE.InstancedMesh(rockGeo, new THREE.MeshStandardMaterial({ color: 0x8a8782, roughness: 1, flatShading: true }), 500);
+  parts.rockMat = new THREE.MeshStandardMaterial({ color: 0x8a8782, roughness: 1, flatShading: true });
+  const rocks = new THREE.InstancedMesh(rockGeo, parts.rockMat, 500);
   const m = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler();
   for (let i = 0; i < 500; i++) {
     let x, z;
@@ -124,7 +131,8 @@ function makeSky() {
   const sg = new THREE.BufferGeometry();
   sg.setAttribute('position', new THREE.BufferAttribute(arr, 3));
   sg.setAttribute('color', new THREE.BufferAttribute(col, 3));
-  g.add(new THREE.Points(sg, new THREE.PointsMaterial({ size: 1.6, sizeAttenuation: false, vertexColors: true })));
+  parts.starsMat = new THREE.PointsMaterial({ size: 1.6, sizeAttenuation: false, vertexColors: true, transparent: true });
+  g.add(new THREE.Points(sg, parts.starsMat));
 
   // Earth (NASA texture), hanging in the black sky
   const earthTex = new THREE.TextureLoader().load('assets/textures/earth.jpg');
@@ -357,15 +365,50 @@ function relaxArms(obj) {
   });
 }
 
+// Rocket flame under the lander (used when landing and taking off).
+function makeFlame() {
+  const g = new THREE.Group();
+  const outer = new THREE.Mesh(new THREE.ConeGeometry(1.1, 5, 20, 1, true), new THREE.MeshBasicMaterial({ color: 0xff8a2a, transparent: true, opacity: .75, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }));
+  const inner = new THREE.Mesh(new THREE.ConeGeometry(.55, 3.4, 16, 1, true), new THREE.MeshBasicMaterial({ color: 0xfff3c0, transparent: true, opacity: .9, blending: THREE.AdditiveBlending, depthWrite: false }));
+  outer.rotation.x = inner.rotation.x = Math.PI; // point down
+  outer.position.y = -2.2; inner.position.y = -1.5;
+  const light = new THREE.PointLight(0xffa040, 0, 40, 2); light.position.y = -2;
+  g.add(outer, inner, light);
+  g.position.y = 1.2; g.visible = false;
+  parts.flame = g; parts.flameLight = light;
+  return g;
+}
+
+function makeDust() {
+  const n = 260, geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(n * 3), 3));
+  const p = new THREE.Points(geo, new THREE.PointsMaterial({ color: 0xc9c2b4, size: .9, transparent: true, opacity: .8, depthWrite: false }));
+  p.userData.dirs = Array.from({ length: n }, () => { const a = Math.random() * Math.PI * 2; return [Math.cos(a), Math.sin(a), .4 + Math.random(), Math.random() * .8]; });
+  p.visible = false;
+  return p;
+}
+
 async function loadModels(base) {
   const loader = new GLTFLoader();
   const draco = new DRACOLoader();
   draco.setDecoderPath('https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/libs/draco/gltf/');
   loader.setDRACOLoader(draco);
   const load = n => loader.loadAsync(`assets/models/${n}.glb`).then(g => g.scene).catch(() => null);
-  const [hab, lm, astro] = await Promise.all([load('habitat-1'), load('lunar-module'), load('astronaut')]);
-  if (hab) base.add(placeModel(hab, 5.5, 0, 0, -.4));
-  if (lm) base.add(placeModel(lm, 7, -26, 14, .6));
+  // Each model appears as soon as it has loaded (the big rover doesn't hold up the others).
+  load('habitat-1').then(hab => { if (hab) base.add(placeModel(hab, 5.5, 0, 0, -.4)); });
+  lmReady = load('lunar-module').then(lm => {
+    if (!lm) return;
+    parts.lm = placeModel(lm, 7, -26, 14, .6);
+    parts.lm.add(makeFlame());
+    base.add(parts.lm);
+  });
+  load('perseverance').then(rover => { // NASA's Perseverance rover, only on Mars
+    if (!rover) return;
+    parts.rover = placeModel(rover, 2.2, -12, 27, 2.4);
+    parts.rover.visible = planet === 'mars';
+    base.add(parts.rover);
+  });
+  const astro = await load('astronaut');
   if (astro) {
     relaxArms(astro);
     const copy = astro.clone(); // clone before scaling, so both get the same real size
@@ -569,6 +612,8 @@ export function initScene() {
   scene.add(sunLight, earthLight, ambient);
 
   scene.add(makeTerrain(), makeSky(), makeBase());
+  parts.dust = makeDust(); scene.add(parts.dust);
+  scene.fog = new THREE.Fog(0x9c6b45, 60, 5000);
   storm.points = makeStormParticles();
   scene.add(storm.points);
 
@@ -618,6 +663,87 @@ export function setMode(m, force = false) {
   controls.update();
 }
 
+// Moon or Mars: ground colour, sky, Earth, rover.
+export function setPlanet(p) {
+  if (!ok || p === planet) return;
+  planet = p;
+  const mars = p === 'mars';
+  parts.groundMat.color.setHex(mars ? 0xd07a48 : 0xb9b6b0);
+  parts.rockMat.color.setHex(mars ? 0x7a4a33 : 0x8a8782);
+  if (parts.earth) parts.earth.visible = !mars;
+  if (parts.rover) parts.rover.visible = mars;
+  parts.sun.scale.setScalar(mars ? 170 : 260); // the Sun looks smaller from Mars
+  scene.fog.color.setHex(mars ? 0xa0704a : 0x000000);
+}
+
+const ease = x => x < 0 ? 0 : x > 1 ? 1 : x * x * (3 - 2 * x);
+const GAME_CAM = () => new THREE.Vector3(22, window.innerWidth < 700 ? 78 : 55, window.innerWidth < 700 ? 62 : 48);
+
+// The lander comes down from the sky onto the landing site, then the camera flies to the base view.
+export async function playLanding(done) {
+  if (!ok) { done?.(); return; }
+  await Promise.race([lmReady, new Promise(r => setTimeout(r, 6000))]); // wait for the lander model
+  if (!parts.lm) { done?.(); return; }
+  parts.lm.position.y = 70;
+  setMode('game', true);
+  controls.enabled = false;
+  anim = { kind: 'landing', t: 0, done };
+}
+
+// The crew takes off and leaves the base. The camera follows the craft into the sky.
+export function playLaunch(done) {
+  if (!ok || !parts.lm) { done?.(); return; }
+  controls.enabled = false;
+  anim = { kind: 'launch', t: 0, done };
+  parts.astronauts?.forEach(a => { a.visible = false; }); // the crew is on board
+}
+
+export function skipAnimation() {
+  if (!anim) return;
+  const a = anim; anim = null;
+  if (a.kind === 'landing') { parts.lm.position.y = 0; parts.flame.visible = false; setMode('game', true); }
+  a.done?.();
+}
+
+function runAnim(dt) {
+  const a = anim;
+  a.t += dt;
+  const lm = parts.lm, home = new THREE.Vector3(-26, 0, 14);
+  const flicker = .85 + Math.random() * .3;
+  if (a.kind === 'landing') {
+    const T = 4.2, p = Math.min(a.t / T, 1);
+    lm.position.y = 70 * Math.pow(1 - p, 2.2);
+    parts.flame.visible = a.t < T + .4;
+    parts.flame.scale.set(flicker, flicker * (1.2 - p * .5), flicker);
+    parts.flameLight.intensity = parts.flame.visible ? 60 * flicker : 0;
+    if (a.t >= T && !a.dusted) { a.dusted = true; burstDust(home); }
+    const look = new THREE.Vector3(home.x, lm.position.y + 3, home.z);
+    const near = new THREE.Vector3(home.x + 26, lm.position.y * .6 + 10, home.z + 26);
+    const k = ease((a.t - T + .2) / 1.6);
+    camera.position.lerpVectors(near, GAME_CAM(), k);
+    camera.lookAt(look.lerp(new THREE.Vector3(-5, 0, 4), k));
+    if (a.t > T + 1.8) { anim = null; controls.target.set(-5, 0, 4); camera.position.copy(GAME_CAM()); controls.enabled = true; controls.update(); a.done?.(); }
+  } else if (a.kind === 'launch') {
+    const ign = 1.3, s = Math.max(0, a.t - ign);
+    lm.position.y = 2.5 * s * s; // speeds up as it climbs
+    parts.flame.visible = true;
+    parts.flame.scale.set(flicker, flicker * (a.t < ign ? .6 : 1.4), flicker);
+    parts.flameLight.intensity = 80 * flicker;
+    if (a.t > ign && !a.dusted) { a.dusted = true; burstDust(home); }
+    const shake = a.t < ign + 1 ? (Math.random() - .5) * .4 : 0;
+    camera.position.set(home.x + 30 + shake, 8 + lm.position.y * .55, home.z + 34);
+    camera.lookAt(home.x, lm.position.y + 4, home.z);
+    if (a.t > 6.5 && !a.called) { a.called = true; a.done?.(); }
+    if (a.t > 14) { parts.flame.visible = false; }
+  }
+}
+
+function burstDust(at) {
+  const d = parts.dust;
+  d.position.copy(at); d.visible = true; d.userData.t = 0;
+  d.material.color.setHex(planet === 'mars' ? 0xc07850 : 0xc9c2b4);
+}
+
 export function setLabels(texts) {
   for (const [k, el] of Object.entries(parts.labels)) el.querySelector('.t').textContent = texts[k] || '';
 }
@@ -629,9 +755,27 @@ export function playStorm(strength, blocked) { Object.assign(storm, { active: tr
 const lerp = (a, b, k) => a + (b - a) * k;
 
 function tick() {
-  const dt = Math.min(clock.getDelta(), .05), time = clock.elapsedTime;
+  const raw = clock.getDelta(), dt = Math.min(raw, .05), time = clock.elapsedTime;
   const k = 1 - Math.pow(.03, dt);
   const night = target.night && mode === 'game';
+  if (anim) runAnim(Math.min(raw, .25)); // real time, even on slow devices
+
+  // Dust thrown up by the rocket
+  if (parts.dust.visible) {
+    const d = parts.dust; d.userData.t += dt;
+    const t = d.userData.t, pos = d.geometry.attributes.position;
+    d.userData.dirs.forEach(([x, z, sp, h], i) => pos.setXYZ(i, x * t * 9 * sp, h * t * 3 * (1.5 - t * .5), z * t * 9 * sp));
+    pos.needsUpdate = true;
+    d.material.opacity = Math.max(0, .8 - t * .35);
+    if (t > 2.4) d.visible = false;
+  }
+
+  // Sky: black on the Moon; butterscotch in the Martian day (dust in the air), dark at night
+  const marsDay = planet === 'mars' && !night;
+  skyColor.lerp(marsDay ? MARS_SKY : BLACK, k);
+  parts.starsMat.opacity = lerp(parts.starsMat.opacity, marsDay ? 0 : 1, k);
+  scene.fog.far = lerp(scene.fog.far, target.dust ? 160 : planet === 'mars' ? 1400 : 5000, k * .5);
+  scene.fog.near = target.dust ? 20 : 60;
 
   sunLight.intensity = lerp(sunLight.intensity, night ? 0 : 3.2, k);
   ambient.intensity = lerp(ambient.intensity, night ? .05 : .12, k);
@@ -681,11 +825,20 @@ function tick() {
     }
     pos.needsUpdate = true;
     const hurt = storm.blocked < storm.strength;
-    scene.background.setHex(hurt && Math.sin(storm.t * 10) > .7 ? 0x300508 : 0x000000);
-    if (storm.t > 3) { storm.active = false; p.visible = false; scene.background.setHex(0x000000); }
-  }
+    scene.background.copy(hurt && Math.sin(storm.t * 10) > .7 ? FLASH : skyColor);
+    if (storm.t > 3) { storm.active = false; p.visible = false; }
+  } else scene.background.copy(skyColor);
 
-  controls.update();
+  if (!anim && controls.enabled || mode === 'menu' && !anim) controls.update();
   renderer.render(scene, camera);
   labelRenderer.render(scene, camera);
+}
+
+// Back to normal (used when leaving a game): lander on the ground, no animation.
+export function resetLander() {
+  anim = null;
+  parts.astronauts?.forEach(a => { a.visible = true; });
+  if (parts.lm) parts.lm.position.y = 0;
+  if (parts.flame) parts.flame.visible = false;
+  if (controls) controls.enabled = mode === 'game';
 }

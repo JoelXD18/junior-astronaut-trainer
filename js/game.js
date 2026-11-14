@@ -4,8 +4,11 @@ import { flareStrength } from './spaceweather-core.js';
 export const MAPS = {
   moon: {
     id: 'moon',
-    missionDays: 14,
-    nightStart: 8,        // days 8..14 are lunar night (shortened for the game)
+    missionDays: 14,      // story mode: survive this many days, then escape
+    cycle: 14,            // a lunar day + night (repeats in survival mode)
+    nightStart: 8,        // days 8..14 of each cycle are lunar night (shortened for the game)
+    sunFactor: 1,
+    warnFactor: 1,
     oxygenUse: 3,         // oxygen the crew breathes each day
     oxygenStart: 9,
     batteryStart: 4,
@@ -20,7 +23,35 @@ export const MAPS = {
       ['shield', 7, 5],
     ],
   },
+  // Mars: a day (sol) and night every turn, so no long night. But Mars gets less than half the sunlight
+  // the Moon gets, dust storms cover the solar panels, and messages from Earth take 4 to 24 minutes,
+  // so storm warnings arrive less often. Its thin air blocks part of the radiation:
+  // Curiosity measured about 6.1 µGy/h on the surface vs 16.5 µGy/h near the Moon (NASA RadLab).
+  mars: {
+    id: 'mars',
+    missionDays: 16,
+    cycle: 0,             // no long night
+    nightStart: 0,
+    sunFactor: .6,
+    warnFactor: .7,
+    dustChance: .12,      // chance per sol that a dust storm starts
+    dustSols: [2, 4],     // how long it lasts
+    dustCut: .5,          // solar power left during a dust storm
+    oxygenUse: 3,
+    oxygenStart: 9,
+    batteryStart: 6,
+    baseDose: 1,
+    baseEnergy: 1,
+    baseOxygenMax: 10,
+    start: [
+      ['solar', -20, -10], ['solar', -15, -16], ['solar', -24, -3], ['solar', -27, -12],
+      ['oxygen', 18, -8], ['tank', 24, -1], ['tank', 13, -16],
+      ['battery', 17, 9], ['battery', 22, 15],
+      ['shield', 7, 5],
+    ],
+  },
 };
+export const MODES = ['story', 'survival'];
 
 // Buildings. Everything is paid with energy, so building today means less energy for oxygen,
 // shield or the battery: a real trade-off.
@@ -65,7 +96,8 @@ export function makeRng(seed) {
 }
 
 export function isNight(map, day) {
-  return day >= map.nightStart;
+  if (!map.cycle) return false;
+  return ((day - 1) % map.cycle) + 1 >= map.nightStart;
 }
 
 const ofType = (state, type) => state.buildings.filter(b => b.type === type);
@@ -74,10 +106,14 @@ const levelOf = (state, type) => (ofType(state, type)[0] || { level: 1 }).level;
 export function sunEnergy(state) {
   const map = MAPS[state.map];
   // A tower built today starts working tomorrow.
-  return map.baseEnergy + ofType(state, 'solar').filter(b => b.builtDay !== state.day).reduce((s, b) => s + solarEnergy(b.level), 0);
+  const panels = ofType(state, 'solar').filter(b => b.builtDay !== state.day).reduce((s, b) => s + solarEnergy(b.level), 0);
+  return map.baseEnergy + Math.round(panels * map.sunFactor);
 }
 export function energyToday(state) {
-  return isNight(MAPS[state.map], state.day) ? 0 : sunEnergy(state);
+  const map = MAPS[state.map];
+  if (isNight(map, state.day)) return 0;
+  const e = sunEnergy(state);
+  return state.dust > 0 ? Math.floor(e * map.dustCut) : e;
 }
 export function batteryMax(state) {
   return ofType(state, 'battery').reduce((s, b) => s + batteryCap(b.level), 0);
@@ -112,7 +148,8 @@ function rollWeather(state, rng) {
       strength = 1 + Math.floor(rng() * diff.maxStrength); // no data at all: invented storm
     }
   }
-  const warned = storm ? rng() < diff.warnChance : rng() < diff.falseAlarm;
+  const map = MAPS[state.map];
+  const warned = storm ? rng() < diff.warnChance * map.warnFactor : rng() < diff.falseAlarm;
   // The warning tells the flare class letter (C, M or X), like real space-weather alerts.
   let hint = null;
   if (warned) hint = flare ? flare.cls[0] : pool.length ? pool[Math.floor(rng() * pool.length)].cls[0] : 'C';
@@ -120,10 +157,11 @@ function rollWeather(state, rng) {
 }
 
 // flares: real NASA flares to use as storms; activity: 0.8 (quiet Sun) .. 1.3 (very active Sun)
-export function newGame({ map = 'moon', difficulty = 'normal', seed = Date.now(), flares = [], activity = 1 } = {}) {
+export function newGame({ map = 'moon', difficulty = 'normal', mode = 'story', seed = Date.now(), flares = [], activity = 1 } = {}) {
   const m = MAPS[map];
   const state = {
-    map, difficulty, seed, rngCalls: 0,
+    map, difficulty, mode, seed, rngCalls: 0,
+    dust: 0,           // sols of dust storm left (Mars)
     day: 1,
     oxygen: m.oxygenStart,
     battery: m.batteryStart,
@@ -254,10 +292,17 @@ export function playDay(state, { oxygen = 0, shield = 0 }) {
 
   if (oxygenAfter < 0) state.status = 'lost-oxygen';
   else if (dose >= DOSE_LIMIT) state.status = 'lost-dose';
-  else if (state.day >= map.missionDays) state.status = 'won';
+  else if (state.mode === 'story' && state.day >= map.missionDays) state.status = 'won';
   else {
     state.day++;
-    state.today = rollWeather(state, rngFor(state));
+    const rng = rngFor(state);
+    state.today = rollWeather(state, rng);
+    report.dustStarted = false;
+    if (state.dust > 0) state.dust--;
+    else if (map.dustChance && rng() < map.dustChance) {
+      state.dust = map.dustSols[0] + Math.floor(rng() * (map.dustSols[1] - map.dustSols[0] + 1));
+      report.dustStarted = true;
+    }
   }
   report.status = state.status;
   return report;

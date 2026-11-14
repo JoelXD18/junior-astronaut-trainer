@@ -5,7 +5,8 @@ import { MAPS, DOSE_LIMIT, BUILDINGS, MAX_LEVEL, newGame, playDay, available, en
   batteryMax, oxygenMax, solarEnergy, batteryCap, tankCap, oxygenBonus, shieldBonus, shieldBlocks,
   validSpot, buildProblem, build, upgradeCost, upgradeProblem, upgrade, moveBuilding } from './game.js';
 import { initScene, setMode, setLabels, updateScene, playStorm, syncBuildings, setSelected, onPickBuilding,
-  startPlacing, stopPlacing, resetView } from './scene.js';
+  startPlacing, stopPlacing, resetView, setPlanet, playLanding, playLaunch, skipAnimation, resetLander } from './scene.js';
+import { isUnlocked, unlock, best, saveBest, unlockAll, setUnlockAll } from './progress.js';
 import { icon } from './icons.js';
 import { loadSpaceWeather, getWeather, onWeather, flareStrength } from './spaceweather.js';
 
@@ -16,13 +17,16 @@ const modalRoot = document.getElementById('modal');
 let screen = 'menu';     // menu | map | difficulty | game | end | settings | credits
 let game = null;
 let choice = { oxygen: 0, shield: 0 };
-let pick = { map: 'moon', difficulty: 'normal' };
+let pick = { map: 'moon', difficulty: 'normal', mode: 'story' };
 let lastReport = null;   // report shown after ending a day
 let openTerm = null;     // glossary word currently open
 let showHelp = false;    // "how to play" card at the start of a game
 let busy = false;        // true while a solar storm animation is playing
 let ui = null;           // null | {kind:'build'} | {kind:'placing', type, moveId} | {kind:'selected', id}
 let showSun = false;     // "real Sun" window with NASA DONKI data
+let cinematic = null;    // null | 'landing' | 'launch' (HUD hidden while the camera tells the story)
+let endInfo = {};        // extra info for the end screen (new record, map unlocked)
+let helpSeen = false;
 
 const fmtDate = iso => new Date(iso).toLocaleDateString(lang(), { day: 'numeric', month: 'short', year: 'numeric' });
 const fmtTime = iso => new Date(iso).toLocaleString(lang(), { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
@@ -74,7 +78,10 @@ function effectText(type, level) {
   }
 }
 
-function go(next) { screen = next; render(); }
+function go(next) {
+  if (next === 'menu' && has3d) { resetLander(); stopPlacing(); setPlanet('moon'); }
+  screen = next; render();
+}
 
 function langPicker() {
   return `<div class="lang-picker" role="group" aria-label="${esc(t('language'))}">
@@ -116,8 +123,18 @@ function centered(inner) { return `<section class="centered">${inner}</section>`
 function mapScreen() {
   return centered(windowHtml(esc(t('chooseMap')), `<div class="choice-cards">
       <button class="choice" data-map="moon"><span class="c-ico">${icon('moon')}</span><strong>${esc(t('moon'))}</strong><small>${esc(t('moonDesc'))}</small></button>
-      <button class="choice locked" disabled><span class="c-ico">🔒</span><strong>${esc(t('mars'))}</strong><small>${esc(t('marsLocked'))}</small></button>
+      ${isUnlocked('mars')
+        ? `<button class="choice mars" data-map="mars"><span class="c-ico">${icon('mars')}</span><strong>${esc(t('mars'))}</strong><small>${esc(t('marsDesc'))}</small></button>`
+        : `<button class="choice locked" disabled><span class="c-ico">🔒</span><strong>${esc(t('mars'))}</strong><small>${esc(t('marsLocked'))}</small></button>`}
     </div>`, { close: null }) + `<button class="btn grey back" data-go="menu">← ${esc(t('back'))}</button>`);
+}
+
+function modeScreen() {
+  const m = MAPS[pick.map];
+  return centered(windowHtml(esc(t('chooseMode')), `<div class="choice-cards">
+      <button class="choice" data-mode="story"><span class="c-ico">${icon('rocket')}</span><strong>${esc(t('modeStory'))}</strong><small>${esc(t('modeStoryDesc', { n: m.missionDays }))}</small></button>
+      <button class="choice" data-mode="survival"><span class="c-ico">${icon('trophy')}</span><strong>${esc(t('modeSurvival'))}</strong><small>${esc(t('modeSurvivalDesc'))}</small></button>
+    </div>`, { close: null }) + `<button class="btn grey back" data-go="map">← ${esc(t('back'))}</button>`);
 }
 
 function difficultyScreen() {
@@ -126,11 +143,14 @@ function difficultyScreen() {
       ${['easy', 'normal', 'hard'].map(d => `<button class="choice ${d}" data-difficulty="${d}">
         <span class="c-stars">${'★'.repeat(stars[d])}${'☆'.repeat(3 - stars[d])}</span>
         <strong>${esc(t(d))}</strong><small>${esc(t(d + 'Desc'))}</small></button>`).join('')}
-    </div>`, { close: null }) + `<button class="btn grey back" data-go="map">← ${esc(t('back'))}</button>`);
+    </div>`, { close: null }) + `<button class="btn grey back" data-go="mode">← ${esc(t('back'))}</button>`);
 }
 
 function settingsScreen() {
-  return centered(windowHtml(esc(t('settings')), `<h3>${esc(t('language'))}</h3>${langPicker()}`, { close: null })
+  return centered(windowHtml(esc(t('settings')), `<h3>${esc(t('language'))}</h3>${langPicker()}
+    <h3>${esc(t('unlockAllTitle'))}</h3>
+    <button class="btn ${unlockAll() ? 'green' : 'grey'} small" data-action="toggle-unlock"><span>${esc(t(unlockAll() ? 'on' : 'off'))}</span></button>
+    <p class="small">${esc(t('unlockAllHint'))}</p>`, { close: null })
     + `<button class="btn grey back" data-go="menu">← ${esc(t('back'))}</button>`);
 }
 
@@ -177,20 +197,28 @@ function gameScreen() {
   const map = MAPS[game.map];
   const night = isNight(map, game.day);
   const fc = forecast(game);
+  // Strip of days: the mission (story) or the current lunar day+night cycle (survival). Mars has none.
   let strip = '';
-  for (let d = 1; d <= map.missionDays; d++) strip += `<i class="${isNight(map, d) ? 'n' : 's'} ${d < game.day ? 'past' : ''} ${d === game.day ? 'now' : ''}"></i>`;
+  if (map.cycle || game.mode === 'story') {
+    const len = game.mode === 'story' ? map.missionDays : map.cycle;
+    const first = game.mode === 'story' ? 1 : game.day - ((game.day - 1) % map.cycle);
+    for (let i = 0; i < len; i++) { const d = first + i; strip += `<i class="${isNight(map, d) ? 'n' : 's'} ${d < game.day ? 'past' : ''} ${d === game.day ? 'now' : ''}"></i>`; }
+  }
+  const dayWord = t(game.map === 'mars' ? 'solLabel' : 'dayLabel');
+  const total = game.mode === 'story' ? `<small>/${map.missionDays}</small>` : '';
   const bottom = !ui ? dock()
     : ui.kind === 'build' ? buildWindow()
     : ui.kind === 'placing' ? placingBar()
     : selectedWindow();
 
-  return `<section class="hud ${night ? 'is-night' : ''}">
+  return `<section class="hud ${night ? 'is-night' : ''} ${cinematic ? 'cinematic' : ''}">
     <div class="top-left">
-      <button class="day-plate" data-term="${night ? 'Night' : 'Day'}">
+      <button class="day-plate" data-term="${game.map === 'mars' ? 'Sol' : night ? 'Night' : 'Day'}">
         <span class="day-ico">${icon(night ? 'moon' : 'sun')}</span>
-        <span class="day-text"><span class="day-label">${esc(t('dayLabel'))}</span><span class="day-num">${game.day}<small>/${map.missionDays}</small></span></span>
+        <span class="day-text"><span class="day-label">${esc(dayWord)}</span><span class="day-num">${game.day}${total}</span></span>
       </button>
-      <div class="strip" aria-hidden="true">${strip}</div>
+      ${strip ? `<div class="strip" aria-hidden="true">${strip}</div>` : ''}
+      ${game.dust > 0 ? `<button class="ribbon dust" data-term="Dust">${icon('warning')}<span>${esc(t('dustShort', { n: game.dust }))}</span></button>` : ''}
       ${fc.warned
         ? `<button class="ribbon warn" data-term="Storm">${icon('warning')}<span>${esc(t('warnShort'))}</span>${fc.hint ? flareChip(fc.hint) : ''}</button>`
         : `<button class="ribbon calm" data-term="Storm"><span>${esc(t('calmShort'))}</span></button>`}
@@ -210,7 +238,8 @@ function gameScreen() {
     </div>
 
     <div class="bottom">${bottom}</div>
-  </section>`;
+  </section>
+  ${cinematic ? `<button class="btn grey small skip" data-action="skip">${esc(t('skip'))} ⏭</button>` : ''}`;
 }
 
 function dock() {
@@ -299,9 +328,13 @@ function endScreen() {
   const key = { won: 'won', 'lost-oxygen': 'lostOxygen', 'lost-dose': 'lostDose' }[game.status];
   const done = game.status === 'won' ? map.missionDays : game.day - 1;
   const ico = game.status === 'won' ? 'trophy' : game.status === 'lost-oxygen' ? 'oxygen' : 'radiation';
-  return centered(windowHtml(esc(t(key + 'Title')), `
-    <div class="end-ico">${icon(ico)}</div>
+  const survival = game.mode === 'survival';
+  return centered(windowHtml(esc(t(survival ? 'survivalEndTitle' : key + 'Title')), `
+    <div class="end-ico">${icon(survival ? 'trophy' : ico)}</div>
+    ${survival ? `<p class="record">${esc(t('survivalDays', { n: done }))}</p>
+      <p class="small">${esc(t(endInfo.newRecord ? 'newRecord' : 'bestRecord', { n: best(game.map, game.difficulty) }))}</p>` : ''}
     <p>${esc(t(key + 'Text'))}</p>
+    ${endInfo.unlocked ? `<p class="unlocked">${icon('mars')} ${esc(t('marsUnlocked'))}</p>` : ''}
     <div class="end-stats">
       <span>${icon('sun')} ${esc(t('daysSurvived', { n: done }))}</span>
       <span>${icon('radiation')} ${esc(t('finalDose', { d: game.dose }))}</span>
@@ -310,6 +343,26 @@ function endScreen() {
       <button class="btn green" data-action="again"><span>${esc(t('playAgain'))}</span></button>
       <button class="btn blue" data-go="menu"><span>${esc(t('mainMenu'))}</span></button>
     </div>`, { close: null, cls: 'end ' + game.status }));
+}
+
+function creditsRoll() {
+  const line = (a, b = '') => `<div class="cr-line"><span>${esc(a)}</span>${b ? `<strong>${esc(b)}</strong>` : ''}</div>`;
+  return `<section class="credits-roll">
+    <div class="cr-scroll">
+      <h1>${esc(t('logoMain'))}</h1>
+      <p class="cr-tag">${esc(t(game.map === 'mars' ? 'crEndMars' : 'crEndMoon'))}</p>
+      ${line(t('crIdea'), 'JoelXD18')}
+      ${line(t('crCode'), 'JoelXD18 + Claude (Anthropic AI)')}
+      ${line(t('crData'), 'NASA DONKI · NASA OSDR RadLab')}
+      ${line(t('crModels'), 'NASA 3D Resources')}
+      ${line(t('crEngine'), 'three.js')}
+      ${line(t('crFonts'), 'Lilita One · Nunito (Google Fonts)')}
+      ${line(t('crChallenge'), 'NASA Space Apps Challenge 2026')}
+      ${line(t('crEvent'), 'Salamanca')}
+      <p class="cr-thanks">${esc(t('crThanks'))}</p>
+    </div>
+    <button class="btn grey small skip" data-action="end-credits">${esc(t('skip'))} ⏭</button>
+  </section>`;
 }
 
 function syncScene() {
@@ -339,6 +392,7 @@ function reportHtml(r) {
   if (r.oxygenLost > 0) items.push(['oxygen', t('oxygenTankFull', { n: r.oxygenLost }), 'bad']);
   if (r.wasted > 0) items.push(['battery', t('wastedMsg', { n: r.wasted }), 'bad']);
   if (r.status === 'playing' && !r.night && isNight(map, r.day + 1)) items.push(['moon', t('nightComing'), 'bad']);
+  if (r.dustStarted) items.push(['warning', t('dustStarted', { n: game.dust }), 'bad']);
   const done = r.status !== 'playing';
   return windowHtml(esc(t('reportTitle', { day: r.day })),
     `<ul class="report">${items.map(([i, l, c]) => `<li class="${c}">${icon(i)}<span>${esc(l)}</span></li>`).join('')}</ul>
@@ -353,7 +407,7 @@ function helpHtml() {
       ${step('energy', t('help1'))}
       ${step('oxygen', t('help2', { n: map.oxygenUse }))}
       ${step('shield', t('help3'))}
-      ${step('battery', t('help4', { day: map.nightStart }))}
+      ${step('battery', map.cycle ? t('help4', { day: map.nightStart }) : t('help4mars'))}
       ${step('hammer', t('help6'))}
     </ol>
     <button class="btn green" data-action="close-help"><span>${esc(t('letsGo'))}</span>${icon('play')}</button>`, { close: 'close-help' });
@@ -370,7 +424,7 @@ function termHtml(key) {
 
 function render() {
   const screens = { menu: menuScreen, map: mapScreen, difficulty: difficultyScreen, game: gameScreen,
-    end: endScreen, settings: settingsScreen, credits: creditsScreen, data: dataScreen };
+    end: endScreen, settings: settingsScreen, credits: creditsScreen, data: dataScreen, mode: modeScreen, roll: () => gameScreen() + creditsRoll() };
   app.innerHTML = screens[screen]();
   app.className = 'screen-' + screen;
   const modal = openTerm ? termHtml(openTerm) : showSun ? sunHtml() : showHelp ? helpHtml() : lastReport ? reportHtml(lastReport) : '';
@@ -379,12 +433,12 @@ function render() {
   document.title = t('title');
   if (!has3d) return;
   setLabels({ shield: t('lblShield'), home: t('lblHome') });
-  const inGame = screen === 'game' && game;
-  setMode(inGame ? 'game' : 'menu');
+  const inGame = (screen === 'game' || screen === 'roll') && game;
+  if (!cinematic && screen !== 'roll' && screen !== 'end') setMode(inGame ? 'game' : 'menu');
   if (inGame) {
     const map = MAPS[game.map];
     const left = available(game) - choice.oxygen - choice.shield;
-    updateScene({ night: isNight(map, game.day), oxygen: choice.oxygen, shield: choice.shield,
+    updateScene({ night: isNight(map, game.day), dust: game.dust > 0, oxygen: choice.oxygen, shield: choice.shield,
       battery: Math.min(batteryMax(game), left), batteryMax: batteryMax(game) });
     syncScene();
   }
@@ -396,12 +450,15 @@ function defaultChoice() {
 
 function startGame() {
   const w = getWeather();
-  game = newGame({ map: pick.map, difficulty: pick.difficulty, flares: w ? w.pool : [], activity: w ? w.activity.factor : 1 });
+  game = newGame({ map: pick.map, difficulty: pick.difficulty, mode: pick.mode, flares: w ? w.pool : [], activity: w ? w.activity.factor : 1 });
   choice = defaultChoice();
-  ui = null;
-  if (has3d) stopPlacing();
-  showHelp = true;
-  go('game');
+  ui = null; endInfo = {};
+  if (!has3d) { showHelp = !helpSeen; return go('game'); }
+  stopPlacing(); resetLander(); setPlanet(game.map);
+  cinematic = 'landing';
+  screen = 'game';
+  playLanding(() => { cinematic = null; showHelp = !helpSeen; render(); });
+  render();
 }
 
 function beginPlacing(type) {
@@ -424,7 +481,8 @@ document.addEventListener('click', e => {
   if (d.lang) return setLang(d.lang);
   if (d.term) { openTerm = d.term; return render(); }
   if (d.go) return go(d.go);
-  if (d.map) { pick.map = d.map; return go('difficulty'); }
+  if (d.map) { pick.map = d.map; return go('mode'); }
+  if (d.mode) { pick.mode = d.mode; return go('difficulty'); }
   if (d.build) return beginPlacing(d.build);
   if (d.difficulty) { pick.difficulty = d.difficulty; return startGame(); }
   if (d.step) {
@@ -454,10 +512,14 @@ document.addEventListener('click', e => {
     }
     case 'close-report':
       lastReport = null;
-      return game.status !== 'playing' ? go('end') : render();
+      if (game.status === 'playing') return render();
+      return finishGame();
     case 'close-term': openTerm = null; return render();
     case 'help': showHelp = true; return render();
-    case 'close-help': showHelp = false; return render();
+    case 'close-help': showHelp = false; helpSeen = true; return render();
+    case 'skip': if (has3d) skipAnimation(); return;
+    case 'end-credits': return go('end');
+    case 'toggle-unlock': setUnlockAll(!unlockAll()); return render();
     case 'sun': showSun = true; return render();
     case 'close-sun': showSun = false; return render();
     case 'open-build': ui = { kind: 'build' }; return render();
@@ -484,11 +546,27 @@ document.addEventListener('keydown', e => {
   render();
 });
 
+// End of a game: records, unlocks, and in story mode the escape + credits.
+function finishGame() {
+  if (game.mode === 'survival') endInfo.newRecord = saveBest(game.map, game.difficulty, game.day - 1);
+  if (game.status === 'won' && game.map === 'moon') endInfo.unlocked = unlock('mars');
+  if (game.status === 'won' && has3d) {
+    cinematic = 'launch';
+    render();
+    playLaunch(() => { cinematic = null; go('roll'); });
+    return;
+  }
+  go('end');
+}
+
 if (has3d) onPickBuilding(id => {
-  if (screen !== 'game' || busy || ui?.kind === 'placing') return;
+  if (screen !== 'game' || busy || cinematic || ui?.kind === 'placing') return;
   ui = id != null ? { kind: 'selected', id } : null;
   render();
 });
+
+// When the credits finish rolling, show the end screen.
+document.addEventListener('animationend', e => { if (e.target.classList?.contains('cr-scroll') && screen === 'roll') go('end'); });
 
 onLangChange(render);
 onWeather(render);

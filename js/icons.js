@@ -67,6 +67,21 @@ export const ICONS = {
       <rect x="18" y="14" width="8" height="34" rx="4" fill="#fff" opacity=".45"/>`,
       grad(g, '#ffffff', '#90a4ae'));
   },
+  mars() {
+    const g = 'ma' + uid++;
+    return wrap(`<circle cx="32" cy="32" r="26" fill="url(#${g})" stroke="#4a1405" stroke-width="4"/>
+      <ellipse cx="24" cy="26" rx="7" ry="4" fill="#8a2f12" opacity=".6"/><ellipse cx="40" cy="40" rx="9" ry="5" fill="#8a2f12" opacity=".55"/>
+      <circle cx="38" cy="20" r="3" fill="#8a2f12" opacity=".5"/><ellipse cx="26" cy="18" rx="10" ry="5" fill="#fff" opacity=".35"/>`,
+      grad(g, '#ffab76', '#c1440e'));
+  },
+  rocket() {
+    const g = 'rk' + uid++;
+    return wrap(`<path d="M32 4 C44 14 46 30 42 44 H22 C18 30 20 14 32 4 Z" fill="url(#${g})" stroke="#263238" stroke-width="4" stroke-linejoin="round"/>
+      <circle cx="32" cy="24" r="6" fill="#4fc3f7" stroke="#263238" stroke-width="3.5"/>
+      <path d="M22 36 L12 48 L22 46 Z M42 36 L52 48 L42 46 Z" fill="#e53935" stroke="#263238" stroke-width="3.5" stroke-linejoin="round"/>
+      <path d="M25 46 Q32 64 39 46 Z" fill="#ffb300" stroke="#8a4b00" stroke-width="3" stroke-linejoin="round"/>`,
+      grad(g, '#ffffff', '#b0bec5'));
+  },
   warning() {
     return wrap(`<path d="M32 5 L60 56 H4 Z" fill="#ffca28" stroke="#5d1a00" stroke-width="4.5" stroke-linejoin="round"/>
       <rect x="29" y="22" width="6" height="19" rx="3" fill="#5d1a00"/><circle cx="32" cy="48" r="3.6" fill="#5d1a00"/>`);
