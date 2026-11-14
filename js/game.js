@@ -1,4 +1,5 @@
 // Game rules. Pure logic, no DOM: easy to test and to balance.
+import { flareStrength } from './spaceweather-core.js';
 
 export const MAPS = {
   moon: {
@@ -92,15 +93,34 @@ export function available(state) {
   return energyToday(state) + state.battery - state.spent;
 }
 
+// Storms in the game are REAL solar flares recorded by NASA (DONKI), picked at random from the
+// pool. How often they come depends on the difficulty and on how active the real Sun is this week.
 function rollWeather(state, rng) {
   const diff = DIFFICULTY[state.difficulty];
-  const storm = rng() < diff.stormChance;
-  const strength = storm ? 1 + Math.floor(rng() * diff.maxStrength) : 0;
+  const pool = state.pool || [];
+  const storm = rng() < Math.min(.6, diff.stormChance * (state.activity || 1));
+  let strength = 0, flare = null;
+  if (storm) {
+    if (pool.length) {
+      flare = pool[Math.floor(rng() * pool.length)];
+      if (state.difficulty === 'hard') { // hard: the stronger of two real flares
+        const other = pool[Math.floor(rng() * pool.length)];
+        if (flareStrength(other.cls) > flareStrength(flare.cls)) flare = other;
+      }
+      strength = Math.min(diff.maxStrength, Math.max(1, flareStrength(flare.cls)));
+    } else {
+      strength = 1 + Math.floor(rng() * diff.maxStrength); // no data at all: invented storm
+    }
+  }
   const warned = storm ? rng() < diff.warnChance : rng() < diff.falseAlarm;
-  return { strength, warned };
+  // The warning tells the flare class letter (C, M or X), like real space-weather alerts.
+  let hint = null;
+  if (warned) hint = flare ? flare.cls[0] : pool.length ? pool[Math.floor(rng() * pool.length)].cls[0] : 'C';
+  return { strength, warned, flare, hint };
 }
 
-export function newGame({ map = 'moon', difficulty = 'normal', seed = Date.now() } = {}) {
+// flares: real NASA flares to use as storms; activity: 0.8 (quiet Sun) .. 1.3 (very active Sun)
+export function newGame({ map = 'moon', difficulty = 'normal', seed = Date.now(), flares = [], activity = 1 } = {}) {
   const m = MAPS[map];
   const state = {
     map, difficulty, seed, rngCalls: 0,
@@ -114,6 +134,8 @@ export function newGame({ map = 'moon', difficulty = 'normal', seed = Date.now()
     today: null,       // weather that will hit today (hidden from the player)
     status: 'playing', // playing | won | lost-oxygen | lost-dose
     history: [],
+    pool: flares.map(f => ({ t: f.t, cls: f.cls, link: f.link })),
+    activity,
   };
   for (const [type, x, z] of m.start) state.buildings.push({ id: state.nextId++, type, level: 1, x, z });
   const rng = rngFor(state);
@@ -130,7 +152,7 @@ function rngFor(state) {
 
 // What the player sees about today's space weather.
 export function forecast(state) {
-  return { warned: state.today.warned };
+  return { warned: state.today.warned, hint: state.today.hint };
 }
 
 // ---------- building ----------
@@ -220,7 +242,7 @@ export function playDay(state, { oxygen = 0, shield = 0 }) {
 
   const report = {
     day: state.day, night: isNight(map, state.day), energy: energyToday(state), spent: state.spent,
-    oxygen, shield, shieldPower, o2Bonus, wasted, oxygenLost, storm, blocked, warned: state.today.warned,
+    oxygen, shield, shieldPower, o2Bonus, wasted, oxygenLost, storm, blocked, warned: state.today.warned, flare: state.today.flare,
     stormDose, baseDose: map.baseDose,
   };
 

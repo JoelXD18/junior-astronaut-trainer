@@ -7,6 +7,7 @@ import { MAPS, DOSE_LIMIT, BUILDINGS, MAX_LEVEL, newGame, playDay, available, en
 import { initScene, setMode, setLabels, updateScene, playStorm, syncBuildings, setSelected, onPickBuilding,
   startPlacing, stopPlacing, resetView } from './scene.js';
 import { icon } from './icons.js';
+import { loadSpaceWeather, getWeather, onWeather, flareStrength } from './spaceweather.js';
 
 const has3d = initScene();
 const app = document.getElementById('app');
@@ -21,6 +22,42 @@ let openTerm = null;     // glossary word currently open
 let showHelp = false;    // "how to play" card at the start of a game
 let busy = false;        // true while a solar storm animation is playing
 let ui = null;           // null | {kind:'build'} | {kind:'placing', type, moveId} | {kind:'selected', id}
+let showSun = false;     // "real Sun" window with NASA DONKI data
+
+const fmtDate = iso => new Date(iso).toLocaleDateString(lang(), { day: 'numeric', month: 'short', year: 'numeric' });
+const fmtTime = iso => new Date(iso).toLocaleString(lang(), { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+
+// Small badge with the state of the real Sun (NASA DONKI). Says clearly if it's live or a saved copy.
+function sunChip() {
+  const w = getWeather();
+  if (!w) return `<button class="sun-chip loading" data-action="sun">${icon('sun')}<span>${esc(t('sunLoading'))}</span></button>`;
+  return `<button class="sun-chip ${w.activity.level}" data-action="sun">${icon('sun')}
+    <span>${esc(t('realSun'))}: <b>${esc(t('act_' + w.activity.level))}</b></span>
+    <span class="src ${w.source}">${esc(t(w.source === 'live' ? 'live' : 'saved'))}</span></button>`;
+}
+
+function flareChip(cls) {
+  return `<span class="flare-chip f${cls[0]}">${esc(cls)}</span>`;
+}
+
+function sunHtml() {
+  const w = getWeather();
+  if (!w) return windowHtml(esc(t('realSunTitle')), `<p>${esc(t('sunLoading'))}</p>`, { close: 'close-sun' });
+  const a = w.activity;
+  const latest = w.flares.slice(0, 5).map(f => `<li>${flareChip(f.cls)}<span>${esc(fmtDate(f.t))}</span></li>`).join('');
+  const source = w.source === 'live'
+    ? t('sourceLive', { time: fmtTime(w.time) })
+    : t('sourceSaved', { date: fmtDate(w.time) });
+  return windowHtml(`${icon('sun')} ${esc(t('realSunTitle'))}`, `
+    <p class="big-fact">${esc(t('sunWeek', { n: a.week, big: a.big }))} <b class="act ${a.level}">${esc(t('act_' + a.level))}</b></p>
+    <h3>${esc(t('latestFlares'))}</h3>
+    <ul class="flare-list">${latest}</ul>
+    <div class="scale"><span>${flareChip('C')} ${esc(t('scaleC'))}</span><span>${flareChip('M')} ${esc(t('scaleM'))}</span><span>${flareChip('X')} ${esc(t('scaleX'))}</span></div>
+    <p>${esc(t('sunHowGame'))}</p>
+    <p class="source ${w.source}">${icon(w.source === 'live' ? 'energy' : 'warning')} ${esc(source)}
+      <a href="https://ccmc.gsfc.nasa.gov/DONKI/" target="_blank" rel="noopener">NASA DONKI</a></p>
+    <button class="btn green" data-action="close-sun"><span>${esc(t('close'))}</span></button>`, { close: 'close-sun' });
+}
 
 const BICON = { solar: 'sun', battery: 'battery', tank: 'tank', oxygen: 'oxygen', shield: 'shield' };
 const freeEnergy = () => available(game) - choice.oxygen - choice.shield;
@@ -66,8 +103,10 @@ function menuScreen() {
     <div class="stack">
       <button class="btn green xl" data-go="map">${icon('play')}<span>${esc(t('play'))}</span></button>
       <button class="btn blue" data-go="settings">${icon('gear')}<span>${esc(t('settings'))}</span></button>
+      <button class="btn blue" data-go="data">${icon('radiation')}<span>${esc(t('nasaData'))}</span></button>
       <button class="btn blue" data-go="credits">${icon('trophy')}<span>${esc(t('credits'))}</span></button>
     </div>
+    ${sunChip()}
     ${langPicker()}
   </section>`;
 }
@@ -93,6 +132,21 @@ function difficultyScreen() {
 function settingsScreen() {
   return centered(windowHtml(esc(t('settings')), `<h3>${esc(t('language'))}</h3>${langPicker()}`, { close: null })
     + `<button class="btn grey back" data-go="menu">← ${esc(t('back'))}</button>`);
+}
+
+function dataScreen() {
+  const w = getWeather();
+  const sec = (ico, title, what, why) => `<div class="data-sec">${icon(ico)}<div><h3>${esc(title)}</h3><p>${esc(what)}</p><p class="why">${esc(why)}</p></div></div>`;
+  return centered(windowHtml(esc(t('nasaData')), `
+    <p>${esc(t('dataIntro'))}</p>
+    ${sec('sun', t('dataDonkiTitle'), t('dataDonkiWhat', { n: w ? w.flares.length : '…' }), t('dataDonkiWhy'))}
+    <p class="source ${w?.source || ''}">${w ? esc(w.source === 'live' ? t('sourceLive', { time: fmtTime(w.time) }) : t('sourceSaved', { date: fmtDate(w.time) })) : ''}
+      <a href="https://ccmc.gsfc.nasa.gov/DONKI/" target="_blank" rel="noopener">ccmc.gsfc.nasa.gov/DONKI</a></p>
+    ${sec('radiation', t('dataRadTitle'), t('dataRadWhat'), t('dataRadWhy'))}
+    <p class="source saved">${esc(t('dataRadSource'))} <a href="https://visualization.osdr.nasa.gov/radlab/" target="_blank" rel="noopener">NASA OSDR RadLab</a></p>
+    ${sec('home', t('dataModelsTitle'), t('dataModelsWhat'), t('dataModelsWhy'))}
+    <p class="source saved"><a href="https://github.com/nasa/NASA-3D-Resources" target="_blank" rel="noopener">NASA 3D Resources</a></p>`,
+    { close: null, cls: 'data-win' }) + `<button class="btn grey back" data-go="menu">← ${esc(t('back'))}</button>`);
 }
 
 function creditsScreen() {
@@ -138,8 +192,9 @@ function gameScreen() {
       </button>
       <div class="strip" aria-hidden="true">${strip}</div>
       ${fc.warned
-        ? `<button class="ribbon warn" data-term="Storm">${icon('warning')}<span>${esc(t('warnShort'))}</span></button>`
+        ? `<button class="ribbon warn" data-term="Storm">${icon('warning')}<span>${esc(t('warnShort'))}</span>${fc.hint ? flareChip(fc.hint) : ''}</button>`
         : `<button class="ribbon calm" data-term="Storm"><span>${esc(t('calmShort'))}</span></button>`}
+      ${sunChip()}
     </div>
 
     <div class="top-right">
@@ -271,6 +326,7 @@ function reportHtml(r) {
   if (r.storm > 0) {
     const full = r.blocked >= r.storm;
     items.push(['shield', full ? t('stormBlocked', { s: r.storm }) : t('stormPartial', { s: r.storm, b: r.blocked, d: r.stormDose }), full ? 'good' : 'bad']);
+    if (r.flare) items.push(['sun', t('realFlare', { cls: r.flare.cls, date: fmtDate(r.flare.t) }), 'nasa']);
     if (!r.warned) items.push(['warning', t('surprise'), '']);
   } else {
     items.push(['sun', t('stormNone'), 'good']);
@@ -306,6 +362,7 @@ function helpHtml() {
 function termHtml(key) {
   return windowHtml(esc(t('term' + key)), `<p>${esc(t('term' + key + 'Text'))}</p>
     ${key === 'Night' ? `<p class="small">${esc(t('gameNote'))}</p>` : ''}
+    ${key === 'Dose' || key === 'Storm' ? `<p class="nasa-fact">${icon('radiation')}<span>${esc(t('term' + key + 'Data'))}</span></p>` : ''}
     <button class="btn green" data-action="close-term"><span>${esc(t('close'))}</span></button>`, { close: 'close-term' });
 }
 
@@ -313,10 +370,10 @@ function termHtml(key) {
 
 function render() {
   const screens = { menu: menuScreen, map: mapScreen, difficulty: difficultyScreen, game: gameScreen,
-    end: endScreen, settings: settingsScreen, credits: creditsScreen };
+    end: endScreen, settings: settingsScreen, credits: creditsScreen, data: dataScreen };
   app.innerHTML = screens[screen]();
   app.className = 'screen-' + screen;
-  const modal = openTerm ? termHtml(openTerm) : showHelp ? helpHtml() : lastReport ? reportHtml(lastReport) : '';
+  const modal = openTerm ? termHtml(openTerm) : showSun ? sunHtml() : showHelp ? helpHtml() : lastReport ? reportHtml(lastReport) : '';
   modalRoot.innerHTML = modal;
   modalRoot.hidden = !modal;
   document.title = t('title');
@@ -338,7 +395,8 @@ function defaultChoice() {
 }
 
 function startGame() {
-  game = newGame({ map: pick.map, difficulty: pick.difficulty });
+  const w = getWeather();
+  game = newGame({ map: pick.map, difficulty: pick.difficulty, flares: w ? w.pool : [], activity: w ? w.activity.factor : 1 });
   choice = defaultChoice();
   ui = null;
   if (has3d) stopPlacing();
@@ -400,6 +458,8 @@ document.addEventListener('click', e => {
     case 'close-term': openTerm = null; return render();
     case 'help': showHelp = true; return render();
     case 'close-help': showHelp = false; return render();
+    case 'sun': showSun = true; return render();
+    case 'close-sun': showSun = false; return render();
     case 'open-build': ui = { kind: 'build' }; return render();
     case 'close-ui': ui = null; return render();
     case 'cancel-place': if (has3d) stopPlacing(); ui = null; return render();
@@ -419,7 +479,7 @@ document.addEventListener('click', e => {
 
 document.addEventListener('keydown', e => {
   if (e.key !== 'Escape') return;
-  if (openTerm) openTerm = null; else if (showHelp) showHelp = false;
+  if (openTerm) openTerm = null; else if (showSun) showSun = false; else if (showHelp) showHelp = false;
   else if (ui) { if (has3d) stopPlacing(); ui = null; } else return;
   render();
 });
@@ -431,4 +491,6 @@ if (has3d) onPickBuilding(id => {
 });
 
 onLangChange(render);
+onWeather(render);
+loadSpaceWeather();
 render();

@@ -331,3 +331,48 @@ button:focus-visible { outline: 3px solid #fff; outline-offset: 3px; }
   .scene-label { font-size: 11px; }
   .scene-label .t { display: none; }
 }
+
+/* ---------- real NASA data ---------- */
+.sun-chip {
+  display: inline-flex; align-items: center; gap: 6px; padding: 5px 8px 5px 6px; font-size: 14px;
+  border: 3px solid var(--ink); border-radius: 999px; background: linear-gradient(#3b2a12, #1d1408); box-shadow: 0 3px 0 var(--ink);
+}
+.sun-chip .ico { font-size: 22px; }
+.sun-chip b { font-family: var(--title); font-weight: 400; color: var(--gold); }
+.sun-chip.high b { color: #ff8a65; }
+.sun-chip.low b { color: #9be15d; }
+.src { font: 400 11px var(--title); padding: 2px 7px; border-radius: 999px; border: 2px solid var(--ink); letter-spacing: .5px; }
+.src.live { background: #2e7d32; }
+.src.live::before { content: '● '; color: #b9f6ca; }
+.src.saved { background: #8a6d00; }
+.menu .sun-chip { font-size: 15px; }
+.flare-chip { display: inline-block; min-width: 34px; text-align: center; font: 400 15px var(--title); padding: 1px 8px; border-radius: 8px; border: 2px solid var(--ink); color: #fff; text-shadow: 0 2px 0 var(--ink); }
+.flare-chip.fC { background: linear-gradient(#ffe082, #f9a825); }
+.flare-chip.fM { background: linear-gradient(#ffab91, #f4511e); }
+.flare-chip.fX { background: linear-gradient(#ef9a9a, #b71c1c); }
+.ribbon .flare-chip { margin-left: 4px; }
+.flare-list { list-style: none; padding: 0; margin: 0 0 12px; display: grid; gap: 6px; }
+.flare-list li { display: flex; gap: 10px; align-items: center; padding: 5px 10px; border-radius: 10px; background: rgba(8, 16, 40, .45); }
+.scale { display: flex; gap: 12px; flex-wrap: wrap; margin: 0 0 12px; font-size: 14px; color: var(--muted); }
+.big-fact { font-size: 17px; }
+.act { font-family: var(--title); font-weight: 400; color: var(--gold); }
+.act.high { color: #ff8a65; }
+.act.low { color: #9be15d; }
+.source { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font-size: 14px; padding: 8px 10px; border-radius: 10px; border: 2px solid var(--ink); }
+.source .ico { font-size: 20px; }
+.source.live { background: rgba(46, 125, 50, .35); }
+.source.saved { background: rgba(138, 109, 0, .35); }
+.source a, .data-win a { color: #9fd3ff; font-weight: 800; }
+.data-win { width: min(680px, 100%); }
+.data-sec { display: flex; gap: 12px; align-items: flex-start; margin: 14px 0 6px; }
+.data-sec > .ico { font-size: 44px; margin-top: 2px; }
+.data-sec h3 { margin: 0 0 4px; }
+.data-sec p { margin: 0 0 6px; }
+.data-sec .why { color: var(--muted); font-size: 14px; }
+.nasa-fact { display: flex; gap: 10px; align-items: flex-start; padding: 10px; border-radius: 12px; background: rgba(255, 112, 67, .15); border: 2px solid rgba(255, 112, 67, .5); font-size: 14px; }
+.nasa-fact .ico { font-size: 28px; }
+.report li.nasa { background: rgba(255, 193, 7, .18); border-color: rgba(255, 193, 7, .5); }
+@media (max-width: 640px) {
+  .top-left .sun-chip { font-size: 11px; padding: 3px 6px 3px 4px; }
+  .top-left .sun-chip .ico { font-size: 16px; }
+}
