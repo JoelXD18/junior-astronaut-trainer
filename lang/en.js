@@ -255,10 +255,4 @@ export default {
   lp_braking: "Firing the engine to slow down",
   lp_final: "Final descent: easy does it…",
   lp_landed: "Touchdown! We have landed.",
-  lp_exit: "Opening the hatch…",
-  lp_ladder: "The astronaut climbs down the ladder…",
-  lp_step: "“That’s one small step for man, one giant leap for mankind.”",
-  armstrongWho: "Neil Armstrong, Apollo 11 (1969)",
-  lp_flag: "Planting the flag",
-  lp_walk: "Off to plant the flag…",
 };
