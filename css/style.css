@@ -109,7 +109,7 @@ button:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
 .bat .bar > div { background: var(--bat); }
 
 .hud-actions { display: flex; gap: 6px; align-items: center; }
-.icon-btn { width: 38px; height: 38px; font-size: 18px; font-weight: 700; padding: 0; }
+.icon-btn { width: 38px; height: 38px; font-size: 18px; font-weight: 700; padding: 0; flex: none; border-radius: 12px; border: 1px solid var(--line); background: var(--glass); }
 
 .info {
   width: 20px; height: 20px; border-radius: 50%; padding: 0; flex: none;
@@ -202,4 +202,44 @@ button:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
   .end-day { padding: 12px; }
   .scene-label { font-size: 11px; padding: 2px 7px 2px 4px; }
   .scene-label .t { display: none; }
+}
+
+/* ---------- building ---------- */
+.scene-label.small { padding: 2px 6px; font-size: 12px; }
+.scene-label.small .i { font-size: 15px; }
+.scene-label .lv { background: var(--accent); color: #1a1400; border-radius: 999px; padding: 0 5px; font-weight: 800; font-size: 11px; }
+.build-btn {
+  margin-left: 8px; padding: 10px 14px; border-radius: 12px; border: 1px solid var(--accent);
+  background: rgba(255, 200, 58, .15); font-weight: 700; white-space: nowrap;
+}
+.panel-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.panel-head strong { font-size: 18px; }
+.panel-head .free { color: var(--accent); font-weight: 700; margin-left: auto; }
+.panel-head .icon-btn { margin-left: auto; }
+.panel-head .free + .icon-btn { margin-left: 0; }
+.panel-head .big { width: auto; margin-left: auto; padding: 8px 16px; font-size: 16px; }
+.hint { color: var(--muted); font-size: 14px; margin: 6px 0 10px; }
+.hint.bad { color: var(--danger); }
+.build-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.build-card {
+  display: grid; gap: 4px; justify-items: center; text-align: center;
+  padding: 10px; border-radius: 14px; border: 1px solid var(--line); background: var(--glass-2);
+}
+.build-card:hover:not(:disabled) { border-color: var(--accent); }
+.build-card .b-icon { font-size: 28px; }
+.build-card small { color: var(--muted); font-size: 13px; }
+.build-card .cost { font-weight: 800; color: var(--accent); font-size: 18px; }
+.stars { color: var(--accent); letter-spacing: 2px; margin-left: 6px; }
+.now { margin: 8px 0 2px; }
+.next { margin: 0 0 10px; color: var(--muted); font-size: 15px; }
+.sel-actions { display: flex; gap: 10px; }
+.sel-actions .big { font-size: 17px; padding: 12px; }
+
+@media (max-width: 760px) {
+  .build-btn { padding: 8px 10px; margin-left: 4px; }
+  .build-btn span { display: none; }
+  .build-cards { gap: 6px; }
+  .build-card { padding: 8px 4px; }
+  .build-card small { font-size: 11px; }
+  .panel-head strong { font-size: 15px; }
 }

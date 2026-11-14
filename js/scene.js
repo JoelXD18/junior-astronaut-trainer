@@ -159,71 +159,112 @@ function label(key, icon) {
 const metal = (color, r = .45, m = .7, extra = {}) => new THREE.MeshStandardMaterial({ color, roughness: r, metalness: m, ...extra });
 function shadow(o) { o.traverse(m => { if (m.isMesh) { m.castShadow = true; m.receiveShadow = true; } }); return o; }
 
-// Vertical solar array (like NASA's Artemis VSAT concept): a tall mast with a long panel that follows the Sun.
-function solarTower() {
-  const g = new THREE.Group();
-  const mast = new THREE.Mesh(new THREE.CylinderGeometry(.18, .25, 13, 12), metal(0xc8c8c8));
-  mast.position.y = 6.5; g.add(mast);
-  const panelGroup = new THREE.Group();
-  const cells = new THREE.MeshStandardMaterial({ color: 0x0c1a3a, roughness: .25, metalness: .8, emissive: 0x0a1a44, emissiveIntensity: .0 });
-  const frame = metal(0xd9d9d9, .4, .6);
-  for (let i = 0; i < 4; i++) {
-    const p = new THREE.Mesh(new THREE.BoxGeometry(3.2, 2.2, .08), cells);
-    p.position.set(0, 3 + i * 2.35, .3); panelGroup.add(p);
-    const f = new THREE.Mesh(new THREE.BoxGeometry(3.3, .1, .12), frame);
-    f.position.set(0, 1.85 + i * 2.35, .3); panelGroup.add(f);
+// ---------- buildings (made in code, sized in meters) ----------
+const mats = {};
+function sharedMats() {
+  if (mats.cells) return mats;
+  mats.cells = new THREE.MeshStandardMaterial({ color: 0x0c1a3a, roughness: .25, metalness: .8, emissive: 0x0a1a44, emissiveIntensity: 0 });
+  mats.frame = metal(0xd9d9d9, .4, .6);
+  mats.white = metal(0xe8e8e8, .35, .5);
+  mats.grey = metal(0x8d8d8d, .7, .4);
+  mats.dark = metal(0x777777);
+  mats.sand = metal(0xb7b2a6, .6, .3);
+  mats.o2Band = metal(0x4fc3f7, .3, .2, { emissive: C.o2, emissiveIntensity: 0 });
+  mats.container = metal(0xd6d3cc, .55, .35);
+  mats.radiator = metal(0xf0f0f0, .2, .9);
+  mats.pylon = metal(0xc9d6ff, .3, .7, { emissive: C.shield, emissiveIntensity: .2 });
+  return mats;
+}
+
+// Vertical solar array (like NASA's Artemis VSAT concept): a tall mast with panels that face the Sun.
+// More levels = more panels.
+function solarTower(level) {
+  const m = sharedMats(), g = new THREE.Group();
+  const n = 3 + level, h = 3 + n * 2.35;
+  const mast = new THREE.Mesh(new THREE.CylinderGeometry(.18, .25, h, 12), metal(0xc8c8c8));
+  mast.position.y = h / 2; g.add(mast);
+  const panels = new THREE.Group();
+  for (let i = 0; i < n; i++) {
+    const p = new THREE.Mesh(new THREE.BoxGeometry(3.2, 2.2, .08), m.cells);
+    p.position.set(0, 3 + i * 2.35, .3); panels.add(p);
+    const f = new THREE.Mesh(new THREE.BoxGeometry(3.3, .1, .12), m.frame);
+    f.position.set(0, 1.85 + i * 2.35, .3); panels.add(f);
   }
-  g.add(panelGroup);
-  const base = new THREE.Mesh(new THREE.CylinderGeometry(1.2, 1.4, .5, 16), metal(0x8d8d8d, .7, .4));
+  panels.rotation.y = Math.atan2(SUN_DIR.x, SUN_DIR.z);
+  g.add(panels);
+  const base = new THREE.Mesh(new THREE.CylinderGeometry(1.2, 1.4, .5, 16), m.grey);
   base.position.y = .25; g.add(base);
-  parts.panelCells = cells;
-  panelGroup.rotation.y = Math.atan2(SUN_DIR.x, SUN_DIR.z); // face the Sun
-  return shadow(g);
+  return g;
 }
 
-// Oxygen plant: pulls oxygen out of moon rock, then stores it in tanks.
-function oxygenPlant() {
-  const g = new THREE.Group();
-  const tankMat = metal(0xe8e8e8, .35, .5);
-  for (let i = 0; i < 3; i++) {
-    const tank = new THREE.Mesh(new THREE.CapsuleGeometry(.9, 3.6, 8, 24), tankMat);
-    tank.rotation.z = Math.PI / 2; tank.position.set(0, 1.1, i * 2.1 - 2.1); g.add(tank);
-    const band = new THREE.Mesh(new THREE.TorusGeometry(.92, .06, 8, 24), metal(0x4fc3f7, .3, .2, { emissive: C.o2, emissiveIntensity: 0 }));
-    band.rotation.y = Math.PI / 2; band.position.set(0, 1.1, i * 2.1 - 2.1); g.add(band);
-    (parts.o2Bands ||= []).push(band.material);
-    for (const sx of [-1.2, 1.2]) {
-      const leg = new THREE.Mesh(new THREE.BoxGeometry(.15, .5, 1.4), metal(0x777777));
-      leg.position.set(sx, .25, i * 2.1 - 2.1); g.add(leg);
-    }
+// Oxygen machine: takes oxygen out of moon rock (regolith). Higher level = second processor.
+function oxygenPlant(level) {
+  const m = sharedMats(), g = new THREE.Group();
+  for (let k = 0; k < Math.min(level, 2); k++) {
+    const proc = new THREE.Mesh(new THREE.BoxGeometry(3, 2.6, 3.4), m.sand);
+    proc.position.set(-1.8, 1.3, k * 3.8 - (level > 1 ? 1.9 : 0)); g.add(proc);
+    const hopper = new THREE.Mesh(new THREE.CylinderGeometry(1.2, .5, 1.6, 4), m.sand);
+    hopper.position.set(-1.8, 3.4, proc.position.z); hopper.rotation.y = Math.PI / 4; g.add(hopper);
   }
-  const proc = new THREE.Mesh(new THREE.BoxGeometry(3, 2.6, 3.4), metal(0xb7b2a6, .6, .3));
-  proc.position.set(-4.2, 1.3, 0); g.add(proc);
-  const hopper = new THREE.Mesh(new THREE.CylinderGeometry(1.2, .5, 1.6, 4), metal(0x9a9488, .6, .3));
-  hopper.position.set(-4.2, 3.4, 0); hopper.rotation.y = Math.PI / 4; g.add(hopper);
-  const pipe = new THREE.Mesh(new THREE.CylinderGeometry(.12, .12, 3, 8), metal(0xaaaaaa));
-  pipe.rotation.z = Math.PI / 2; pipe.position.set(-2.2, 1.9, 0); g.add(pipe);
-  const lamp = new THREE.PointLight(C.o2, 0, 9, 2); lamp.position.set(0, 3, 0); g.add(lamp);
-  parts.o2Light = lamp;
-  return shadow(g);
+  const tank = new THREE.Mesh(new THREE.CapsuleGeometry(.9, 2.6 + level * .6, 8, 24), m.white);
+  tank.rotation.z = Math.PI / 2; tank.position.set(2, 1.1, 0); g.add(tank);
+  const band = new THREE.Mesh(new THREE.TorusGeometry(.92, .07, 8, 24), m.o2Band);
+  band.rotation.y = Math.PI / 2; band.position.set(2, 1.1, 0); g.add(band);
+  const pipe = new THREE.Mesh(new THREE.CylinderGeometry(.12, .12, 2.4, 8), m.dark);
+  pipe.rotation.z = Math.PI / 2; pipe.position.set(.2, 1.9, 0); g.add(pipe);
+  if (level === 3) { const dish = new THREE.Mesh(new THREE.CylinderGeometry(1.6, 1.6, .2, 20), m.radiator); dish.position.set(-1.8, 4.4, 0); g.add(dish); }
+  return g;
 }
 
-// Battery bank: container units with level lights on the side.
-function batteryBank() {
-  const g = new THREE.Group();
-  for (let i = 0; i < 2; i++) {
-    const box = new THREE.Mesh(new THREE.BoxGeometry(5, 2.4, 2.2), metal(0xd6d3cc, .55, .35));
-    box.position.set(0, 1.2, i * 2.6 - 1.3); g.add(box);
-    const rad = new THREE.Mesh(new THREE.BoxGeometry(4.6, .06, 2), metal(0xf0f0f0, .2, .9));
-    rad.position.set(0, 2.45, i * 2.6 - 1.3); g.add(rad);
+// Oxygen tanks: store more oxygen. Higher level = more tanks.
+function tankPair(level) {
+  const m = sharedMats(), g = new THREE.Group();
+  const n = level + 1;
+  for (let i = 0; i < n; i++) {
+    const z = (i - (n - 1) / 2) * 2;
+    const tank = new THREE.Mesh(new THREE.CapsuleGeometry(.85, 3, 8, 24), m.white);
+    tank.rotation.z = Math.PI / 2; tank.position.set(0, 1.05, z); g.add(tank);
+    const band = new THREE.Mesh(new THREE.TorusGeometry(.87, .06, 8, 24), m.o2Band);
+    band.rotation.y = Math.PI / 2; band.position.set(.8, 1.05, z); g.add(band);
+    for (const sx of [-1.1, 1.1]) { const leg = new THREE.Mesh(new THREE.BoxGeometry(.15, .5, 1.3), m.dark); leg.position.set(sx, .25, z); g.add(leg); }
   }
-  parts.batLeds = [];
+  return g;
+}
+
+// Battery bank: a container with level lights. Higher level = taller stack.
+function batteryBank(level) {
+  const m = sharedMats(), g = new THREE.Group();
+  const h = 1.6 + level * .8;
+  const box = new THREE.Mesh(new THREE.BoxGeometry(5, h, 2.6), m.container);
+  box.position.y = h / 2; g.add(box);
+  const rad = new THREE.Mesh(new THREE.BoxGeometry(4.6, .06, 2.4), m.radiator);
+  rad.position.y = h + .05; g.add(rad);
+  const leds = [];
   for (let i = 0; i < 8; i++) {
-    const led = new THREE.Mesh(new THREE.BoxGeometry(.45, .35, .05), new THREE.MeshStandardMaterial({ color: 0x113322, emissive: C.bat, emissiveIntensity: 0 }));
-    led.position.set(-1.9 + i * .55, 1.3, 2.43);
-    g.add(led); parts.batLeds.push(led.material);
+    const mat = new THREE.MeshStandardMaterial({ color: 0x113322, emissive: C.bat, emissiveIntensity: 0 });
+    const led = new THREE.Mesh(new THREE.BoxGeometry(.45, .35, .05), mat);
+    led.position.set(-1.9 + i * .55, h * .55, 1.33);
+    g.add(led); leds.push(mat);
   }
-  return shadow(g);
+  g.userData.leds = leds;
+  return g;
 }
+
+// Shield generator inside the dome. Higher level = taller, stronger.
+function shieldPylon(level) {
+  const m = sharedMats(), g = new THREE.Group();
+  const h = 2.5 + level;
+  const col = new THREE.Mesh(new THREE.CylinderGeometry(.35, .6, h, 12), m.pylon);
+  col.position.y = h / 2; g.add(col);
+  for (let i = 0; i < level; i++) {
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(.8, .08, 8, 24), m.pylon);
+    ring.rotation.x = Math.PI / 2; ring.position.y = h - .4 - i * .7; g.add(ring);
+  }
+  return g;
+}
+
+const BUILDERS = { solar: solarTower, oxygen: oxygenPlant, tank: tankPair, battery: batteryBank, shield: shieldPylon };
+const ICONS = { solar: '☀️', oxygen: '💨', tank: '🛢️', battery: '🔋', shield: '🛡️' };
 
 // Radiation shield: a soft energy dome around the habitat (game effect, so kids can see it).
 function shieldDome() {
@@ -337,31 +378,148 @@ async function loadModels(base) {
 
 function makeBase() {
   const base = new THREE.Group();
+  parts.base = base;
   base.add(shieldDome());
-
-  const towers = [[-20, -10], [-15, -16], [-24, -3]];
-  towers.forEach(([x, z]) => { const t = solarTower(); t.position.set(x, 0, z); base.add(t); });
-  const o2 = oxygenPlant(); o2.position.set(18, 0, -8); o2.rotation.y = .3; base.add(o2);
-  const bat = batteryBank(); bat.position.set(17, 0, 9); bat.rotation.y = -.2; base.add(bat);
   const f = flag(); f.position.set(-21.5, 0, 19.5); f.rotation.y = .5; base.add(f);
-
-  for (const [x, z] of [...towers, [18, -8], [17, 9]]) base.add(cable(new THREE.Vector3(x, 0, z), new THREE.Vector3(0, 0, 0)));
 
   // Habitat lights for the night
   for (const [x, z] of [[4, 4], [-4, 4], [0, -5]]) {
     const l = new THREE.PointLight(0xffd8a0, 0, 16, 2); l.position.set(x, 3, z); base.add(l); parts.lights.push(l);
   }
-
   const lab = (key, icon, x, y, z) => { const o = label(key, icon); o.position.set(x, y, z); base.add(o); };
-  lab('solar', '☀️', -20, 15, -10);
-  lab('oxygen', '💨', 16, 6, -8);
-  lab('battery', '🔋', 17, 5, 9);
   lab('shield', '🛡️', 0, 12.5, 0);
   lab('home', '🏠', 0, 7.5, 0);
+
+  parts.cables = new THREE.Group(); base.add(parts.cables);
+  parts.buildings = new THREE.Group(); base.add(parts.buildings);
+
+  // Ring that shows the selected building
+  parts.ring = new THREE.Mesh(new THREE.RingGeometry(.92, 1, 48), new THREE.MeshBasicMaterial({ color: 0xffc83a, transparent: true, opacity: .9, side: THREE.DoubleSide, depthWrite: false }));
+  parts.ring.rotation.x = -Math.PI / 2; parts.ring.position.y = .15; parts.ring.visible = false;
+  base.add(parts.ring);
 
   loadModels(base);
   return base;
 }
+
+// ---------- dynamic buildings ----------
+const objs = new Map(); // building id -> { holder, key, radius }
+let selectedId = null;
+
+function removeHolder(h) {
+  h.traverse(o => { if (o.isCSS2DObject) o.element.remove(); });
+  h.parent?.remove(h);
+}
+
+function makeHolder(b) {
+  const holder = new THREE.Group();
+  holder.add(shadow(BUILDERS[b.type](b.level)));
+  holder.userData.buildingId = b.id;
+  const el = document.createElement('div');
+  el.className = 'scene-label small';
+  el.innerHTML = `<span class="i">${ICONS[b.type]}</span>${b.level > 1 ? `<span class="lv">${b.level}</span>` : ''}`;
+  const lab = new CSS2DObject(el);
+  const box = new THREE.Box3().setFromObject(holder);
+  lab.position.set(0, box.max.y + 1.2, 0);
+  holder.add(lab);
+  return holder;
+}
+
+// list: [{ id, type, level, x, z, radius }]
+export function syncBuildings(list) {
+  if (!ok) return;
+  const seen = new Set();
+  for (const b of list) {
+    seen.add(b.id);
+    const key = b.type + b.level;
+    let o = objs.get(b.id);
+    if (!o || o.key !== key) {
+      if (o) removeHolder(o.holder);
+      o = { holder: makeHolder(b), key };
+      objs.set(b.id, o);
+      parts.buildings.add(o.holder);
+    }
+    o.holder.position.set(b.x, 0, b.z);
+    o.holder.rotation.y = b.type === 'solar' ? 0 : Math.atan2(-b.x, -b.z) + Math.PI / 2; // face the habitat
+    o.radius = b.radius;
+  }
+  for (const [id, o] of objs) if (!seen.has(id)) { removeHolder(o.holder); objs.delete(id); }
+
+  // Cables from every building to the habitat
+  parts.cables.children.slice().forEach(c => { c.geometry.dispose(); parts.cables.remove(c); });
+  for (const b of list) if (b.type !== 'shield') parts.cables.add(cable(new THREE.Vector3(b.x, 0, b.z), new THREE.Vector3(0, 0, 0)));
+  parts.batLeds = list.filter(b => b.type === 'battery').map(b => objs.get(b.id).holder.children[0].userData.leds);
+  setSelected(selectedId);
+}
+
+export function setSelected(id) {
+  selectedId = id;
+  const o = id != null && objs.get(id);
+  parts.ring.visible = !!o;
+  if (o) { parts.ring.position.x = o.holder.position.x; parts.ring.position.z = o.holder.position.z; parts.ring.scale.setScalar(o.radius + .6); }
+}
+
+// ---------- clicking and placing ----------
+const ray = new THREE.Raycaster(), ndc = new THREE.Vector2(), groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+let pickHandler = null, placing = null, downAt = null;
+
+export function onPickBuilding(fn) { pickHandler = fn; }
+
+function toNdc(e) {
+  const r = renderer.domElement.getBoundingClientRect();
+  ndc.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
+  ray.setFromCamera(ndc, camera);
+}
+function groundPoint(e) { toNdc(e); const p = new THREE.Vector3(); return ray.ray.intersectPlane(groundPlane, p) ? p : null; }
+
+// Ghost of the building that follows the pointer until the player taps a free spot.
+export function startPlacing({ type, level = 1, radius, valid, done }) {
+  stopPlacing();
+  const ghost = BUILDERS[type](level);
+  ghost.traverse(m => { if (m.isMesh) { m.material = m.material.clone(); m.material.transparent = true; m.material.opacity = .55; m.material.depthWrite = false; } });
+  const foot = new THREE.Mesh(new THREE.CircleGeometry(radius, 40), new THREE.MeshBasicMaterial({ color: 0x69f0ae, transparent: true, opacity: .35, depthWrite: false }));
+  foot.rotation.x = -Math.PI / 2; foot.position.y = .12;
+  const g = new THREE.Group(); g.add(ghost, foot); g.visible = false;
+  parts.base.add(g);
+  placing = { g, foot, valid, done, ok: false, x: 0, z: 0 };
+}
+export function stopPlacing() {
+  if (!placing) return;
+  parts.base.remove(placing.g);
+  placing = null;
+}
+
+function onMove(e) {
+  if (!placing) return;
+  const p = groundPoint(e);
+  if (!p) return;
+  const x = Math.round(p.x * 2) / 2, z = Math.round(p.z * 2) / 2;
+  placing.g.visible = true;
+  placing.g.position.set(x, 0, z);
+  placing.g.rotation.y = Math.atan2(-x, -z) + Math.PI / 2;
+  placing.ok = placing.valid(x, z);
+  placing.x = x; placing.z = z;
+  placing.foot.material.color.setHex(placing.ok ? 0x69f0ae : 0xff6b6b);
+}
+
+function onUp(e) {
+  if (!downAt || mode !== 'game') return;
+  const moved = Math.hypot(e.clientX - downAt[0], e.clientY - downAt[1]);
+  downAt = null;
+  if (moved > 8) return; // it was a camera drag
+  if (placing) {
+    onMove(e); // on touch screens there is no hover, so place where the finger lifted
+    if (placing.ok) { const { x, z, done } = placing; stopPlacing(); done(x, z); }
+    return;
+  }
+  toNdc(e);
+  const hit = ray.intersectObjects(parts.buildings.children, true)[0];
+  let o = hit?.object;
+  while (o && o.userData.buildingId == null) o = o.parent;
+  pickHandler?.(o ? o.userData.buildingId : null);
+}
+
+export function resetView() { setMode('game', true); }
 
 function makeStormParticles() {
   const n = 900, g = new THREE.BufferGeometry();
@@ -413,8 +571,12 @@ export function initScene() {
   storm.points = makeStormParticles();
   scene.add(storm.points);
 
-  setMode('menu');
-  window.__jamt = { scene, camera, parts }; // debugging helper
+  setMode('menu', true);
+  const el = renderer.domElement;
+  window.__jamt = { camera, parts, THREE }; // for testing in the browser console
+  el.addEventListener('pointerdown', e => { downAt = [e.clientX, e.clientY]; });
+  el.addEventListener('pointermove', onMove);
+  el.addEventListener('pointerup', onUp);
   renderer.setAnimationLoop(tick);
   window.addEventListener('resize', resize);
   resize();
@@ -431,12 +593,12 @@ function resize() {
 
 // 'menu': slow low orbit with the horizon, the Earth and the landing site.
 // 'game': view from above so the whole base is visible.
-export function setMode(m) {
-  if (!ok) return;
+export function setMode(m, force = false) {
+  if (!ok || (m === mode && !force)) return; // keep the camera where the player left it
   mode = m;
   document.body.classList.toggle('scene-game', m === 'game');
   if (m === 'menu') {
-    controls.enabled = false;
+    controls.enabled = false; controls.enablePan = false;
     controls.target.set(-6, 3, 6);
     camera.position.set(-48, 9, 40);
     controls.autoRotate = true; controls.autoRotateSpeed = .35;
@@ -448,8 +610,9 @@ export function setMode(m) {
     const narrow = window.innerWidth < 700;
     camera.position.set(22, narrow ? 78 : 55, narrow ? 62 : 48);
     controls.autoRotate = false;
-    controls.minPolarAngle = .25; controls.maxPolarAngle = 1.05; // always from above
-    controls.minDistance = 25; controls.maxDistance = 120;
+    controls.enablePan = true; controls.screenSpacePanning = false; // right button / two fingers move the view
+    controls.minPolarAngle = .05; controls.maxPolarAngle = 1.35;
+    controls.minDistance = 10; controls.maxDistance = 160;
   }
   controls.update();
 }
@@ -474,7 +637,7 @@ function tick() {
   earthLight.intensity = lerp(earthLight.intensity, night ? .35 : .12, k);
   parts.sun.material.opacity = lerp(parts.sun.material.opacity, night ? 0 : 1, k);
   parts.lights.forEach(l => { l.intensity = lerp(l.intensity, night ? 40 : 0, k); });
-  if (parts.panelCells) parts.panelCells.emissiveIntensity = lerp(parts.panelCells.emissiveIntensity, night ? 0 : .25, k);
+  if (mats.cells) mats.cells.emissiveIntensity = lerp(mats.cells.emissiveIntensity, night ? 0 : .25, k);
   if (parts.earth) parts.earth.rotation.y += dt * .01;
 
   // Shield
@@ -485,12 +648,13 @@ function tick() {
 
   // Oxygen plant glows with the energy you give it
   const o2 = mode === 'game' ? Math.min(target.oxygen / 4, 1) : .3;
-  (parts.o2Bands || []).forEach(m => { m.emissiveIntensity = lerp(m.emissiveIntensity, o2 * (1.5 + .5 * Math.sin(time * 3)), k); });
-  if (parts.o2Light) parts.o2Light.intensity = lerp(parts.o2Light.intensity, o2 * 25, k);
+  if (mats.o2Band) mats.o2Band.emissiveIntensity = lerp(mats.o2Band.emissiveIntensity, o2 * (1.5 + .5 * Math.sin(time * 3)), k);
 
   // Battery level lights
   const lvl = mode === 'game' ? target.battery / target.batteryMax : .6;
-  parts.batLeds?.forEach((m, i) => { m.emissiveIntensity = lerp(m.emissiveIntensity, (i + .5) / 8 <= lvl ? 2 : 0, k); });
+  parts.batLeds?.forEach(leds => leds.forEach((m, i) => { m.emissiveIntensity = lerp(m.emissiveIntensity, (i + .5) / 8 <= lvl ? 2 : 0, k); }));
+  if (parts.ring.visible) parts.ring.material.opacity = .6 + .3 * Math.sin(time * 4);
+  if (mode === 'game') { const tg = controls.target, d = Math.hypot(tg.x, tg.z); if (d > 70) { tg.x *= 70 / d; tg.z *= 70 / d; } tg.y = 0; }
 
   // Astronauts walk slowly near their spot (low gravity: small hops)
   parts.astronauts?.forEach((a, i) => {
