@@ -20,8 +20,13 @@ shielding. Every choice has a cost. Built for the NASA Space Apps Challenge 2026
 ## Credits and sources
 
 - 3D models and Earth texture: [NASA 3D Resources](https://github.com/nasa/NASA-3D-Resources)
-  (Apollo Lunar Module, Habitat Demonstration Unit, Astronaut).
+  (Apollo Lunar Module, Habitat Demonstration Unit, Astronaut, Mars 2020 Perseverance Rover).
 - 3D engine: [three.js](https://threejs.org) (MIT license).
-- Music: tracks from [Pixabay](https://pixabay.com/music/) (Pixabay Content License). Track names and authors: see the in-game credits.
+- Music (Pixabay Content License):
+  [Synthwave No Copyright](https://pixabay.com/es/music/pop-sintetizado-synthwave-no-copyright-630654/) by MiroMaxMusic,
+  [Background Music](https://pixabay.com/es/music/sintetizador-background-music-618629/) by JonasBlakewood,
+  [The Grid Part](https://pixabay.com/es/music/electr%C3%B3nico-the-grid-part-514948/) by pietiX,
+  [Robo Cop (Synthwave)](https://pixabay.com/es/music/sintetizador-robo-cop-synthwave-100bpm-117s-12714/) by Sub_Clair,
+  [Metropolis of Progress (Cinematic Orchestral)](https://pixabay.com/es/music/titulo-principal-metropolis-of-progress-cinematic-orchestral-298820/) by Luis_Humanoide.
 - Fonts: Lilita One and Nunito (Google Fonts, SIL Open Font License).
 - Game idea and design: JoelXD18. Code written with the help of an AI assistant (Claude, by Anthropic).

@@ -66,6 +66,15 @@ function sunHtml() {
     <button class="btn green" data-action="close-sun"><span>${esc(t('close'))}</span></button>`, { close: 'close-sun' });
 }
 
+// Music used in the game (all from Pixabay, Pixabay Content License).
+const MUSIC = [
+  { title: 'Synthwave No Copyright', author: 'MiroMaxMusic', url: 'https://pixabay.com/es/music/pop-sintetizado-synthwave-no-copyright-630654/' },
+  { title: 'Background Music', author: 'JonasBlakewood', url: 'https://pixabay.com/es/music/sintetizador-background-music-618629/' },
+  { title: 'The Grid Part', author: 'pietiX', url: 'https://pixabay.com/es/music/electr%C3%B3nico-the-grid-part-514948/' },
+  { title: 'Robo Cop (Synthwave)', author: 'Sub_Clair', url: 'https://pixabay.com/es/music/sintetizador-robo-cop-synthwave-100bpm-117s-12714/' },
+  { title: 'Metropolis of Progress (Cinematic Orchestral)', author: 'Luis_Humanoide', url: 'https://pixabay.com/es/music/titulo-principal-metropolis-of-progress-cinematic-orchestral-298820/' },
+];
+
 const BICON = { solar: 'sun', battery: 'battery', tank: 'tank', oxygen: 'oxygen', shield: 'shield' };
 const freeEnergy = () => available(game) - choice.oxygen - choice.shield;
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -183,7 +192,7 @@ function creditsScreen() {
       <li>${esc(t('creditsEarth'))}</li>
       <li>${esc(t('creditsDataSoon'))}</li>
       <li>${esc(t('creditsTools'))}</li>
-      <li>${esc(t('crMusic'))}: ${esc(t('musicCredit'))}</li>
+      <li>${esc(t('crMusic'))} (Pixabay): ${MUSIC.map(m => `<a href="${m.url}" target="_blank" rel="noopener">${esc(m.title)}</a> – ${esc(m.author)}`).join(', ')}</li>
     </ul>`, { close: null }) + `<button class="btn grey back" data-go="menu">← ${esc(t('back'))}</button>`);
 }
 
@@ -363,7 +372,7 @@ function creditsRoll() {
       ${line(t('crData'), 'NASA DONKI · NASA OSDR RadLab')}
       ${line(t('crModels'), 'NASA 3D Resources')}
       ${line(t('crEngine'), 'three.js')}
-      ${line(t('crMusic'), t('musicCredit'))}
+      <div class="cr-line"><span>${esc(t('crMusic'))}</span>${MUSIC.map(m => `<strong>${esc(m.title)}</strong><em>${esc(m.author)} · Pixabay</em>`).join('')}</div>
       ${line(t('crFonts'), 'Lilita One · Nunito (Google Fonts)')}
       ${line(t('crChallenge'), 'NASA Space Apps Challenge 2026')}
       ${line(t('crEvent'), 'Salamanca')}

@@ -455,3 +455,6 @@ button:focus-visible { outline: 3px solid #fff; outline-offset: 3px; }
 .vol-row { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
 .vol-row .ico { font-size: 30px; }
 .vol-row input { flex: 1; accent-color: var(--gold); height: 24px; }
+
+.cr-line em { font-style: normal; color: var(--muted); font-size: 16px; margin-bottom: 10px; }
+.credit-list a { color: #9fd3ff; }
