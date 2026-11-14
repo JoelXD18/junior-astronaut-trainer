@@ -14,11 +14,11 @@ export const MAPS = {
     batteryStart: 4,
     baseDose: 2,          // background radiation every day (% of the safe limit)
     baseEnergy: 1,        // small panels on the habitat roof
-    baseOxygenMax: 10,    // tank inside the habitat
+    baseOxygenMax: 8,     // tank inside the habitat
     // Buildings at the start (x, z in meters around the habitat)
     start: [
       ['solar', -20, -10], ['solar', -15, -16], ['solar', -24, -3],
-      ['oxygen', 18, -8], ['tank', 24, -1], ['tank', 13, -16],
+      ['oxygen', 18, -8], ['tank', 24, -1],
       ['battery', 17, 9], ['battery', 22, 15],
       ['shield', 7, 5],
     ],
@@ -42,10 +42,10 @@ export const MAPS = {
     batteryStart: 6,
     baseDose: 1,
     baseEnergy: 1,
-    baseOxygenMax: 10,
+    baseOxygenMax: 8,
     start: [
       ['solar', -20, -10], ['solar', -15, -16], ['solar', -24, -3], ['solar', -27, -12],
-      ['oxygen', 18, -8], ['tank', 24, -1], ['tank', 13, -16],
+      ['oxygen', 18, -8], ['tank', 24, -1],
       ['battery', 17, 9], ['battery', 22, 15],
       ['shield', 7, 5],
     ],
@@ -84,7 +84,7 @@ const KEEP_OUT = [[0, 0, 12], [-26, 14, 7]]; // habitat + shield dome, landing s
 // What each building gives, by level
 export const solarEnergy = level => level + 1;        // 2, 3, 4 energy per sunny day
 export const batteryCap = level => 5 + level * 5;     // 10, 15, 20 storage
-export const tankCap = level => 5 + level * 5;        // 10, 15, 20 oxygen storage
+export const tankCap = level => 4 + level * 4;        // 8, 12, 16 oxygen storage
 export const oxygenBonus = level => level - 1;        // free oxygen per day when the machine is on
 export const shieldBonus = level => level - 1;        // extra storm points blocked when the shield is on
 

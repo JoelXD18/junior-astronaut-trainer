@@ -825,8 +825,8 @@ function groundPoint(e) { toNdc(e); const p = new THREE.Vector3(); return ray.ra
 export function startPlacing({ type, level = 1, radius, valid, done }) {
   stopPlacing();
   const ghost = BUILDERS[type](level);
-  ghost.traverse(m => { if (m.isMesh) { m.material = m.material.clone(); m.material.transparent = true; m.material.opacity = .55; m.material.depthWrite = false; } });
-  const foot = new THREE.Mesh(new THREE.CircleGeometry(radius, 40), new THREE.MeshBasicMaterial({ color: 0x69f0ae, transparent: true, opacity: .35, depthWrite: false }));
+  ghost.traverse(m => { if (m.isMesh) { m.material = m.material.clone(); m.material.transparent = true; m.material.opacity = .85; m.material.emissive?.setHex?.(0x224422); } });
+  const foot = new THREE.Mesh(new THREE.CircleGeometry(radius, 40), new THREE.MeshBasicMaterial({ color: 0x69f0ae, transparent: true, opacity: .55, depthWrite: false }));
   foot.rotation.x = -Math.PI / 2; foot.position.y = .12;
   const g = new THREE.Group(); g.add(ghost, foot); g.visible = false;
   parts.base.add(g);
@@ -933,7 +933,7 @@ export function initScene() {
 
   setMode('menu', true);
   const el = renderer.domElement;
-  window.__jamt = { camera, parts, THREE }; // for testing in the browser console
+  window.__jamt = { camera, parts, THREE, scene, get state() { return { planet, mode, target, sun: sunLight.intensity, amb: ambient.intensity, bg: scene.background.getHexString(), sky: skyColor.getHexString() }; } }; // for testing in the browser console
   el.addEventListener('pointerdown', e => { downAt = [e.clientX, e.clientY]; });
   el.addEventListener('pointermove', onMove);
   el.addEventListener('pointerup', onUp);
@@ -990,6 +990,10 @@ export function setPlanet(p) {
   if (parts.earth) parts.earth.visible = !mars;
   if (parts.rover) parts.rover.visible = mars;
   parts.sun.scale.setScalar(mars ? 170 : 260); // the Sun looks smaller from Mars
+  // on the bright Martian ground an added-light shield is invisible: draw it as a normal see-through dome
+  parts.shield.blending = mars ? THREE.NormalBlending : THREE.AdditiveBlending;
+  parts.shield.uniforms.color.value.setHex(mars ? 0x6fd6ff : C.shield);
+  parts.shield.needsUpdate = true;
   scene.fog.color.setHex(mars ? 0xa0704a : 0x000000);
 }
 
@@ -1183,7 +1187,8 @@ function tick() {
   scene.fog.near = target.dust ? 20 : 60;
 
   sunLight.intensity = lerp(sunLight.intensity, night ? 0 : 3.2, k);
-  ambient.intensity = lerp(ambient.intensity, night ? .05 : .12, k);
+  // Mars: its dusty air spreads sunlight around, so shadows are softer and everything is easier to see
+  ambient.intensity = lerp(ambient.intensity, night ? .05 : planet === 'mars' ? .55 : .12, k);
   earthLight.intensity = lerp(earthLight.intensity, night ? .35 : .12, k);
   parts.sun.material.opacity = lerp(parts.sun.material.opacity, night ? 0 : 1, k);
   parts.lights.forEach(l => { l.intensity = lerp(l.intensity, night ? 40 : 0, k); });

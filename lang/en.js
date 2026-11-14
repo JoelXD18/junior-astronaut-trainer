@@ -11,9 +11,9 @@ export default {
 
   chooseMap: 'Choose your base',
   moon: 'The Moon',
-  moonDesc: 'Two weeks of sunshine… then a long, dark night.',
+  moonDesc: "7 days of sunshine… then 7 days of dark lunar night.",
   mars: 'Mars',
-  marsLocked: 'Locked: finish the Story on the Moon first.',
+  marsLocked: "Locked: first win the Escape or Survival mode on the Moon.",
   chooseDifficulty: 'Choose difficulty',
   easy: 'Easy',
   easyDesc: 'Few solar storms, and almost always with a warning.',
@@ -210,7 +210,7 @@ export default {
   off: 'Off',
   solLabel: 'Sol',
   termSol: 'Sol',
-  termSolText: 'A day on Mars is called a sol. It lasts 24 hours and 39 minutes, a little longer than a day on Earth.',
+  termSolText: "A day on Mars is called a sol: 24 hours and 39 minutes. Each turn on Mars is a whole sol, with its day and its night (about 12 hours each). That is why the solar panels make less energy than on the Moon.",
   dustShort: 'Dust storm · {n}',
   termDust: 'Dust storm',
   termDustText: 'On Mars, wind lifts fine red dust that can cover the sky for days. Less sunlight reaches the solar panels, so you get about half the energy. Real Mars rovers have lost power because of dust storms.',
@@ -275,4 +275,5 @@ export default {
   lp_crash: "Engine failure! Crash landing… the ship is damaged.",
   tutParts: "Repair the ship",
   helpParts: "Tap the {n} ship parts (yellow rings) and send the rover. Each trip costs energy, more if the part is far. Outside there is no shield: avoid storm days!",
+  energyOf: "of {n}",
 };

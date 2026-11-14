@@ -284,8 +284,9 @@ function dock() {
   return `<div class="dock">
     <button class="energy-orb" data-term="Energy">
       <span class="orb-ico">${icon('energy')}</span>
-      <span class="orb-num">${total}</span>
+      <span class="orb-num">${left}</span>
       <span class="orb-label">${esc(t('energyLabel'))}</span>
+      <span class="orb-of">${esc(t('energyOf', { n: total }))}</span>
     </button>
     ${slot('oxygen', 'oxygen', t('oxygen'), `+${o2} O₂`, total - choice.shield)}
     ${slot('shield', 'shield', t('shieldLabel'), blocks ? esc(t('shieldBlocksToday', { n: blocks })) : '—', total - choice.oxygen)}

@@ -473,3 +473,5 @@ button:focus-visible { outline: 3px solid #fff; outline-offset: 3px; }
 .dock-actions .repair { font-size: 16px; animation: alarm 1.4s ease-in-out infinite; }
 .dock-actions .repair .price { font-size: 15px; padding: 0 8px; }
 .scene-label.t-part { background: linear-gradient(#ffd54f, #f59f00); }
+
+.orb-of { font: 800 11px var(--body); color: #4a2a00; }

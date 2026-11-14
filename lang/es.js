@@ -11,9 +11,9 @@ export default {
 
   chooseMap: 'Elige tu base',
   moon: 'La Luna',
-  moonDesc: 'Dos semanas de sol… y luego una noche larga y oscura.',
+  moonDesc: "7 días de sol… y luego 7 días de noche lunar oscura.",
   mars: 'Marte',
-  marsLocked: 'Bloqueado: primero termina la Historia en la Luna.',
+  marsLocked: "Bloqueado: primero gana el modo Escape o Supervivencia en la Luna.",
   chooseDifficulty: 'Elige la dificultad',
   easy: 'Fácil',
   easyDesc: 'Pocas tormentas solares, y casi siempre avisan.',
@@ -205,7 +205,7 @@ export default {
   off: 'No',
   solLabel: 'Sol',
   termSol: 'Sol',
-  termSolText: 'Un día en Marte se llama «sol». Dura 24 horas y 39 minutos, un poco más que un día en la Tierra.',
+  termSolText: "Un día en Marte se llama «sol»: 24 horas y 39 minutos. Cada turno en Marte es un sol entero, con su día y su noche (unas 12 horas cada uno). Por eso los paneles dan menos energía que en la Luna.",
   dustShort: 'Tormenta de polvo · {n}',
   termDust: 'Tormenta de polvo',
   termDustText: 'En Marte, el viento levanta un polvo rojo muy fino que puede tapar el cielo durante días. Llega menos luz a los paneles solares, así que tienes más o menos la mitad de energía. Róvers de verdad se han quedado sin energía por tormentas de polvo.',
@@ -270,4 +270,5 @@ export default {
   lp_crash: "¡Fallo del motor! Aterrizaje forzoso… la nave está dañada.",
   tutParts: "Repara la nave",
   helpParts: "Toca las {n} piezas de la nave (anillos amarillos) y manda el rover. Cada viaje cuesta energía, más si la pieza está lejos. Fuera no hay escudo: ¡evita los días de tormenta!",
+  energyOf: "de {n}",
 };
