@@ -22,6 +22,8 @@ const MANIFEST = path.join(OUT, 'manifest.json');
 const TMP = path.join(ROOT, 'node_modules', '.audio-tmp');
 const GO = process.argv.includes('--go');
 const ALIGN = process.argv.includes('--align'); // re-cut saved takes by listening, without recording again
+const MISSING = process.argv.includes('--missing'); // only the radio lines that have no clip yet
+const manifest = fs.existsSync(MANIFEST) ? JSON.parse(fs.readFileSync(MANIFEST, 'utf8')) : { voice: {}, sfx: {} };
 const ONLY = process.argv.slice(2).find(a => !a.startsWith('--'));
 const MODEL = process.env.TTS_MODEL || 'gemini-2.5-flash-preview-tts';
 const VOICE = { crew: 'Charon', control: 'Kore', narrator: 'Leda' };
@@ -32,11 +34,14 @@ const fill = (s, v = {}) => s.replace(/\{(\w+)\}/g, (_, k) => (k in v ? v[k] : `
 function radioLines(L) {
   const T = (k, v) => fill(L[k] ?? en[k], v);
   const out = [];
-  const ctrl = k => /^r_(ctrl|brief|welcome|warn|storm_real|storm_copy|launch_ctrl)/.test(k);
+  const ctrl = k => /^r_(ctrl|brief|welcome|warn|storm_real|storm_copy|launch_ctrl|dust_start)/.test(k);
   for (const k of Object.keys(en).filter(k => k.startsWith('r_'))) {
     const who = ctrl(k) ? 'control' : 'crew';
     const raw = L[k] ?? en[k];
     if (k === 'r_rover_back') for (let n = 1; n <= ESCAPE.parts; n++) out.push({ who, text: T(k, { n, m: ESCAPE.parts }) });
+    else if (k === 'r_dust_start') for (let n = MAPS.mars.dustSols[0]; n <= MAPS.mars.dustSols[1]; n++) out.push({ who, text: T(k, { n }) });
+    else if (k === 'r_brief_survival') out.push({ who, text: T(k, { n: MAPS.moon.missionDays }) });
+    else if (k === 'r_brief_survival_mars') out.push({ who, text: T(k, { n: MAPS.mars.missionDays }) });
     else if (raw.includes('{n}')) for (const m of Object.values(MAPS)) out.push({ who, text: T(k, { n: m.missionDays, p: ESCAPE.parts }) });
     else if (raw.includes('{c}')) for (const c of ['C', 'M', 'X']) out.push({ who, text: T(k, { c }) });
     else if (raw.includes('{cls}')) for (const c of ['C', 'M', 'X']) out.push({ who, text: T(k, { cls: c }) });
@@ -148,12 +153,14 @@ const TRIM = 'silenceremove=start_periods=1:start_threshold=-42dB,areverse,silen
 const TAKES = [];
 for (const [lang, L] of Object.entries(LANGS)) {
   const say = lang === 'es' ? 'en español de España' : 'in English';
-  const radio = radioLines(L);
-  TAKES.push({ id: 'radio-' + lang, lang, lines: radio, speakers: [['Crew', VOICE.crew], ['Control', VOICE.control]],
+  const radio = radioLines(L).filter(l => !MISSING || !manifest.voice[lang]?.[l.who + '|' + l.text]);
+  if (radio.length) TAKES.push({ id: 'radio-' + lang + (MISSING ? '-new' : ''), lang, lines: radio,
+    speakers: [['Crew', VOICE.crew], ['Control', VOICE.control]].filter(([n]) => radio.some(l => (l.who === 'crew' ? 'Crew' : 'Control') === n)),
     prompt: (lang === 'es'
       ? `Lee ${say} estas comunicaciones de radio entre una tripulación espacial (Crew, voz de astronauta tranquila y valiente) y Control de Misión (Control, voz clara y segura), para un juego infantil. Lee cada línea exactamente como está escrita, sin añadir ni quitar nada, y haz una pausa larga de dos segundos entre una línea y la siguiente.\n\n`
       : `Read ${say} these radio calls between a space crew (Crew: calm, brave astronaut voice) and Mission Control (Control: clear, confident voice) for a children's game. Read every line exactly as written, adding or skipping nothing, with a long two-second pause between one line and the next.\n\n`)
-      + radio.map(l => `${l.who === 'crew' ? 'Crew' : 'Control'}: ${l.text}`).join('\n') });
+      // with one voice only, no speaker names (they would be read aloud)
+      + (new Set(radio.map(l => l.who)).size > 1 ? radio.map(l => `${l.who === 'crew' ? 'Crew' : 'Control'}: ${l.text}`).join('\n') : radio.map(l => l.text).join('\n\n')) });
   // the narrator texts are long: two shorter takes per language are much more reliable than one long one
   const allNar = narratorLines(L), half = Math.ceil(allNar.length / 2);
   for (const [part, nar] of [[1, allNar.slice(0, half)], [2, allNar.slice(half)]]) TAKES.push({ id: 'narrator-' + lang + '-' + part, lang, lines: nar, speakers: [['Narrator', VOICE.narrator]],
@@ -164,7 +171,6 @@ for (const [lang, L] of Object.entries(LANGS)) {
 }
 
 TAKES.push({ id: 'narrator-en', lang: 'en', lines: narratorLines(en), speakers: [], prompt: '', alignOnly: true });
-const manifest = fs.existsSync(MANIFEST) ? JSON.parse(fs.readFileSync(MANIFEST, 'utf8')) : { voice: {}, sfx: {} };
 manifest.voice ||= {}; manifest.sfx ||= {};
 const done = take => take.lines.every(l => { const e = manifest.voice[take.lang]?.[l.who + '|' + l.text]; return e && fs.existsSync(path.join(ROOT, e.file)); });
 for (const take of TAKES) console.log(`${take.id}: ${take.lines.length} lines, ${take.prompt.length} characters${done(take) ? ' (already recorded)' : ''}`);
@@ -177,7 +183,9 @@ for (const take of TAKES.filter(t => (ONLY ? t.id === ONLY : !done(t) && !t.alig
   console.log(`${ALIGN ? 'Re-cutting' : 'Recording'} ${take.id}…`);
   const pcm = path.join(TMP, take.id + '.pcm'), wav = path.join(TMP, take.id + '.wav');
   if (ALIGN && !fs.existsSync(pcm)) throw new Error('No saved take ' + take.id);
-  if (!fs.existsSync(pcm) || process.argv.includes('--fresh')) fs.writeFileSync(pcm, await tts(take.prompt, take.speakers)); // keep the take: re-cutting costs nothing
+  // PLAIN=1: send only the texts (newer models read any instructions aloud)
+  const prompt = process.env.PLAIN ? take.lines.map(l => l.text).join('\n\n') : take.prompt;
+  if (!fs.existsSync(pcm) || process.argv.includes('--fresh')) fs.writeFileSync(pcm, await tts(prompt, take.speakers)); // keep the take: re-cutting costs nothing
   ff(['-f', 's16le', '-ar', '24000', '-ac', '1', '-i', pcm, wav]);
   const parts = ALIGN ? await align(wav, take.lines) : split(wav, take.lines.length);
   // sanity check: clip lengths should follow text lengths

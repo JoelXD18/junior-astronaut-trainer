@@ -49,22 +49,6 @@
     "file": "assets/voice/en/control-8ab493ae5e.mp3",
     "dur": 4.57
    },
-   "control|Your mission: build the first base here and keep the crew safe for 14 days. The Sun gives you energy, but watch out for solar storms and the long night.": {
-    "file": "assets/voice/en/control-6a94267ea1.mp3",
-    "dur": 8.54
-   },
-   "control|Your mission: build the first base here and keep the crew safe for 16 days. The Sun gives you energy, but watch out for solar storms and the long night.": {
-    "file": "assets/voice/en/control-59714aeafb.mp3",
-    "dur": 8.46
-   },
-   "control|Your mission: set up a base and test it. Check your systems before landing.": {
-    "file": "assets/voice/en/control-616e8162aa.mp3",
-    "dur": 4.18
-   },
-   "control|Your mission: stay as long as you can. Every day you last teaches us how to live in space.": {
-    "file": "assets/voice/en/control-28a60b4ac8.mp3",
-    "dur": 5.04
-   },
    "control|We copy you on the ground. Remember: 14 days. Share your energy well and keep the crew safe!": {
     "file": "assets/voice/en/control-a3e7428884.mp3",
     "dur": 5.83
@@ -184,6 +168,38 @@
    "narrator|Battery and dust storms. Battery: energy you don’t use is saved. On Mars, dust storms can cut your solar power in half!": {
     "file": "assets/voice/en/narrator-01a097efe4.mp3",
     "dur": 14.79
+   },
+   "control|Your mission: the robots have already built your base down there. Keep the crew safe for 14 days. The Sun gives you energy, but watch out for solar storms and the long lunar night.": {
+    "file": "assets/voice/en/control-e0189d64ad.mp3",
+    "dur": 11.68
+   },
+   "control|Your mission: land the new ship next to your base, which the robots have already built, and test it.": {
+    "file": "assets/voice/en/control-4b46aaeabf.mp3",
+    "dur": 5.41
+   },
+   "control|Your base is ready and waiting down there. Your mission: stay as long as you can. Every day you last teaches us how to live in space.": {
+    "file": "assets/voice/en/control-ff0ba72b32.mp3",
+    "dur": 8.59
+   },
+   "control|Your mission: the robots have already built your base down there. Keep the crew safe for 16 sols. A sol is one day on Mars.": {
+    "file": "assets/voice/en/control-abc1e95ed5.mp3",
+    "dur": 8.65
+   },
+   "control|On Mars there are two kinds of storm. Solar storms come from the Sun and bring radiation: power up the shield. Dust storms are wind full of red dust: they cover your solar panels, so you get less energy.": {
+    "file": "assets/voice/en/control-92f0e3a9d4.mp3",
+    "dur": 12.64
+   },
+   "control|Base, Mission Control here. A dust storm is starting: wind full of red dust. For 2 sols your solar panels will make about half the energy. It is not radiation, so the shield does not help.": {
+    "file": "assets/voice/en/control-0b5d75c1c0.mp3",
+    "dur": 11.05
+   },
+   "control|Base, Mission Control here. A dust storm is starting: wind full of red dust. For 3 sols your solar panels will make about half the energy. It is not radiation, so the shield does not help.": {
+    "file": "assets/voice/en/control-5de52f76e7.mp3",
+    "dur": 11.26
+   },
+   "control|Base, Mission Control here. A dust storm is starting: wind full of red dust. For 4 sols your solar panels will make about half the energy. It is not radiation, so the shield does not help.": {
+    "file": "assets/voice/en/control-6083d94963.mp3",
+    "dur": 12.02
    }
   },
   "es": {
@@ -234,22 +250,6 @@
    "control|Tripulación, ¿estáis bien? Buscad las piezas rotas y reparad la nave. ¡Estamos con vosotros!": {
     "file": "assets/voice/es/control-b5ece3e2c4.mp3",
     "dur": 6.22
-   },
-   "control|Vuestra misión: montar aquí la primera base y mantener a salvo a la tripulación 14 días. El Sol os da energía, pero cuidado con las tormentas solares y la larga noche.": {
-    "file": "assets/voice/es/control-5bae34a1c7.mp3",
-    "dur": 10
-   },
-   "control|Vuestra misión: montar aquí la primera base y mantener a salvo a la tripulación 16 días. El Sol os da energía, pero cuidado con las tormentas solares y la larga noche.": {
-    "file": "assets/voice/es/control-e687a86c77.mp3",
-    "dur": 10.06
-   },
-   "control|Vuestra misión: montar una base y probarla. Revisad los sistemas antes de aterrizar.": {
-    "file": "assets/voice/es/control-67a79585a3.mp3",
-    "dur": 5.41
-   },
-   "control|Vuestra misión: aguantar todo lo que podáis. Cada día que resistís nos enseña a vivir en el espacio.": {
-    "file": "assets/voice/es/control-3e6d5b6a59.mp3",
-    "dur": 6.3
    },
    "control|Os recibimos en tierra. Recordad: 14 días. ¡Repartid bien la energía y cuidad a la tripulación!": {
     "file": "assets/voice/es/control-da934a5c2c.mp3",
@@ -370,6 +370,38 @@
    "narrator|Batería y tormentas de polvo. Batería: la energía que no usas se guarda. En Marte, ¡las tormentas de polvo pueden dejar tus paneles a la mitad!": {
     "file": "assets/voice/es/narrator-dbb78ce0f3.mp3",
     "dur": 8.33
+   },
+   "control|Vuestra misión: los robots ya han montado vuestra base ahí abajo. Mantened a salvo a la tripulación 14 días. El Sol os da energía, pero cuidado con las tormentas solares y la larga noche lunar.": {
+    "file": "assets/voice/es/control-f825d83e92.mp3",
+    "dur": 12.46
+   },
+   "control|Vuestra misión: aterrizar la nave nueva junto a vuestra base, que ya montaron los robots, y probarla.": {
+    "file": "assets/voice/es/control-1babf46412.mp3",
+    "dur": 5.93
+   },
+   "control|Vuestra base ya está lista ahí abajo. Vuestra misión: aguantar todo lo que podáis. Cada día que resistís nos enseña a vivir en el espacio.": {
+    "file": "assets/voice/es/control-83424b0e52.mp3",
+    "dur": 8.72
+   },
+   "control|Vuestra misión: los robots ya han montado vuestra base ahí abajo. Mantened a salvo a la tripulación 16 soles. Un sol es un día en Marte.": {
+    "file": "assets/voice/es/control-7cde23938e.mp3",
+    "dur": 8.8
+   },
+   "control|En Marte hay dos tipos de tormenta. Las tormentas solares vienen del Sol y traen radiación: encended el escudo. Las tormentas de polvo son viento lleno de polvo rojo: tapan los paneles solares y os dan menos energía.": {
+    "file": "assets/voice/es/control-6c2df59dde.mp3",
+    "dur": 12.59
+   },
+   "control|Base, aquí Control de Misión. Empieza una tormenta de polvo: viento lleno de polvo rojo. Durante 2 soles vuestros paneles darán más o menos la mitad de energía. No es radiación, así que el escudo no ayuda.": {
+    "file": "assets/voice/es/control-6e58cdb0dc.mp3",
+    "dur": 12.72
+   },
+   "control|Base, aquí Control de Misión. Empieza una tormenta de polvo: viento lleno de polvo rojo. Durante 3 soles vuestros paneles darán más o menos la mitad de energía. No es radiación, así que el escudo no ayuda.": {
+    "file": "assets/voice/es/control-df45150d74.mp3",
+    "dur": 12.3
+   },
+   "control|Base, aquí Control de Misión. Empieza una tormenta de polvo: viento lleno de polvo rojo. Durante 4 soles vuestros paneles darán más o menos la mitad de energía. No es radiación, así que el escudo no ayuda.": {
+    "file": "assets/voice/es/control-b345ccd334.mp3",
+    "dur": 12.64
    }
   }
  },
@@ -378,6 +410,6 @@
   "crew": "Charon",
   "control": "Kore",
   "narrator": "Leda",
-  "model": "gemini-2.5-flash-preview-tts"
+  "model": "gemini-3.8-flash-tts"
  }
 }

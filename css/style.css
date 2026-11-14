@@ -537,3 +537,10 @@ body.intro .menu, body.intro-lock .menu { pointer-events: none; }
 .scene-label.t-broken { background: #e02424; color: #fff; }
 /* endings */
 .end-tip { display: flex; gap: 8px; align-items: flex-start; text-align: left; padding: 10px 12px; border-radius: 12px; background: rgba(255, 210, 80, .18); border: 2px solid var(--gold); font-weight: 700; }
+
+/* game logo in the credits */
+.credits-brand { display: flex; justify-content: center; margin: 4px 0 10px; padding: 6px 7%; overflow: hidden; }
+.credits-brand .brand-main { font-size: clamp(28px, 6vw, 58px); }
+.credits-brand .brand-top { font-size: clamp(13px, 2.2vw, 20px); }
+.cr-brand { overflow: hidden; padding: 8px 7%; }
+.cr-brand { display: flex; justify-content: center; margin: 0 0 18px; }

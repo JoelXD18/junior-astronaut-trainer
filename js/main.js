@@ -190,7 +190,8 @@ function dataScreen() {
 }
 
 function creditsScreen() {
-  return centered(windowHtml(esc(t('credits')), `<p>${esc(t('creditsText'))}</p>
+  return centered(windowHtml(esc(t('credits')), `<div class="credits-brand">${brandTitle()}</div>
+    <p>${esc(t('creditsText'))}</p>
     <p>${esc(t('creditsGame'))}</p>
     <h3>${esc(t('creditsData'))}</h3>
     <ul class="credit-list">
@@ -381,7 +382,7 @@ function creditsRoll() {
   const line = (a, b = '') => `<div class="cr-line"><span>${esc(a)}</span>${b ? `<strong>${esc(b)}</strong>` : ''}</div>`;
   return `<section class="credits-roll">
     <div class="cr-scroll">
-      <h1>${esc(t('logoMain'))}</h1>
+      <div class="cr-brand">${brandTitle()}</div>
       <p class="cr-tag">${esc(t(game.map === 'mars' ? 'crEndMars' : 'crEndMoon'))}</p>
       ${line(t('crIdea'), 'JoelXD18')}
       ${line(t('crCode'), 'JoelXD18 + Claude (Anthropic AI)')}
@@ -389,7 +390,8 @@ function creditsRoll() {
       ${line(t('crModels'), 'NASA 3D Resources')}
       ${line(t('crEngine'), 'three.js')}
       <div class="cr-line"><span>${esc(t('crMusic'))}</span>${MUSIC.map(m => `<strong>${esc(m.title)}</strong><em>${esc(m.author)} · Pixabay</em>`).join('')}</div>
-      ${line(t('crFonts'), 'Lilita One · Nunito (Google Fonts)')}
+      ${line(t('crVoices'), 'Google Gemini (AI) · ' + t('crSfx'))}
+      ${line(t('crFonts'), 'Lilita One · Nunito · Orbitron (Google Fonts)')}
       ${line(t('crChallenge'), 'NASA Space Apps Challenge 2026')}
       ${line(t('crEvent'), 'Salamanca')}
       <p class="cr-thanks">${esc(t('crThanks'))}</p>
@@ -601,7 +603,8 @@ function radioScript(phase, mars) {
   const L = (who, key) => ({ who, text: t(key) });
   switch (phase) {
     case 'approach': return [L('control', mars ? 'r_ctrl_hello_mars' : 'r_ctrl_hello'),
-      { who: 'control', text: t('r_brief_' + game.mode, { n: MAPS[game.map].missionDays, p: ESCAPE.parts }) },
+      { who: 'control', text: t('r_brief_' + game.mode + (mars && game.mode === 'survival' ? '_mars' : ''), { n: MAPS[game.map].missionDays, p: ESCAPE.parts }) },
+      ...(mars ? [L('control', 'r_ctrl_mars_storms')] : []),
       L('crew', mars ? 'r_crew_see_mars' : 'r_crew_see')];
     case 'braking': return [L('crew', 'r_crew_engine'), L('control', 'r_ctrl_go')];
     case 'final': return game.mode === 'escape' ? [] : [L('crew', 'r_crew_final')];
@@ -683,6 +686,7 @@ document.addEventListener('click', e => {
         if (has3d && r.roverBroken) { busy = true; returnRover(r.roverBroken, { broken: true }, () => { busy = false; render(); }); }
         if (r.partBack) radio([{ who: 'crew', text: t('r_rover_back', { n: partsCollected(game), m: partsNeeded() }) }], lang(), showRadioLine);
         if (r.roverBroken) radio([{ who: 'crew', text: t('r_rover_broken') }], lang(), showRadioLine);
+        if (r.dustStarted) radio([{ who: 'control', text: t('r_dust_start', { n: game.dust }) }], lang(), showRadioLine);
         render();
       };
       if (strength > 0 && has3d) {
