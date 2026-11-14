@@ -9,7 +9,7 @@ import { initScene, setMode, setLabels, updateScene, playStorm, syncBuildings, s
   startPlacing, stopPlacing, resetView, setPlanet, playLanding, playLaunch, skipAnimation, resetLander,
   setDebris, setCrashed, driveRover, onPickDebris } from './scene.js';
 import { isUnlocked, unlock, best, saveBest, unlockAll, setUnlockAll } from './progress.js';
-import { playMusic, setVolume, toggleMute, audioSettings, speak, stopSpeaking, radio, stopRadio } from './audio.js';
+import { playMusic, setVolume, toggleMute, audioSettings, speak, stopSpeaking, radio, stopRadio, radioBusy } from './audio.js';
 import { DEMOS } from './demos.js';
 import { icon } from './icons.js';
 import { loadSpaceWeather, getWeather, onWeather, flareStrength } from './spaceweather.js';
@@ -527,7 +527,7 @@ function startGame() {
   const w = getWeather();
   game = newGame({ map: pick.map, difficulty: pick.difficulty, mode: pick.mode, flares: w ? w.pool : [], activity: w ? w.activity.factor : 1 });
   choice = defaultChoice();
-  ui = null; endInfo = {};
+  ui = null; endInfo = {}; warnedDay = 0;
   if (!has3d) { showHelp = true; helpStep = 0; return go('game'); }
   stopPlacing(); resetLander(); setPlanet(game.map);
   setDebris(game.mode === 'escape' ? game.debris : null);
@@ -555,7 +555,9 @@ function startGame() {
     const lines = radioScript(phase, mars);
     if (lines.length) radio(lines, lang(), showLine);
   };
-  playLanding(() => { cinematic = null; showHelp = true; helpStep = 0; if (game.mode === 'escape') setCrashed(true); render(); }, onProgress, { crash: game.mode === 'escape' });
+  const startPlaying = () => { cinematic = null; showHelp = true; helpStep = 0; if (game.mode === 'escape') setCrashed(true); render(); };
+  const waitRadio = (tries = 0) => (radioBusy() && tries < 60 && cinematic === 'landing' ? setTimeout(() => waitRadio(tries + 1), 300) : startPlaying());
+  playLanding(() => waitRadio(), onProgress, { crash: game.mode === 'escape' });
   render();
 }
 
@@ -563,13 +565,35 @@ function startGame() {
 function radioScript(phase, mars) {
   const L = (who, key) => ({ who, text: t(key) });
   switch (phase) {
-    case 'approach': return [L('control', mars ? 'r_ctrl_hello_mars' : 'r_ctrl_hello'), L('crew', mars ? 'r_crew_see_mars' : 'r_crew_see')];
+    case 'approach': return [L('control', mars ? 'r_ctrl_hello_mars' : 'r_ctrl_hello'),
+      { who: 'control', text: t('r_brief_' + game.mode, { n: MAPS[game.map].missionDays, p: ESCAPE.parts }) },
+      L('crew', mars ? 'r_crew_see_mars' : 'r_crew_see')];
     case 'braking': return [L('crew', 'r_crew_engine'), L('control', 'r_ctrl_go')];
     case 'final': return [L('crew', 'r_crew_final')];
     case 'crash': return [L('crew', 'r_crew_mayday'), L('control', 'r_ctrl_mayday')];
-    case 'landed': return [L('crew', mars ? 'r_crew_landed_mars' : 'r_crew_landed'), L('control', 'r_ctrl_welcome')];
+    case 'landed': return [L('crew', mars ? 'r_crew_landed_mars' : 'r_crew_landed'), { who: 'control', text: t('r_welcome_' + game.mode, { n: MAPS[game.map].missionDays }) }];
     default: return [];
   }
+}
+
+// Small radio subtitle during the game (bottom of the 3D view).
+function showRadioLine(l) {
+  let el = document.getElementById('radio-sub');
+  if (!el) { el = document.createElement('div'); el.id = 'radio-sub'; document.body.appendChild(el); }
+  el.innerHTML = `<b>${esc(t(l.who === 'crew' ? 'radioCrew' : 'radioControl'))}</b> ${esc(l.text)}`;
+  el.classList.add('on');
+  clearTimeout(showRadioLine.timer);
+  showRadioLine.timer = setTimeout(() => el.classList.remove('on'), 2500 + l.text.length * 70);
+}
+
+// Mission Control warns the base when scientists see a flare (once per day).
+let warnedDay = 0;
+function warnOverRadio() {
+  if (!game || game.status !== 'playing' || warnedDay === game.day) return;
+  const fc = forecast(game);
+  if (!fc.warned) return;
+  warnedDay = game.day;
+  radio([{ who: 'control', text: t('r_warn', { c: fc.hint || 'M' }) }], lang(), showRadioLine);
 }
 
 function beginPlacing(type) {
@@ -607,6 +631,12 @@ document.addEventListener('click', e => {
       if (busy) return;
       ui = null;
       const strength = game.today.strength; // the storm (if any) that hits at the end of today
+      if (strength > 0) { // the crew tells Earth, and Mission Control says which real flare it was
+        const held = shieldBlocks(game, choice.shield) >= strength;
+        const fl = game.today.flare;
+        radio([{ who: 'crew', text: t(held ? 'r_storm_held' : 'r_storm_hurt') },
+          { who: 'control', text: fl ? t('r_storm_real', { cls: fl.cls, date: fmtDate(fl.t) }) : t('r_storm_copy') }], lang(), showRadioLine);
+      }
       const finish = () => {
         busy = false;
         lastReport = playDay(game, choice);
@@ -623,11 +653,12 @@ document.addEventListener('click', e => {
     }
     case 'close-report':
       lastReport = null;
+      warnOverRadio();
       if (game.status === 'playing') return render();
       return finishGame();
     case 'close-term': openTerm = null; return render();
     case 'help': showHelp = true; helpStep = 0; return render();
-    case 'close-help': showHelp = false; helpSeen = true; stopSpeaking(); return render();
+    case 'close-help': warnOverRadio(); showHelp = false; helpSeen = true; stopSpeaking(); return render();
     case 'tut-next': helpStep++; stopSpeaking(); return render();
     case 'tut-back': helpStep = Math.max(0, helpStep - 1); stopSpeaking(); return render();
     case 'speak': { const s = tutorialSteps()[helpStep]; speak(s.title + '. ' + s.text, lang()); return; }

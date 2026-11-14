@@ -1045,7 +1045,7 @@ function runAnim(dt) {
     // in the background, above the curved horizon of the Moon:
     // 1) wide shot over the Moon (0–10 s)  2) closer, braking (10–17 s)
     // 3) from the ground, looking up as it touches down (17–21 s), then fly to the base view.
-    const T1 = 10, T2 = 17, T3 = 21, T4 = 23.8;
+    const T1 = 15, T2 = 24, T3 = 29, T4 = 32;
     const up = new THREE.Vector3(0, 1, 0);
     const hz = new THREE.Vector3().subVectors(EARTH_CINE, home).setY(0).normalize(); // towards the Earth
     const perp = new THREE.Vector3().crossVectors(up, hz);

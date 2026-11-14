@@ -101,7 +101,9 @@ function beep(freq, when = 0, len = .25) {
 }
 
 function pickVoices(lang) {
-  const all = ('speechSynthesis' in window) ? speechSynthesis.getVoices().filter(v => v.lang.startsWith(lang)) : [];
+  // natural / online voices sound much better than the old robotic ones: try them first
+  const score = v => (/natural|neural|online/i.test(v.name) ? 3 : 0) + (/google/i.test(v.name) ? 2 : 0) + (v.localService ? 0 : 1);
+  const all = ('speechSynthesis' in window) ? speechSynthesis.getVoices().filter(v => v.lang.startsWith(lang)).sort((a, b) => score(b) - score(a)) : [];
   const male = all.find(v => /male|jorge|pablo|alvaro|david|daniel|guy|mark|george|diego/i.test(v.name) && !/female/i.test(v.name));
   return { crew: male || all[0] || null, control: all.find(v => v !== (male || all[0])) || all[0] || null };
 }
@@ -135,6 +137,7 @@ function nextRadio() {
   if (l.who === 'control') beep(2525);
   setTimeout(() => speechSynthesis.speak(u), l.who === 'control' ? 300 : 0);
 }
+export function radioBusy() { return radioOn || radioQueue.length > 0; }
 export function stopRadio() {
   radioQueue = []; radioOn = false;
   if ('speechSynthesis' in window) speechSynthesis.cancel();

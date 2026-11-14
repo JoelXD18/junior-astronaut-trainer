@@ -478,3 +478,11 @@ button:focus-visible { outline: 3px solid #fff; outline-offset: 3px; }
 
 .cap-who { font: 400 15px var(--title); color: var(--gold); text-shadow: 0 2px 0 var(--ink); }
 .cap-phase { max-width: min(760px, 92vw); }
+
+/* radio subtitle during the game */
+#radio-sub { position: fixed; left: 50%; bottom: 240px; transform: translate(-50%, 10px); z-index: 6; pointer-events: none;
+  max-width: min(640px, 92vw); padding: 8px 14px; border-radius: 12px; background: rgba(8, 16, 40, .85); border: 2px solid var(--ink);
+  font-weight: 800; font-size: 15px; text-align: center; opacity: 0; transition: opacity .3s, transform .3s; }
+#radio-sub.on { opacity: 1; transform: translate(-50%, 0); }
+#radio-sub b { color: var(--gold); font-family: var(--title); font-weight: 400; margin-right: 6px; }
+@media (max-width: 640px) { #radio-sub { bottom: 230px; font-size: 13px; } }
