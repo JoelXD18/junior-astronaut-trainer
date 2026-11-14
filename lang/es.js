@@ -150,4 +150,16 @@ export default {
 
   creditsModels: 'Modelos 3D: NASA 3D Resources (módulo lunar Apollo, Habitat Demonstration Unit, astronauta).',
   creditsEarth: 'Imagen de la Tierra: NASA 3D Resources.',
+  logoTop: 'Joven Astronauta',
+  logoMain: 'Entrenador de Misiones',
+  dayLabel: 'Día',
+  calmShort: 'Tiempo espacial: en calma',
+  energyLabel: 'Energía',
+  shieldLabel: 'Escudo',
+  lostShort: '¡{n} perdida!',
+  savedShort: 'guardada',
+  termDay: 'Día lunar',
+  termDayText: 'Brilla el Sol, así que los paneles solares producen energía. ¡En la Luna, el día dura unas dos semanas terrestres!',
+  termEnergy: 'Energía',
+  termEnergyText: 'La energía del Sol (y de tu batería). Repártela: máquina de oxígeno, escudo, construir… Lo que sobra va a la batería.',
 };

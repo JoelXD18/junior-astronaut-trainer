@@ -2,10 +2,11 @@
 // The 3D Moon base (scene.js) is always behind; the screens are drawn on top of it.
 import { t, setLang, lang, onLangChange, LANGUAGES } from './i18n.js';
 import { MAPS, DOSE_LIMIT, BUILDINGS, MAX_LEVEL, newGame, playDay, available, energyToday, isNight, forecast,
-  batteryMax, oxygenMax, sunEnergy, solarEnergy, batteryCap, tankCap, oxygenBonus, shieldBonus, shieldBlocks,
+  batteryMax, oxygenMax, solarEnergy, batteryCap, tankCap, oxygenBonus, shieldBonus, shieldBlocks,
   validSpot, buildProblem, build, upgradeCost, upgradeProblem, upgrade, moveBuilding } from './game.js';
 import { initScene, setMode, setLabels, updateScene, playStorm, syncBuildings, setSelected, onPickBuilding,
   startPlacing, stopPlacing, resetView } from './scene.js';
+import { icon } from './icons.js';
 
 const has3d = initScene();
 const app = document.getElementById('app');
@@ -21,8 +22,9 @@ let showHelp = false;    // "how to play" card at the start of a game
 let busy = false;        // true while a solar storm animation is playing
 let ui = null;           // null | {kind:'build'} | {kind:'placing', type, moveId} | {kind:'selected', id}
 
-const ICON = { solar: '☀️', battery: '🔋', tank: '🛢️', oxygen: '💨', shield: '🛡️' };
+const BICON = { solar: 'sun', battery: 'battery', tank: 'tank', oxygen: 'oxygen', shield: 'shield' };
 const freeEnergy = () => available(game) - choice.oxygen - choice.shield;
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
 // What a building does at a given level, in words for kids.
 function effectText(type, level) {
@@ -35,253 +37,230 @@ function effectText(type, level) {
   }
 }
 
-const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-const info = key => `<button class="info" data-term="${key}" aria-label="${esc(t('term' + key))}">?</button>`;
-
 function go(next) { screen = next; render(); }
 
 function langPicker() {
   return `<div class="lang-picker" role="group" aria-label="${esc(t('language'))}">
-    ${Object.entries(LANGUAGES).map(([code, L]) =>
-      `<button data-lang="${code}" class="${code === lang() ? 'on' : ''}">${esc(L.langName)}</button>`).join('')}
+    ${Object.keys(LANGUAGES).map(code =>
+      `<button data-lang="${code}" class="${code === lang() ? 'on' : ''}">${code.toUpperCase()}</button>`).join('')}
   </div>`;
 }
 
-// ---------- menu screens (glass panels over the 3D Moon) ----------
+// A "window" in game style: title ribbon + close button.
+function windowHtml(title, body, { close = 'close-ui', cls = '' } = {}) {
+  return `<div class="window ${cls}" role="dialog" aria-modal="true">
+    <div class="win-head"><h2>${title}</h2>${close ? `<button class="x-btn" data-action="${close}" aria-label="${esc(t('close'))}">${icon('close')}</button>` : ''}</div>
+    <div class="win-body">${body}</div>
+  </div>`;
+}
+
+// ---------- menu screens ----------
 
 function menuScreen() {
   return `<section class="menu">
-    <h1>${esc(t('title'))}</h1>
-    <p class="subtitle">${esc(t('subtitle'))}</p>
+    <div class="logo">
+      <span class="logo-small">${esc(t('logoTop'))}</span>
+      <h1>${esc(t('logoMain'))}</h1>
+      <span class="logo-sub">${esc(t('subtitle'))}</span>
+    </div>
     <div class="stack">
-      <button class="big primary" data-go="map">${esc(t('play'))}</button>
-      <button class="big" data-go="settings">${esc(t('settings'))}</button>
-      <button class="big" data-go="credits">${esc(t('credits'))}</button>
+      <button class="btn green xl" data-go="map">${icon('play')}<span>${esc(t('play'))}</span></button>
+      <button class="btn blue" data-go="settings">${icon('gear')}<span>${esc(t('settings'))}</span></button>
+      <button class="btn blue" data-go="credits">${icon('trophy')}<span>${esc(t('credits'))}</span></button>
     </div>
     ${langPicker()}
   </section>`;
 }
 
+function centered(inner) { return `<section class="centered">${inner}</section>`; }
+
 function mapScreen() {
-  return `<section class="panel-screen">
-    <h2>${esc(t('chooseMap'))}</h2>
-    <div class="cards">
-      <button class="card" data-map="moon"><span class="icon">🌕</span><strong>${esc(t('moon'))}</strong><span>${esc(t('moonDesc'))}</span></button>
-      <button class="card locked" disabled><span class="icon">🔒</span><strong>${esc(t('mars'))}</strong><span>${esc(t('marsLocked'))}</span></button>
-    </div>
-    <button class="link" data-go="menu">← ${esc(t('back'))}</button>
-  </section>`;
+  return centered(windowHtml(esc(t('chooseMap')), `<div class="choice-cards">
+      <button class="choice" data-map="moon"><span class="c-ico">${icon('moon')}</span><strong>${esc(t('moon'))}</strong><small>${esc(t('moonDesc'))}</small></button>
+      <button class="choice locked" disabled><span class="c-ico">🔒</span><strong>${esc(t('mars'))}</strong><small>${esc(t('marsLocked'))}</small></button>
+    </div>`, { close: null }) + `<button class="btn grey back" data-go="menu">← ${esc(t('back'))}</button>`);
 }
 
 function difficultyScreen() {
-  return `<section class="panel-screen">
-    <h2>${esc(t('chooseDifficulty'))}</h2>
-    <div class="cards">
-      ${['easy', 'normal', 'hard'].map(d => `<button class="card" data-difficulty="${d}">
-        <strong>${esc(t(d))}</strong><span>${esc(t(d + 'Desc'))}</span></button>`).join('')}
-    </div>
-    <button class="link" data-go="map">← ${esc(t('back'))}</button>
-  </section>`;
+  const stars = { easy: 1, normal: 2, hard: 3 };
+  return centered(windowHtml(esc(t('chooseDifficulty')), `<div class="choice-cards three">
+      ${['easy', 'normal', 'hard'].map(d => `<button class="choice ${d}" data-difficulty="${d}">
+        <span class="c-stars">${'★'.repeat(stars[d])}${'☆'.repeat(3 - stars[d])}</span>
+        <strong>${esc(t(d))}</strong><small>${esc(t(d + 'Desc'))}</small></button>`).join('')}
+    </div>`, { close: null }) + `<button class="btn grey back" data-go="map">← ${esc(t('back'))}</button>`);
 }
 
 function settingsScreen() {
-  return `<section class="panel-screen">
-    <h2>${esc(t('settings'))}</h2>
-    <h3>${esc(t('language'))}</h3>
-    ${langPicker()}
-    <button class="link" data-go="menu">← ${esc(t('back'))}</button>
-  </section>`;
+  return centered(windowHtml(esc(t('settings')), `<h3>${esc(t('language'))}</h3>${langPicker()}`, { close: null })
+    + `<button class="btn grey back" data-go="menu">← ${esc(t('back'))}</button>`);
 }
 
 function creditsScreen() {
-  return `<section class="panel-screen credits">
-    <h2>${esc(t('credits'))}</h2>
-    <p>${esc(t('creditsText'))}</p>
+  return centered(windowHtml(esc(t('credits')), `<p>${esc(t('creditsText'))}</p>
     <p>${esc(t('creditsGame'))}</p>
     <h3>${esc(t('creditsData'))}</h3>
-    <ul>
+    <ul class="credit-list">
       <li>${esc(t('creditsModels'))}</li>
       <li>${esc(t('creditsEarth'))}</li>
       <li>${esc(t('creditsDataSoon'))}</li>
-    </ul>
-    <p class="small">${esc(t('creditsTools'))}</p>
-    <button class="link" data-go="menu">← ${esc(t('back'))}</button>
-  </section>`;
+      <li>${esc(t('creditsTools'))}</li>
+    </ul>`, { close: null }) + `<button class="btn grey back" data-go="menu">← ${esc(t('back'))}</button>`);
 }
 
 // ---------- game HUD ----------
 
-function gauge(icon, label, value, max, text, cls, term) {
+// Decorated resource bar: name on top, glossy bar, big icon on the end. Tap it to learn what it is.
+function resBar(kind, ico, label, value, max, text, term) {
   const pct = Math.max(0, Math.min(100, (value / max) * 100));
-  return `<div class="gauge ${cls}">
-    <div class="g-head"><span class="g-icon">${icon}</span><span class="g-label">${esc(label)}</span>${term ? info(term) : ''}<b>${text}</b></div>
-    <div class="bar"><div style="width:${pct}%"></div></div>
-  </div>`;
-}
-
-function dayStrip() {
-  const map = MAPS[game.map];
-  let html = '';
-  for (let d = 1; d <= map.missionDays; d++) {
-    html += `<span class="${isNight(map, d) ? 'n' : 's'} ${d < game.day ? 'past' : ''} ${d === game.day ? 'now' : ''}"></span>`;
-  }
-  return `<div class="strip" aria-hidden="true">${html}</div>`;
-}
-
-function allocCard(field, icon, name, sub, max, term) {
-  const v = choice[field];
-  return `<div class="alloc ${field}">
-    <div class="a-head"><span class="a-icon">${icon}</span><strong>${esc(name)}</strong>${info(term)}</div>
-    <div class="stepper">
-      <button data-step="${field}" data-d="-1" ${v <= 0 || busy ? 'disabled' : ''} aria-label="−">−</button>
-      <output>${v}</output>
-      <button data-step="${field}" data-d="1" ${v >= max || busy ? 'disabled' : ''} aria-label="+">+</button>
-    </div>
-    <small>${esc(sub)}</small>
-  </div>`;
+  return `<button class="res ${kind}" ${term ? `data-term="${term}"` : ''}>
+    <span class="res-label">${esc(label)}</span>
+    <span class="res-track"><span class="res-fill" style="width:${pct}%"></span><span class="res-num">${text}</span></span>
+    <span class="res-ico">${icon(ico)}</span>
+  </button>`;
 }
 
 function gameScreen() {
   const map = MAPS[game.map];
   const night = isNight(map, game.day);
   const fc = forecast(game);
-  const bottom = !ui ? allocPanel()
-    : ui.kind === 'build' ? buildPanel()
-    : ui.kind === 'placing' ? placingPanel()
-    : selectedPanel();
+  let strip = '';
+  for (let d = 1; d <= map.missionDays; d++) strip += `<i class="${isNight(map, d) ? 'n' : 's'} ${d < game.day ? 'past' : ''} ${d === game.day ? 'now' : ''}"></i>`;
+  const bottom = !ui ? dock()
+    : ui.kind === 'build' ? buildWindow()
+    : ui.kind === 'placing' ? placingBar()
+    : selectedWindow();
 
   return `<section class="hud ${night ? 'is-night' : ''}">
-    <header class="hud-top">
-      <div class="day-box">
-        <div class="day-line"><strong>${esc(t('dayOf', { day: game.day, total: map.missionDays }))}</strong>
-          <span class="badge">${night ? '🌑 ' + esc(t('night')) + ' ' + info('Night') : '☀️ ' + esc(t('sunny'))}</span></div>
-        ${dayStrip()}
-      </div>
-      <div class="gauges">
-        ${gauge('💨', t('oxygen'), game.oxygen, oxygenMax(game), `${game.oxygen}/${oxygenMax(game)}`, 'o2')}
-        ${gauge('☢️', t('dose'), game.dose, DOSE_LIMIT, `${game.dose}%`, 'dose', 'Dose')}
-        ${gauge('🔋', t('battery'), game.battery, batteryMax(game), `${game.battery}/${batteryMax(game)}`, 'bat', 'Battery')}
-      </div>
-      <div class="hud-actions">
+    <div class="top-left">
+      <button class="day-plate" data-term="${night ? 'Night' : 'Day'}">
+        <span class="day-ico">${icon(night ? 'moon' : 'sun')}</span>
+        <span class="day-text"><span class="day-label">${esc(t('dayLabel'))}</span><span class="day-num">${game.day}<small>/${map.missionDays}</small></span></span>
+      </button>
+      <div class="strip" aria-hidden="true">${strip}</div>
+      ${fc.warned
+        ? `<button class="ribbon warn" data-term="Storm">${icon('warning')}<span>${esc(t('warnShort'))}</span></button>`
+        : `<button class="ribbon calm" data-term="Storm"><span>${esc(t('calmShort'))}</span></button>`}
+    </div>
+
+    <div class="top-right">
+      ${resBar('o2', 'oxygen', t('oxygen'), game.oxygen, oxygenMax(game), `${game.oxygen}<small>/${oxygenMax(game)}</small>`, 'Oxygen')}
+      ${resBar('rad', 'radiation', t('dose'), game.dose, DOSE_LIMIT, `${game.dose}%`, 'Dose')}
+      ${resBar('bat', 'battery', t('battery'), game.battery, batteryMax(game), `${game.battery}<small>/${batteryMax(game)}</small>`, 'Battery')}
+      <div class="side-btns">
         ${langPicker()}
-        <button class="icon-btn" data-action="reset-view" aria-label="${esc(t('resetView'))}" title="${esc(t('resetView'))}">🎯</button>
-        <button class="icon-btn" data-action="help" aria-label="${esc(t('howToPlay'))}">?</button>
-        <button class="icon-btn" data-go="menu" aria-label="${esc(t('mainMenu'))}">☰</button>
+        <button class="round-btn" data-action="reset-view" title="${esc(t('resetView'))}" aria-label="${esc(t('resetView'))}">${icon('target')}</button>
+        <button class="round-btn" data-action="help" aria-label="${esc(t('howToPlay'))}">${icon('question')}</button>
+        <button class="round-btn" data-go="menu" aria-label="${esc(t('mainMenu'))}">${icon('menu')}</button>
       </div>
-      <div class="alert ${fc.warned ? 'warn' : 'calm'}">
-        ${fc.warned ? `<span>⚠️ <strong>${esc(t('warnShort'))}</strong> <span class="long">${esc(t('warnYes'))}</span></span>` : `<span>📡 ${esc(t('warnNo'))}</span>`} ${info('Storm')}
-      </div>
-    </header>
-    <div class="hud-bottom">${bottom}</div>
+    </div>
+
+    <div class="bottom">${bottom}</div>
   </section>`;
 }
 
-function allocPanel() {
-  const map = MAPS[game.map];
+function dock() {
   const total = available(game);
   const left = total - choice.oxygen - choice.shield;
   const toBattery = Math.min(batteryMax(game), left);
   const lost = left - toBattery;
   const blocks = shieldBlocks(game, choice.shield);
-  const o2Bonus = choice.oxygen > 0 ? oxygenBonus(levelOf('oxygen')) : 0;
-  return `
-    <div class="energy">
-      <div class="e-num">⚡ <span>${total}</span></div>
-      <div class="e-text"><strong>${esc(t('energyToShare'))}</strong><small>${esc(t('fromSun', { n: energyToday(game) }))} · ${esc(t('fromBattery', { n: game.battery }))}${game.spent ? ' · ' + esc(t('spentToday', { n: game.spent })) : ''}</small></div>
-      <div class="tokens" aria-hidden="true">${tokenRow(total)}</div>
-      <button class="build-btn" data-action="open-build" ${busy ? 'disabled' : ''}>🔨 <span>${esc(t('build'))}</span></button>
-    </div>
-    <div class="allocs">
-      ${allocCard('oxygen', '💨', t('oxygenMachine'), o2Bonus ? t('oxygenMakes', { n: choice.oxygen + o2Bonus }) : t('oxygenNeed', { n: map.oxygenUse }), total - choice.shield, 'Oxygen')}
-      ${allocCard('shield', '🛡️', t('shield'), blocks ? t('shieldBlocksToday', { n: blocks }) : t('shieldShort'), total - choice.oxygen, 'Shield')}
-      <div class="alloc battery">
-        <div class="a-head"><span class="a-icon">🔋</span><strong>${esc(t('toBattery'))}</strong>${info('Battery')}</div>
-        <div class="stepper"><output>${toBattery}</output></div>
-        <small class="${lost > 0 ? 'bad' : ''}">${esc(lost > 0 ? t('batteryFullWarn', { n: lost }) : t('batteryShort'))}</small>
+  const o2 = choice.oxygen + (choice.oxygen > 0 ? oxygenBonus(levelOf('oxygen')) : 0);
+  const slot = (field, ico, label, out, max) => `<div class="slot ${field}">
+      <span class="slot-label">${esc(label)}</span>
+      <span class="slot-ico">${icon(ico)}</span>
+      <div class="slot-ctrl">
+        <button class="pm minus" data-step="${field}" data-d="-1" ${choice[field] <= 0 || busy ? 'disabled' : ''} aria-label="−">−</button>
+        <output>${choice[field]}</output>
+        <button class="pm plus" data-step="${field}" data-d="1" ${choice[field] >= max || busy ? 'disabled' : ''} aria-label="+">+</button>
       </div>
+      <span class="slot-out">${out}</span>
+    </div>`;
+  return `<div class="dock">
+    <button class="energy-orb" data-term="Energy">
+      <span class="orb-ico">${icon('energy')}</span>
+      <span class="orb-num">${total}</span>
+      <span class="orb-label">${esc(t('energyLabel'))}</span>
+    </button>
+    ${slot('oxygen', 'oxygen', t('oxygen'), `+${o2} O₂`, total - choice.shield)}
+    ${slot('shield', 'shield', t('shieldLabel'), blocks ? esc(t('shieldBlocksToday', { n: blocks })) : '—', total - choice.oxygen)}
+    <div class="slot battery ${lost > 0 ? 'full' : ''}">
+      <span class="slot-label">${esc(t('battery'))}</span>
+      <span class="slot-ico">${icon('battery')}</span>
+      <div class="slot-ctrl"><output>+${toBattery}</output></div>
+      <span class="slot-out">${lost > 0 ? esc(t('lostShort', { n: lost })) : esc(t('savedShort'))}</span>
     </div>
-    <button class="big primary end-day" data-action="end-day" ${busy ? 'disabled' : ''}>${esc(t('endDay'))} ▶</button>`;
+    <div class="dock-actions">
+      <button class="btn orange build" data-action="open-build" ${busy ? 'disabled' : ''}>${icon('hammer')}<span>${esc(t('build'))}</span></button>
+      <button class="btn green end" data-action="end-day" ${busy ? 'disabled' : ''}><span>${esc(t('endDay'))}</span>${icon('play')}</button>
+    </div>
+  </div>`;
 }
 
 const levelOf = type => (game.buildings.find(b => b.type === type) || { level: 1 }).level;
 const countOf = type => game.buildings.filter(b => b.type === type).length;
 
-function buildPanel() {
+function buildWindow() {
   const budget = freeEnergy();
   const cards = ['solar', 'battery', 'tank'].map(type => {
     const info = BUILDINGS[type];
     const problem = buildProblem(game, type, budget);
-    return `<button class="build-card" data-build="${type}" ${problem ? 'disabled' : ''}>
-      <span class="b-icon">${ICON[type]}</span>
+    return `<button class="shop-card" data-build="${type}" ${problem ? 'disabled' : ''}>
+      <span class="shop-ico">${icon(BICON[type])}</span>
       <strong>${esc(t('b_' + type))}</strong>
       <small>${esc(type === 'solar' ? t('effSolarNew', { n: solarEnergy(1) }) : effectText(type, 1))}</small>
-      <span class="cost">⚡ ${info.cost}</span>
-      <small class="count">${countOf(type)}/${info.max}${problem && problem !== 'noEnergy' ? ' · ' + esc(t(problem)) : ''}</small>
+      <span class="price">${icon('energy')}${info.cost}</span>
+      <span class="count">${countOf(type)}/${info.max}</span>
     </button>`;
   }).join('');
-  return `<div class="panel-head"><strong>🔨 ${esc(t('buildTitle'))}</strong>
-      <span class="free">${esc(t('freeEnergy', { n: budget }))}</span>
-      <button class="icon-btn" data-action="close-ui" aria-label="${esc(t('close'))}">✕</button></div>
-    <p class="hint">${esc(t('buildHint'))}</p>
-    <div class="build-cards">${cards}</div>`;
+  return windowHtml(`${icon('hammer')} ${esc(t('buildTitle'))} <span class="budget">${icon('energy')}${budget}</span>`,
+    `<div class="shop">${cards}</div>`, { cls: 'shop-win' });
 }
 
-function placingPanel() {
-  const name = t('b_' + ui.type);
-  return `<div class="panel-head"><strong>${ICON[ui.type]} ${esc(t(ui.moveId ? 'moveHint' : 'placeHint', { name }))}</strong>
-    <button class="big" data-action="cancel-place">${esc(t('cancel'))}</button></div>
-    <p class="hint">${esc(t('placeHint2'))}</p>`;
+function placingBar() {
+  return `<div class="place-bar">
+    <span class="place-ico">${icon(BICON[ui.type])}</span>
+    <span>${esc(t(ui.moveId ? 'moveHint' : 'placeHint', { name: t('b_' + ui.type) }))}</span>
+    <button class="btn red small" data-action="cancel-place">${esc(t('cancel'))}</button>
+  </div>`;
 }
 
-function selectedPanel() {
+function selectedWindow() {
   const b = game.buildings.find(x => x.id === ui.id);
-  if (!b) { ui = null; return allocPanel(); }
+  if (!b) { ui = null; return dock(); }
   const cost = upgradeCost(b);
   const problem = upgradeProblem(game, b, freeEnergy());
-  const stars = '★'.repeat(b.level) + '☆'.repeat(MAX_LEVEL - b.level);
-  return `<div class="panel-head"><strong>${ICON[b.type]} ${esc(t('b_' + b.type))} <span class="stars">${stars}</span></strong>
-      <button class="icon-btn" data-action="close-ui" aria-label="${esc(t('close'))}">✕</button></div>
-    <p class="now">${esc(effectText(b.type, b.level))}</p>
-    ${cost != null ? `<p class="next">⬆️ ${esc(t('nextLevel'))}: ${esc(effectText(b.type, b.level + 1))}</p>` : `<p class="next">${esc(t('maxLevel'))}</p>`}
+  const stars = `<span class="stars">${'★'.repeat(b.level)}<i>${'★'.repeat(MAX_LEVEL - b.level)}</i></span>`;
+  return windowHtml(`${icon(BICON[b.type])} ${esc(t('b_' + b.type))} ${stars}`, `
+    <p class="effect">${esc(effectText(b.type, b.level))}</p>
+    ${cost != null ? `<p class="effect next">⬆ ${esc(effectText(b.type, b.level + 1))}</p>` : `<p class="effect next">${esc(t('maxLevel'))}</p>`}
     <div class="sel-actions">
-      ${cost != null ? `<button class="big primary" data-action="upgrade" ${problem ? 'disabled' : ''}>⬆️ ${esc(t('upgrade'))} · ⚡ ${cost}</button>` : ''}
-      ${BUILDINGS[b.type].movable ? `<button class="big" data-action="move">✋ ${esc(t('move'))}</button>` : ''}
-    </div>
-    ${problem === 'noEnergy' ? `<p class="hint bad">${esc(t('noEnergyLong', { n: freeEnergy() }))}</p>` : ''}`;
-}
-
-function syncScene() {
-  if (!has3d || !game) return;
-  syncBuildings(game.buildings.map(b => ({ ...b, radius: BUILDINGS[b.type].radius })));
-  setSelected(ui?.kind === 'selected' ? ui.id : null);
-}
-
-function tokenRow(total) {
-  const out = [];
-  for (let i = 0; i < total; i++) {
-    const cls = i < choice.oxygen ? 'o2' : i < choice.oxygen + choice.shield ? 'sh' : 'bat';
-    out.push(`<i class="${cls}"></i>`);
-  }
-  return out.join('');
+      ${cost != null ? `<button class="btn green" data-action="upgrade" ${problem ? 'disabled' : ''}><span>${esc(t('upgrade'))}</span><span class="price">${icon('energy')}${cost}</span></button>` : ''}
+      ${BUILDINGS[b.type].movable ? `<button class="btn blue" data-action="move"><span>${esc(t('move'))}</span></button>` : ''}
+    </div>`, { cls: 'sel-win' });
 }
 
 function endScreen() {
   const map = MAPS[game.map];
   const key = { won: 'won', 'lost-oxygen': 'lostOxygen', 'lost-dose': 'lostDose' }[game.status];
   const done = game.status === 'won' ? map.missionDays : game.day - 1;
-  return `<section class="panel-screen end ${game.status}">
-    <div class="end-icon">${game.status === 'won' ? '🏆' : game.status === 'lost-oxygen' ? '💨' : '☢️'}</div>
-    <h2>${esc(t(key + 'Title'))}</h2>
+  const ico = game.status === 'won' ? 'trophy' : game.status === 'lost-oxygen' ? 'oxygen' : 'radiation';
+  return centered(windowHtml(esc(t(key + 'Title')), `
+    <div class="end-ico">${icon(ico)}</div>
     <p>${esc(t(key + 'Text'))}</p>
-    <ul class="facts">
-      <li>${esc(t('daysSurvived', { n: done }))}</li>
-      <li>${esc(t('finalDose', { d: game.dose }))}</li>
-    </ul>
-    <div class="stack">
-      <button class="big primary" data-action="again">${esc(t('playAgain'))}</button>
-      <button class="big" data-go="menu">${esc(t('mainMenu'))}</button>
+    <div class="end-stats">
+      <span>${icon('sun')} ${esc(t('daysSurvived', { n: done }))}</span>
+      <span>${icon('radiation')} ${esc(t('finalDose', { d: game.dose }))}</span>
     </div>
-  </section>`;
+    <div class="stack">
+      <button class="btn green" data-action="again"><span>${esc(t('playAgain'))}</span></button>
+      <button class="btn blue" data-go="menu"><span>${esc(t('mainMenu'))}</span></button>
+    </div>`, { close: null, cls: 'end ' + game.status }));
+}
+
+function syncScene() {
+  if (!has3d || !game) return;
+  syncBuildings(game.buildings.map(b => ({ ...b, radius: BUILDINGS[b.type].radius })));
+  setSelected(ui?.kind === 'selected' ? ui.id : null);
 }
 
 // ---------- dialogs ----------
@@ -291,50 +270,43 @@ function reportHtml(r) {
   const items = [];
   if (r.storm > 0) {
     const full = r.blocked >= r.storm;
-    items.push([full ? '🛡️' : '☢️', full ? t('stormBlocked', { s: r.storm }) : t('stormPartial', { s: r.storm, b: r.blocked, d: r.stormDose }), full ? 'good' : 'bad']);
-    if (!r.warned) items.push(['❗', t('surprise'), '']);
+    items.push(['shield', full ? t('stormBlocked', { s: r.storm }) : t('stormPartial', { s: r.storm, b: r.blocked, d: r.stormDose }), full ? 'good' : 'bad']);
+    if (!r.warned) items.push(['warning', t('surprise'), '']);
   } else {
-    items.push(['☀️', t('stormNone'), 'good']);
-    if (r.warned) items.push(['📡', t('falseAlarm'), '']);
-    if (r.shield > 0) items.push(['🛡️', t('shieldUnused', { n: r.shield }), '']);
+    items.push(['sun', t('stormNone'), 'good']);
+    if (r.warned) items.push(['warning', t('falseAlarm'), '']);
+    if (r.shield > 0) items.push(['shield', t('shieldUnused', { n: r.shield }), '']);
   }
-  if (r.spent) items.push(['🔨', t('spentMsg', { n: r.spent }), '']);
-  items.push(['☢️', t('baseDoseMsg', { d: r.baseDose }), '']);
-  items.push(['💨', t('oxygenMsg', { use: map.oxygenUse, left: game.oxygen }), game.oxygen <= map.oxygenUse ? 'bad' : '']);
-  if (r.oxygenLost > 0) items.push(['💨', t('oxygenTankFull', { n: r.oxygenLost }), 'bad']);
-  if (r.wasted > 0) items.push(['🔋', t('wastedMsg', { n: r.wasted }), 'bad']);
-  if (r.status === 'playing' && !r.night && isNight(map, r.day + 1)) items.push(['🌑', t('nightComing'), 'bad']);
+  if (r.spent) items.push(['hammer', t('spentMsg', { n: r.spent }), '']);
+  items.push(['radiation', t('baseDoseMsg', { d: r.baseDose }), '']);
+  items.push(['oxygen', t('oxygenMsg', { use: map.oxygenUse, left: game.oxygen }), game.oxygen <= map.oxygenUse ? 'bad' : '']);
+  if (r.oxygenLost > 0) items.push(['oxygen', t('oxygenTankFull', { n: r.oxygenLost }), 'bad']);
+  if (r.wasted > 0) items.push(['battery', t('wastedMsg', { n: r.wasted }), 'bad']);
+  if (r.status === 'playing' && !r.night && isNight(map, r.day + 1)) items.push(['moon', t('nightComing'), 'bad']);
   const done = r.status !== 'playing';
-  return `<div class="dialog" role="dialog" aria-modal="true">
-    <h2>${esc(t('reportTitle', { day: r.day }))}</h2>
-    <ul class="report">${items.map(([i, l, c]) => `<li class="${c}"><span>${i}</span>${esc(l)}</li>`).join('')}</ul>
-    <button class="big primary" data-action="close-report">${esc(t(done ? 'seeResult' : 'nextDay'))} ▶</button>
-  </div>`;
+  return windowHtml(esc(t('reportTitle', { day: r.day })),
+    `<ul class="report">${items.map(([i, l, c]) => `<li class="${c}">${icon(i)}<span>${esc(l)}</span></li>`).join('')}</ul>
+    <button class="btn green" data-action="close-report"><span>${esc(t(done ? 'seeResult' : 'nextDay'))}</span>${icon('play')}</button>`,
+    { close: null });
 }
 
 function helpHtml() {
   const map = MAPS[game.map];
-  return `<div class="dialog help" role="dialog" aria-modal="true">
-    <h2>${esc(t('howToPlay'))}</h2>
-    <ol class="steps">
-      <li><span>⚡</span>${esc(t('help1'))}</li>
-      <li><span>💨</span>${esc(t('help2', { n: map.oxygenUse }))}</li>
-      <li><span>🛡️</span>${esc(t('help3'))}</li>
-      <li><span>🔋</span>${esc(t('help4', { day: map.nightStart }))}</li>
-      <li><span>🔨</span>${esc(t('help6'))}</li>
+  const step = (i, text) => `<li>${icon(i)}<span>${esc(text)}</span></li>`;
+  return windowHtml(esc(t('howToPlay')), `<ol class="report steps">
+      ${step('energy', t('help1'))}
+      ${step('oxygen', t('help2', { n: map.oxygenUse }))}
+      ${step('shield', t('help3'))}
+      ${step('battery', t('help4', { day: map.nightStart }))}
+      ${step('hammer', t('help6'))}
     </ol>
-    <p class="small">${esc(t('help5'))}</p>
-    <button class="big primary" data-action="close-help">${esc(t('letsGo'))} ▶</button>
-  </div>`;
+    <button class="btn green" data-action="close-help"><span>${esc(t('letsGo'))}</span>${icon('play')}</button>`, { close: 'close-help' });
 }
 
 function termHtml(key) {
-  return `<div class="dialog" role="dialog" aria-modal="true">
-    <h2>${esc(t('term' + key))}</h2>
-    <p>${esc(t('term' + key + 'Text'))}</p>
+  return windowHtml(esc(t('term' + key)), `<p>${esc(t('term' + key + 'Text'))}</p>
     ${key === 'Night' ? `<p class="small">${esc(t('gameNote'))}</p>` : ''}
-    <button class="big primary" data-action="close-term">${esc(t('close'))}</button>
-  </div>`;
+    <button class="btn green" data-action="close-term"><span>${esc(t('close'))}</span></button>`, { close: 'close-term' });
 }
 
 // ---------- render & events ----------
@@ -349,7 +321,7 @@ function render() {
   modalRoot.hidden = !modal;
   document.title = t('title');
   if (!has3d) return;
-  setLabels({ solar: t('lblSolar'), oxygen: t('lblOxygen'), battery: t('lblBattery'), shield: t('lblShield'), home: t('lblHome') });
+  setLabels({ shield: t('lblShield'), home: t('lblHome') });
   const inGame = screen === 'game' && game;
   setMode(inGame ? 'game' : 'menu');
   if (inGame) {
@@ -372,6 +344,19 @@ function startGame() {
   if (has3d) stopPlacing();
   showHelp = true;
   go('game');
+}
+
+function beginPlacing(type) {
+  if (!has3d) return;
+  ui = { kind: 'placing', type };
+  startPlacing({ type, level: 1, radius: BUILDINGS[type].radius,
+    valid: (x, z) => validSpot(game, type, x, z),
+    done: (x, z) => {
+      const b = build(game, type, x, z, freeEnergy());
+      ui = { kind: 'selected', id: b.id };
+      render();
+    } });
+  render();
 }
 
 document.addEventListener('click', e => {
@@ -403,7 +388,7 @@ document.addEventListener('click', e => {
       };
       if (strength > 0 && has3d) {
         busy = true;                                  // watch the storm hit the base first
-        playStorm(strength, Math.min(choice.shield, strength));
+        playStorm(strength, Math.min(shieldBlocks(game, choice.shield), strength));
         render();
         return setTimeout(finish, 2800);
       }
@@ -419,10 +404,7 @@ document.addEventListener('click', e => {
     case 'close-ui': ui = null; return render();
     case 'cancel-place': if (has3d) stopPlacing(); ui = null; return render();
     case 'reset-view': if (has3d) resetView(); return;
-    case 'upgrade': {
-      upgrade(game, ui.id, freeEnergy());
-      return render();
-    }
+    case 'upgrade': upgrade(game, ui.id, freeEnergy()); return render();
     case 'move': {
       const b = game.buildings.find(x => x.id === ui.id);
       ui = { kind: 'placing', type: b.type, moveId: b.id };
@@ -441,19 +423,6 @@ document.addEventListener('keydown', e => {
   else if (ui) { if (has3d) stopPlacing(); ui = null; } else return;
   render();
 });
-
-function beginPlacing(type) {
-  if (!has3d) return;
-  ui = { kind: 'placing', type };
-  startPlacing({ type, level: 1, radius: BUILDINGS[type].radius,
-    valid: (x, z) => validSpot(game, type, x, z),
-    done: (x, z) => {
-      const b = build(game, type, x, z, freeEnergy());
-      ui = { kind: 'selected', id: b.id };
-      render();
-    } });
-  render();
-}
 
 if (has3d) onPickBuilding(id => {
   if (screen !== 'game' || busy || ui?.kind === 'placing') return;

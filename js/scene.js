@@ -6,6 +6,7 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
+import { icon } from './icons.js';
 
 const C = { o2: 0x4fc3f7, shield: 0x8fb8ff, bat: 0x69f0ae, sun: 0xffdd88 };
 const SUN_DIR = new THREE.Vector3(-0.8, 0.45, 0.35).normalize(); // low Sun, long shadows (like the real Moon)
@@ -264,7 +265,7 @@ function shieldPylon(level) {
 }
 
 const BUILDERS = { solar: solarTower, oxygen: oxygenPlant, tank: tankPair, battery: batteryBank, shield: shieldPylon };
-const ICONS = { solar: '☀️', oxygen: '💨', tank: '🛢️', battery: '🔋', shield: '🛡️' };
+const ICONS = { solar: 'sun', oxygen: 'oxygen', tank: 'tank', battery: 'battery', shield: 'shield' };
 
 // Radiation shield: a soft energy dome around the habitat (game effect, so kids can see it).
 function shieldDome() {
@@ -387,8 +388,8 @@ function makeBase() {
     const l = new THREE.PointLight(0xffd8a0, 0, 16, 2); l.position.set(x, 3, z); base.add(l); parts.lights.push(l);
   }
   const lab = (key, icon, x, y, z) => { const o = label(key, icon); o.position.set(x, y, z); base.add(o); };
-  lab('shield', '🛡️', 0, 12.5, 0);
-  lab('home', '🏠', 0, 7.5, 0);
+  lab('shield', icon('shield'), 0, 12.5, 0);
+  lab('home', icon('home'), 0, 7.5, 0);
 
   parts.cables = new THREE.Group(); base.add(parts.cables);
   parts.buildings = new THREE.Group(); base.add(parts.buildings);
@@ -417,7 +418,7 @@ function makeHolder(b) {
   holder.userData.buildingId = b.id;
   const el = document.createElement('div');
   el.className = 'scene-label small';
-  el.innerHTML = `<span class="i">${ICONS[b.type]}</span>${b.level > 1 ? `<span class="lv">${b.level}</span>` : ''}`;
+  el.innerHTML = `<span class="i">${icon(ICONS[b.type])}</span>${b.level > 1 ? `<span class="lv">${b.level}</span>` : ''}`;
   const lab = new CSS2DObject(el);
   const box = new THREE.Box3().setFromObject(holder);
   lab.position.set(0, box.max.y + 1.2, 0);

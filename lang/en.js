@@ -154,4 +154,16 @@ export default {
 
   creditsModels: '3D models: NASA 3D Resources (Apollo Lunar Module, Habitat Demonstration Unit, Astronaut).',
   creditsEarth: 'Earth image: NASA 3D Resources.',
+  logoTop: 'Junior Astronaut',
+  logoMain: 'Mission Trainer',
+  dayLabel: 'Day',
+  calmShort: 'Space weather: calm',
+  energyLabel: 'Energy',
+  shieldLabel: 'Shield',
+  lostShort: '{n} lost!',
+  savedShort: 'saved',
+  termDay: 'Lunar day',
+  termDayText: 'The Sun is shining, so the solar panels make energy. On the Moon, daytime lasts about two Earth weeks!',
+  termEnergy: 'Energy',
+  termEnergyText: 'Energy from the Sun (and from your battery). Share it out: oxygen machine, shield, building… Whatever is left goes into the battery.',
 };
