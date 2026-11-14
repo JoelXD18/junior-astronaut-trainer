@@ -1,9 +1,37 @@
-# Junior Astronaut Mission Trainer
+# Base Commander
 
-A browser game for kids aged 7–12: run a base on the Moon or Mars and share out energy, oxygen and radiation
-shielding. Every choice has a cost. Built for the NASA Space Apps Challenge 2026.
+**A Junior Astronaut Mission Trainer for kids aged 7–12, driven by the real Sun.**
+Built solo by team RAMOS for the NASA Space Apps Challenge 2026 (Salamanca local event).
 
-**Play:** https://joelxd18.github.io/junior-astronaut-trainer/
+**▶ Play in the browser (no download, no account):** https://joelxd18.github.io/junior-astronaut-trainer/
+
+## What it is
+
+You command a base on the Moon or on Mars. Every day you get energy from the Sun and you decide where it goes:
+
+- **Oxygen machine** – the crew breathes every day; an empty tank ends the mission.
+- **Radiation shield** – blocks solar storms, but only on the day you power it.
+- **Battery** – whatever you don't use is saved for the lunar night or a Martian dust storm.
+- **Building** – more solar towers, batteries or oxygen tanks, also paid with energy.
+
+There is no free option: energy you spend on one thing is not there for another. The game explains every hard word
+(radiation dose, sol, solar storm…) the moment a child taps it, in English or Spanish.
+
+### Real space weather
+Every solar storm in the game is a **real solar flare recorded by NASA** (DONKI). The flare's class (C, M or X)
+sets how strong the storm is, and **how active the real Sun was in the last 7 days sets how often storms come**.
+Mission Control warns you when "scientists saw a flare", and after a storm tells you which real flare it was.
+If NASA can't be reached, the game clearly says it is using a saved copy, not live data.
+
+### Three modes
+- **Escape** – your ship crash-lands. Send the rover for its 5 broken parts (outside there is no shield!), repair
+  the ship and fly home.
+- **Survival** – keep the crew safe for 14 days.
+- **Infinite** – last as long as you can and beat your record.
+
+The Moon has 7 days of sun and 7 of night (shortened from the real ~14 + 14 Earth days). Mars has less sunlight,
+dust storms, slower warnings (messages from Earth take minutes) and a thinner radiation dose thanks to its air.
+Mars is unlocked by winning on the Moon (or in Settings, for teachers and judges).
 
 ## NASA data used
 
@@ -12,11 +40,14 @@ shielding. Every choice has a cost. Built for the NASA Space Apps Challenge 2026
   of real flares in `data/donki-snapshot.json` (made with `node tools/update-donki.mjs`). Every storm in the game is
   one of those real flares: its class (C, M, X) sets its strength, and the real Sun's activity in the last 7 days
   sets how often storms come. If DONKI can't be reached, the game says the data is a saved copy, not live.
-- **NASA OSDR RadLab** (https://visualization.osdr.nasa.gov/radlab/): real dose rates used in the explanations
-  (ISS ≈ 4.7 µGy/h in June 2020; Artemis I near the Moon ≈ 16.5 µGy/h median; CRaTER up to 61,829 µGy/h on
-  24 Jan 2012). Saved values, not live.
-- **NASA 3D Resources**: 3D models (Apollo Lunar Module, Habitat Demonstration Unit, Astronaut, Perseverance), Earth image and Mars map.
-- **NASA LRO / LROC color map** (NASA SVS CGI Moon Kit, https://svs.gsfc.nasa.gov/4720): the real Moon around the base, which sits at the Apollo 16 landing site. The Mars base sits at Jezero crater.
+- **NASA OSDR RadLab** (https://visualization.osdr.nasa.gov/radlab/): real dose rates used in the game's rules and
+  explanations (ISS ≈ 4.7 µGy/h in June 2020; Artemis I near the Moon ≈ 16.5 µGy/h median; Curiosity on Mars ≈
+  6.1 µGy/h; CRaTER up to 61,829 µGy/h during the 24 Jan 2012 solar storm). Saved values, not live.
+- **NASA 3D Resources**: 3D models (Apollo Lunar Module, Habitat Demonstration Unit, Astronaut, Mars 2020
+  Perseverance Rover), Earth image and Mars map.
+- **NASA LRO / LROC color map** (NASA SVS CGI Moon Kit, https://svs.gsfc.nasa.gov/4720): the real Moon around the
+  base, which sits at the Apollo 16 landing site. The Mars base sits at Jezero crater.
+- Facts from NASA missions in the texts: MOXIE (oxygen made on Mars, 2021), lunar night length, Neil Armstrong.
 
 ## Credits and sources
 
@@ -30,4 +61,18 @@ shielding. Every choice has a cost. Built for the NASA Space Apps Challenge 2026
   [Robo Cop (Synthwave)](https://pixabay.com/es/music/sintetizador-robo-cop-synthwave-100bpm-117s-12714/) by Sub_Clair,
   [Metropolis of Progress (Cinematic Orchestral)](https://pixabay.com/es/music/titulo-principal-metropolis-of-progress-cinematic-orchestral-298820/) by Luis_Humanoide.
 - Fonts: Lilita One and Nunito (Google Fonts, SIL Open Font License).
-- Game idea and design: JoelXD18. Code written with the help of an AI assistant (Claude, by Anthropic).
+- Voices: the browser's built-in speech synthesis (no recorded voices).
+- Game idea and design: JoelXD18 (team RAMOS).
+
+## Use of AI
+
+The game idea, the modes, the look and every design choice are the creator's. An AI coding assistant
+(**Claude Code, by Anthropic**) wrote the code under his direction, offered options with pros and cons when he asked
+(he chose), looked up and summarised the NASA data sources, wrote the English/Spanish texts and the radio script,
+and balanced the numbers by simulating thousands of games. **All code in this repository was written with AI
+assistance.** No AI-generated images, video or music are used; the voices are the browser's text-to-speech.
+
+## Run locally
+
+It is a static website: serve the folder with any web server (for example `npx http-server`) and open it.
+License: MIT.

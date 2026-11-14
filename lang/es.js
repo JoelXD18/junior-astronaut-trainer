@@ -2,7 +2,7 @@
 export default {
   langName: 'Español',
 
-  title: 'Entrenador de Misiones para Jóvenes Astronautas',
+  title: "Base Commander",
   subtitle: 'Dirige una base espacial. Cada decisión tiene un precio.',
   play: 'Jugar',
   settings: 'Ajustes',
@@ -150,8 +150,8 @@ export default {
 
   creditsModels: 'Modelos 3D: NASA 3D Resources (módulo lunar Apollo, Habitat Demonstration Unit, astronauta, róver Perseverance).',
   creditsEarth: "Imagen de la Tierra y mapa de Marte: NASA 3D Resources. Mapa de la Luna: NASA LRO / LROC (NASA SVS CGI Moon Kit).",
-  logoTop: 'Joven Astronauta',
-  logoMain: 'Entrenador de Misiones',
+  logoTop: "Entrenador de jóvenes astronautas",
+  logoMain: "Base Commander",
   dayLabel: 'Día',
   calmShort: 'Tiempo espacial: en calma',
   energyLabel: 'Energía',

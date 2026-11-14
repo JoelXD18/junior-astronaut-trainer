@@ -2,7 +2,7 @@
 export default {
   langName: 'English',
 
-  title: 'Junior Astronaut Mission Trainer',
+  title: "Base Commander",
   subtitle: 'Run a space base. Every choice has a cost.',
   play: 'Play',
   settings: 'Settings',
@@ -154,8 +154,8 @@ export default {
 
   creditsModels: '3D models: NASA 3D Resources (Apollo Lunar Module, Habitat Demonstration Unit, Astronaut, Perseverance rover).',
   creditsEarth: "Earth image and Mars map: NASA 3D Resources. Moon map: NASA LRO / LROC (NASA SVS CGI Moon Kit).",
-  logoTop: 'Junior Astronaut',
-  logoMain: 'Mission Trainer',
+  logoTop: "Junior Astronaut Mission Trainer",
+  logoMain: "Base Commander",
   dayLabel: 'Day',
   calmShort: 'Space weather: calm',
   energyLabel: 'Energy',
