@@ -1,11 +1,10 @@
 // Screens and controls. Every text comes from t() so the language can change at any moment.
+// The 3D Moon base (scene.js) is always behind; the screens are drawn on top of it.
 import { t, setLang, lang, onLangChange, LANGUAGES } from './i18n.js';
 import { MAPS, DOSE_LIMIT, newGame, playDay, available, energyToday, isNight, forecast } from './game.js';
-import { initScene, mountScene, updateScene, playStorm } from './scene.js';
+import { initScene, setMode, setLabels, updateScene, playStorm } from './scene.js';
 
 const has3d = initScene();
-let busy = false; // true while a solar storm animation is playing
-
 const app = document.getElementById('app');
 const modalRoot = document.getElementById('modal');
 
@@ -13,15 +12,15 @@ let screen = 'menu';     // menu | map | difficulty | game | end | settings | cr
 let game = null;
 let choice = { oxygen: 0, shield: 0 };
 let pick = { map: 'moon', difficulty: 'normal' };
-let lastReport = null;   // report shown in the modal after ending a day
+let lastReport = null;   // report shown after ending a day
 let openTerm = null;     // glossary word currently open
+let showHelp = false;    // "how to play" card at the start of a game
+let busy = false;        // true while a solar storm animation is playing
 
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const info = key => `<button class="info" data-term="${key}" aria-label="${esc(t('term' + key))}">?</button>`;
 
-// A word kids can tap to get it explained.
-const term = (key, label) => `<button class="term" data-term="${key}">${esc(label ?? t('term' + key))}</button>`;
-
-function go(next) { screen = next; render(); window.scrollTo(0, 0); }
+function go(next) { screen = next; render(); }
 
 function langPicker() {
   return `<div class="lang-picker" role="group" aria-label="${esc(t('language'))}">
@@ -30,11 +29,10 @@ function langPicker() {
   </div>`;
 }
 
-// ---------- screens ----------
+// ---------- menu screens (glass panels over the 3D Moon) ----------
 
 function menuScreen() {
   return `<section class="menu">
-    <div class="menu-sky" aria-hidden="true"><span class="earth">🌍</span><span class="moon">🌕</span></div>
     <h1>${esc(t('title'))}</h1>
     <p class="subtitle">${esc(t('subtitle'))}</p>
     <div class="stack">
@@ -47,7 +45,7 @@ function menuScreen() {
 }
 
 function mapScreen() {
-  return `<section>
+  return `<section class="panel-screen">
     <h2>${esc(t('chooseMap'))}</h2>
     <div class="cards">
       <button class="card" data-map="moon"><span class="icon">🌕</span><strong>${esc(t('moon'))}</strong><span>${esc(t('moonDesc'))}</span></button>
@@ -58,7 +56,7 @@ function mapScreen() {
 }
 
 function difficultyScreen() {
-  return `<section>
+  return `<section class="panel-screen">
     <h2>${esc(t('chooseDifficulty'))}</h2>
     <div class="cards">
       ${['easy', 'normal', 'hard'].map(d => `<button class="card" data-difficulty="${d}">
@@ -68,30 +66,60 @@ function difficultyScreen() {
   </section>`;
 }
 
-function bar(value, max, cls) {
+function settingsScreen() {
+  return `<section class="panel-screen">
+    <h2>${esc(t('settings'))}</h2>
+    <h3>${esc(t('language'))}</h3>
+    ${langPicker()}
+    <button class="link" data-go="menu">← ${esc(t('back'))}</button>
+  </section>`;
+}
+
+function creditsScreen() {
+  return `<section class="panel-screen credits">
+    <h2>${esc(t('credits'))}</h2>
+    <p>${esc(t('creditsText'))}</p>
+    <p>${esc(t('creditsGame'))}</p>
+    <h3>${esc(t('creditsData'))}</h3>
+    <ul>
+      <li>${esc(t('creditsModels'))}</li>
+      <li>${esc(t('creditsEarth'))}</li>
+      <li>${esc(t('creditsDataSoon'))}</li>
+    </ul>
+    <p class="small">${esc(t('creditsTools'))}</p>
+    <button class="link" data-go="menu">← ${esc(t('back'))}</button>
+  </section>`;
+}
+
+// ---------- game HUD ----------
+
+function gauge(icon, label, value, max, text, cls, term) {
   const pct = Math.max(0, Math.min(100, (value / max) * 100));
-  return `<div class="bar ${cls}"><div style="width:${pct}%"></div></div>`;
+  return `<div class="gauge ${cls}">
+    <div class="g-head"><span class="g-icon">${icon}</span><span class="g-label">${esc(label)}</span>${term ? info(term) : ''}<b>${text}</b></div>
+    <div class="bar"><div style="width:${pct}%"></div></div>
+  </div>`;
 }
 
 function dayStrip() {
   const map = MAPS[game.map];
   let html = '';
   for (let d = 1; d <= map.missionDays; d++) {
-    const cls = [isNight(map, d) ? 'n' : 's', d < game.day ? 'past' : '', d === game.day ? 'now' : ''].join(' ');
-    html += `<span class="${cls}">${isNight(map, d) ? '🌑' : '☀️'}</span>`;
+    html += `<span class="${isNight(map, d) ? 'n' : 's'} ${d < game.day ? 'past' : ''} ${d === game.day ? 'now' : ''}"></span>`;
   }
   return `<div class="strip" aria-hidden="true">${html}</div>`;
 }
 
-function stepper(field, label, hintHtml, max) {
+function allocCard(field, icon, name, sub, max, term) {
   const v = choice[field];
-  return `<div class="row">
-    <div class="row-text"><strong>${label}</strong><small>${hintHtml}</small></div>
+  return `<div class="alloc ${field}">
+    <div class="a-head"><span class="a-icon">${icon}</span><strong>${esc(name)}</strong>${info(term)}</div>
     <div class="stepper">
-      <button data-step="${field}" data-d="-1" ${v <= 0 ? 'disabled' : ''} aria-label="−">−</button>
+      <button data-step="${field}" data-d="-1" ${v <= 0 || busy ? 'disabled' : ''} aria-label="−">−</button>
       <output>${v}</output>
-      <button data-step="${field}" data-d="1" ${v >= max ? 'disabled' : ''} aria-label="+">+</button>
+      <button data-step="${field}" data-d="1" ${v >= max || busy ? 'disabled' : ''} aria-label="+">+</button>
     </div>
+    <small>${esc(sub)}</small>
   </div>`;
 }
 
@@ -105,45 +133,44 @@ function gameScreen() {
   const night = isNight(map, game.day);
   const fc = forecast(game);
 
-  return `<section class="game ${night ? 'is-night' : ''} ${has3d ? 'with-3d' : ''}">
-    <div class="scene-slot" id="scene-slot"></div>
-    <div class="panel">
-    <header class="game-top">
-      <div>
-        <h2>${esc(t('dayOf', { day: game.day, total: map.missionDays }))}</h2>
-        <span class="badge">${night ? '🌑 ' + term('Night', t('night')) : '☀️ ' + esc(t('sunny'))}</span>
+  return `<section class="hud ${night ? 'is-night' : ''}">
+    <header class="hud-top">
+      <div class="day-box">
+        <div class="day-line"><strong>${esc(t('dayOf', { day: game.day, total: map.missionDays }))}</strong>
+          <span class="badge">${night ? '🌑 ' + esc(t('night')) + ' ' + info('Night') : '☀️ ' + esc(t('sunny'))}</span></div>
+        ${dayStrip()}
       </div>
-      ${langPicker()}
+      <div class="gauges">
+        ${gauge('💨', t('oxygen'), game.oxygen, map.oxygenMax, `${game.oxygen}`, 'o2')}
+        ${gauge('☢️', t('dose'), game.dose, DOSE_LIMIT, `${game.dose}%`, 'dose', 'Dose')}
+        ${gauge('🔋', t('battery'), game.battery, map.batteryMax, `${game.battery}`, 'bat', 'Battery')}
+      </div>
+      <div class="hud-actions">
+        ${langPicker()}
+        <button class="icon-btn" data-action="help" aria-label="${esc(t('howToPlay'))}">?</button>
+        <button class="icon-btn" data-go="menu" aria-label="${esc(t('mainMenu'))}">☰</button>
+      </div>
+      <div class="alert ${fc.warned ? 'warn' : 'calm'}">
+        ${fc.warned ? `<span>⚠️ <strong>${esc(t('warnShort'))}</strong> <span class="long">${esc(t('warnYes'))}</span></span>` : `<span>📡 ${esc(t('warnNo'))}</span>`} ${info('Storm')}
+      </div>
     </header>
-    ${dayStrip()}
-    <p class="goal">${esc(t('goal', { total: map.missionDays }))}</p>
 
-    <div class="meters">
-      <div class="meter"><span>💨 ${esc(t('oxygen'))}</span>${bar(game.oxygen, map.oxygenMax, 'o2')}<b>${game.oxygen} / ${map.oxygenMax}</b></div>
-      <div class="meter"><span>☢️ ${term('Dose', t('dose'))}</span>${bar(game.dose, DOSE_LIMIT, 'dose')}<b>${game.dose}%</b></div>
-      <div class="meter"><span>🔋 ${term('Battery', t('battery'))}</span>${bar(game.battery, map.batteryMax, 'bat')}<b>${game.battery} / ${map.batteryMax}</b></div>
-    </div>
-
-    <div class="weather ${fc.warned ? 'warn' : ''}">
-      <strong>📡 ${esc(t('weatherTitle'))}</strong>
-      <p>${fc.warned ? '⚠️ ' : ''}${esc(t(fc.warned ? 'warnYes' : 'warnNo'))} ${term('Storm', 'ⓘ')}</p>
-    </div>
-
-    <div class="share">
-      <h3>⚡ ${esc(t('energyToShare'))}: <span class="big-num">${total}</span></h3>
-      <p class="from">${esc(t('fromSun', { n: sun }))} · ${esc(t('fromBattery', { n: game.battery }))}</p>
-      <div class="tokens" aria-hidden="true">${tokenRow(total)}</div>
-      ${stepper('oxygen', '💨 ' + esc(t('oxygenMachine')), esc(t('oxygenMachineHint', { n: map.oxygenUse })), total - choice.shield)}
-      ${stepper('shield', '🛡️ ' + term('Shield', t('shield')), esc(t('shieldHint')), total - choice.oxygen)}
-      <div class="row">
-        <div class="row-text"><strong>🔋 ${esc(t('toBattery'))}</strong><small>${esc(t('toBatteryHint', { max: map.batteryMax }))}</small></div>
-        <div class="stepper"><output>${toBattery}</output></div>
+    <div class="hud-bottom">
+      <div class="energy">
+        <div class="e-num">⚡ <span>${total}</span></div>
+        <div class="e-text"><strong>${esc(t('energyToShare'))}</strong><small>${esc(t('fromSun', { n: sun }))} · ${esc(t('fromBattery', { n: game.battery }))}</small></div>
+        <div class="tokens" aria-hidden="true">${tokenRow(total)}</div>
       </div>
-      ${lost > 0 ? `<p class="alert">${esc(t('batteryFullWarn', { n: lost }))}</p>` : ''}
-    </div>
-
-    <button class="big primary end-day" data-action="end-day" ${busy ? 'disabled' : ''}>${esc(t('endDay'))}</button>
-    ${night ? `<p class="note">${esc(t('gameNote'))}</p>` : ''}
+      <div class="allocs">
+        ${allocCard('oxygen', '💨', t('oxygenMachine'), t('oxygenNeed', { n: map.oxygenUse }), total - choice.shield, 'Oxygen')}
+        ${allocCard('shield', '🛡️', t('shield'), t('shieldShort'), total - choice.oxygen, 'Shield')}
+        <div class="alloc battery">
+          <div class="a-head"><span class="a-icon">🔋</span><strong>${esc(t('toBattery'))}</strong>${info('Battery')}</div>
+          <div class="stepper"><output>${toBattery}</output></div>
+          <small class="${lost > 0 ? 'bad' : ''}">${esc(lost > 0 ? t('batteryFullWarn', { n: lost }) : t('batteryShort'))}</small>
+        </div>
+      </div>
+      <button class="big primary end-day" data-action="end-day" ${busy ? 'disabled' : ''}>${esc(t('endDay'))} ▶</button>
     </div>
   </section>`;
 }
@@ -161,7 +188,7 @@ function endScreen() {
   const map = MAPS[game.map];
   const key = { won: 'won', 'lost-oxygen': 'lostOxygen', 'lost-dose': 'lostDose' }[game.status];
   const done = game.status === 'won' ? map.missionDays : game.day - 1;
-  return `<section class="end ${game.status}">
+  return `<section class="panel-screen end ${game.status}">
     <div class="end-icon">${game.status === 'won' ? '🏆' : game.status === 'lost-oxygen' ? '💨' : '☢️'}</div>
     <h2>${esc(t(key + 'Title'))}</h2>
     <p>${esc(t(key + 'Text'))}</p>
@@ -176,52 +203,45 @@ function endScreen() {
   </section>`;
 }
 
-function settingsScreen() {
-  return `<section>
-    <h2>${esc(t('settings'))}</h2>
-    <h3>${esc(t('language'))}</h3>
-    ${langPicker()}
-    <button class="link" data-go="menu">← ${esc(t('back'))}</button>
-  </section>`;
-}
-
-function creditsScreen() {
-  return `<section class="credits">
-    <h2>${esc(t('credits'))}</h2>
-    <p>${esc(t('creditsText'))}</p>
-    <p>${esc(t('creditsGame'))}</p>
-    <p>${esc(t('creditsTools'))}</p>
-    <h3>${esc(t('creditsData'))}</h3>
-    <p>${esc(t('creditsDataSoon'))}</p>
-    <button class="link" data-go="menu">← ${esc(t('back'))}</button>
-  </section>`;
-}
-
-// ---------- day report and glossary (modal) ----------
+// ---------- dialogs ----------
 
 function reportHtml(r) {
-  const lines = [];
-  if (r.storm > 0) {
-    lines.push(r.blocked >= r.storm
-      ? t('stormBlocked', { s: r.storm })
-      : t('stormPartial', { s: r.storm, b: r.blocked, d: r.stormDose }));
-    if (!r.warned) lines.push(t('surprise'));
-  } else {
-    lines.push(t('stormNone'));
-    if (r.warned) lines.push(t('falseAlarm'));
-    if (r.shield > 0) lines.push(t('shieldUnused', { n: r.shield }));
-  }
-  lines.push(t('baseDoseMsg', { d: r.baseDose }));
   const map = MAPS[game.map];
-  lines.push(t('oxygenMsg', { use: map.oxygenUse, left: game.oxygen }));
-  if (r.oxygenLost > 0) lines.push(t('oxygenTankFull', { n: r.oxygenLost }));
-  if (r.wasted > 0) lines.push(t('wastedMsg', { n: r.wasted }));
-  if (r.status === 'playing' && !r.night && isNight(map, r.day + 1)) lines.push(t('nightComing'));
+  const items = [];
+  if (r.storm > 0) {
+    const full = r.blocked >= r.storm;
+    items.push([full ? '🛡️' : '☢️', full ? t('stormBlocked', { s: r.storm }) : t('stormPartial', { s: r.storm, b: r.blocked, d: r.stormDose }), full ? 'good' : 'bad']);
+    if (!r.warned) items.push(['❗', t('surprise'), '']);
+  } else {
+    items.push(['☀️', t('stormNone'), 'good']);
+    if (r.warned) items.push(['📡', t('falseAlarm'), '']);
+    if (r.shield > 0) items.push(['🛡️', t('shieldUnused', { n: r.shield }), '']);
+  }
+  items.push(['☢️', t('baseDoseMsg', { d: r.baseDose }), '']);
+  items.push(['💨', t('oxygenMsg', { use: map.oxygenUse, left: game.oxygen }), game.oxygen <= map.oxygenUse ? 'bad' : '']);
+  if (r.oxygenLost > 0) items.push(['💨', t('oxygenTankFull', { n: r.oxygenLost }), 'bad']);
+  if (r.wasted > 0) items.push(['🔋', t('wastedMsg', { n: r.wasted }), 'bad']);
+  if (r.status === 'playing' && !r.night && isNight(map, r.day + 1)) items.push(['🌑', t('nightComing'), 'bad']);
   const done = r.status !== 'playing';
   return `<div class="dialog" role="dialog" aria-modal="true">
     <h2>${esc(t('reportTitle', { day: r.day }))}</h2>
-    <ul class="report">${lines.map(l => `<li>${esc(l)}</li>`).join('')}</ul>
-    <button class="big primary" data-action="close-report">${esc(t(done ? 'seeResult' : 'nextDay'))}</button>
+    <ul class="report">${items.map(([i, l, c]) => `<li class="${c}"><span>${i}</span>${esc(l)}</li>`).join('')}</ul>
+    <button class="big primary" data-action="close-report">${esc(t(done ? 'seeResult' : 'nextDay'))} ▶</button>
+  </div>`;
+}
+
+function helpHtml() {
+  const map = MAPS[game.map];
+  return `<div class="dialog help" role="dialog" aria-modal="true">
+    <h2>${esc(t('howToPlay'))}</h2>
+    <ol class="steps">
+      <li><span>⚡</span>${esc(t('help1'))}</li>
+      <li><span>💨</span>${esc(t('help2', { n: map.oxygenUse }))}</li>
+      <li><span>🛡️</span>${esc(t('help3'))}</li>
+      <li><span>🔋</span>${esc(t('help4', { day: map.nightStart }))}</li>
+    </ol>
+    <p class="small">${esc(t('help5'))}</p>
+    <button class="big primary" data-action="close-help">${esc(t('letsGo'))} ▶</button>
   </div>`;
 }
 
@@ -229,6 +249,7 @@ function termHtml(key) {
   return `<div class="dialog" role="dialog" aria-modal="true">
     <h2>${esc(t('term' + key))}</h2>
     <p>${esc(t('term' + key + 'Text'))}</p>
+    ${key === 'Night' ? `<p class="small">${esc(t('gameNote'))}</p>` : ''}
     <button class="big primary" data-action="close-term">${esc(t('close'))}</button>
   </div>`;
 }
@@ -239,25 +260,31 @@ function render() {
   const screens = { menu: menuScreen, map: mapScreen, difficulty: difficultyScreen, game: gameScreen,
     end: endScreen, settings: settingsScreen, credits: creditsScreen };
   app.innerHTML = screens[screen]();
-  const modal = openTerm ? termHtml(openTerm) : lastReport ? reportHtml(lastReport) : '';
+  app.className = 'screen-' + screen;
+  const modal = openTerm ? termHtml(openTerm) : showHelp ? helpHtml() : lastReport ? reportHtml(lastReport) : '';
   modalRoot.innerHTML = modal;
   modalRoot.hidden = !modal;
   document.title = t('title');
-  if (screen === 'game' && game) {
+  if (!has3d) return;
+  setLabels({ solar: t('lblSolar'), oxygen: t('lblOxygen'), battery: t('lblBattery'), shield: t('lblShield'), home: t('lblHome') });
+  const inGame = screen === 'game' && game;
+  setMode(inGame ? 'game' : 'menu');
+  if (inGame) {
     const map = MAPS[game.map];
     const left = available(game) - choice.oxygen - choice.shield;
-    updateScene({
-      night: isNight(map, game.day),
-      oxygen: choice.oxygen, shield: choice.shield,
-      battery: Math.min(map.batteryMax, left), batteryMax: map.batteryMax,
-    });
-    mountScene(document.getElementById('scene-slot'));
+    updateScene({ night: isNight(map, game.day), oxygen: choice.oxygen, shield: choice.shield,
+      battery: Math.min(map.batteryMax, left), batteryMax: map.batteryMax });
   }
+}
+
+function defaultChoice() {
+  return { oxygen: Math.min(MAPS[game.map].oxygenUse, available(game)), shield: 0 };
 }
 
 function startGame() {
   game = newGame({ map: pick.map, difficulty: pick.difficulty });
-  choice = { oxygen: Math.min(MAPS[pick.map].oxygenUse, available(game)), shield: 0 };
+  choice = defaultChoice();
+  showHelp = true;
   go('game');
 }
 
@@ -280,39 +307,34 @@ document.addEventListener('click', e => {
     case 'end-day': {
       if (busy) return;
       const strength = game.today.strength; // the storm (if any) that hits at the end of today
-      const showReport = () => {
+      const finish = () => {
         busy = false;
         lastReport = playDay(game, choice);
-        if (game.status === 'playing') {
-          const total = available(game);
-          choice = { oxygen: Math.min(MAPS[game.map].oxygenUse, total), shield: 0 };
-        }
+        if (game.status === 'playing') choice = defaultChoice();
         render();
       };
       if (strength > 0 && has3d) {
-        // Let the player watch the storm hit the base before reading the report.
-        busy = true;
+        busy = true;                                  // watch the storm hit the base first
         playStorm(strength, Math.min(choice.shield, strength));
         render();
-        document.getElementById('scene-slot')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-        return setTimeout(showReport, 2600);
+        return setTimeout(finish, 2800);
       }
-      return showReport();
+      return finish();
     }
     case 'close-report':
       lastReport = null;
-      if (game.status !== 'playing') return go('end');
-      return render();
-    case 'close-term':
-      openTerm = null;
-      return render();
-    case 'again':
-      return startGame();
+      return game.status !== 'playing' ? go('end') : render();
+    case 'close-term': openTerm = null; return render();
+    case 'help': showHelp = true; return render();
+    case 'close-help': showHelp = false; return render();
+    case 'again': return startGame();
   }
 });
 
 document.addEventListener('keydown', e => {
-  if (e.key === 'Escape' && openTerm) { openTerm = null; render(); }
+  if (e.key !== 'Escape') return;
+  if (openTerm) openTerm = null; else if (showHelp) showHelp = false; else return;
+  render();
 });
 
 onLangChange(render);

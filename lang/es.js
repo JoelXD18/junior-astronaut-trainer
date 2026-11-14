@@ -91,4 +91,27 @@ export default {
   termShield: 'Escudo contra la radiación',
   termShieldText: 'Una capa que protege la base. Necesita energía para funcionar, y solo te protege el día que le das energía.',
   close: '¡Entendido!',
+  termOxygen: 'Máquina de oxígeno',
+  termOxygenText: 'En la Luna no hay aire. Esta máquina usa energía para sacar oxígeno de las rocas lunares, para que la tripulación pueda respirar. El oxígeno que sobra se guarda en tanques.',
+
+  warnShort: '¡Aviso de tormenta!',
+  oxygenNeed: 'Se respiran {n} al día',
+  shieldShort: 'Para tormentas hoy',
+  batteryShort: 'Se guarda para luego',
+  howToPlay: 'Cómo se juega',
+  help1: 'Cada día recibes energía del Sol. Tú decides adónde va.',
+  help2: 'Máquina de oxígeno: tu tripulación respira {n} de oxígeno cada día. Si el tanque se vacía, la misión termina.',
+  help3: 'Escudo: protege de las tormentas solares, pero solo el día que le das energía. ¡Atento a los avisos!',
+  help4: 'Batería: la energía que no usas se guarda. Desde el día {day} es de noche: no hay Sol, ¡la necesitarás!',
+  help5: 'No hay una opción perfecta: la energía que usas en una cosa no la tienes para otra.',
+  letsGo: '¡Vamos!',
+
+  lblSolar: 'Paneles solares',
+  lblOxygen: 'Máquina de oxígeno',
+  lblBattery: 'Batería',
+  lblShield: 'Escudo',
+  lblHome: 'Hábitat',
+
+  creditsModels: 'Modelos 3D: NASA 3D Resources (módulo lunar Apollo, Habitat Demonstration Unit, astronauta).',
+  creditsEarth: 'Imagen de la Tierra: NASA 3D Resources.',
 };

@@ -92,4 +92,29 @@ export default {
   termShield: 'Radiation shield',
   termShieldText: 'A protective layer around the base. It needs energy to work, and it only protects you on the day you power it.',
   close: 'Got it!',
+  termOxygen: 'Oxygen machine',
+  termOxygenText: 'There is no air on the Moon. This machine uses energy to take oxygen out of moon rock, so the crew can breathe. Extra oxygen is stored in tanks.',
+
+  // Game screen (short texts)
+  warnShort: 'Storm warning!',
+  oxygenNeed: 'Crew needs {n} a day',
+  shieldShort: 'Blocks storms today',
+  batteryShort: 'Saved for later',
+  howToPlay: 'How to play',
+  help1: 'Every day you get energy from the Sun. You decide where it goes.',
+  help2: 'Oxygen machine: your crew breathes {n} oxygen every day. If the tank is empty, the mission ends.',
+  help3: 'Shield: protects the crew from solar storms, but only on the day you power it. Watch the warnings!',
+  help4: 'Battery: energy you don’t use is saved. From day {day} it’s night: no Sun, so you’ll need it!',
+  help5: 'There is no perfect choice: energy you use for one thing is not there for another.',
+  letsGo: 'Let’s go!',
+
+  // Labels in the 3D base
+  lblSolar: 'Solar panels',
+  lblOxygen: 'Oxygen machine',
+  lblBattery: 'Battery',
+  lblShield: 'Shield',
+  lblHome: 'Habitat',
+
+  creditsModels: '3D models: NASA 3D Resources (Apollo Lunar Module, Habitat Demonstration Unit, Astronaut).',
+  creditsEarth: 'Earth image: NASA 3D Resources.',
 };
