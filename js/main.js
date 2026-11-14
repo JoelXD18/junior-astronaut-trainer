@@ -7,6 +7,8 @@ import { MAPS, DOSE_LIMIT, BUILDINGS, MAX_LEVEL, newGame, playDay, available, en
 import { initScene, setMode, setLabels, updateScene, playStorm, syncBuildings, setSelected, onPickBuilding,
   startPlacing, stopPlacing, resetView, setPlanet, playLanding, playLaunch, skipAnimation, resetLander } from './scene.js';
 import { isUnlocked, unlock, best, saveBest, unlockAll, setUnlockAll } from './progress.js';
+import { playMusic, setVolume, toggleMute, audioSettings, speak, stopSpeaking } from './audio.js';
+import { DEMOS } from './demos.js';
 import { icon } from './icons.js';
 import { loadSpaceWeather, getWeather, onWeather, flareStrength } from './spaceweather.js';
 
@@ -20,7 +22,8 @@ let choice = { oxygen: 0, shield: 0 };
 let pick = { map: 'moon', difficulty: 'normal', mode: 'story' };
 let lastReport = null;   // report shown after ending a day
 let openTerm = null;     // glossary word currently open
-let showHelp = false;    // "how to play" card at the start of a game
+let showHelp = false;    // "how to play" tutorial (step by step)
+let helpStep = 0;
 let busy = false;        // true while a solar storm animation is playing
 let ui = null;           // null | {kind:'build'} | {kind:'placing', type, moveId} | {kind:'selected', id}
 let showSun = false;     // "real Sun" window with NASA DONKI data
@@ -148,6 +151,8 @@ function difficultyScreen() {
 
 function settingsScreen() {
   return centered(windowHtml(esc(t('settings')), `<h3>${esc(t('language'))}</h3>${langPicker()}
+    <h3>${esc(t('music'))}</h3>
+    <div class="vol-row">${icon(audioSettings().muted ? 'mute' : 'sound')}<input type="range" min="0" max="1" step="0.05" value="${audioSettings().volume}" data-volume aria-label="${esc(t('music'))}"><button class="btn small ${audioSettings().muted ? 'grey' : 'green'}" data-action="mute"><span>${esc(t(audioSettings().muted ? 'off' : 'on'))}</span></button></div>
     <h3>${esc(t('unlockAllTitle'))}</h3>
     <button class="btn ${unlockAll() ? 'green' : 'grey'} small" data-action="toggle-unlock"><span>${esc(t(unlockAll() ? 'on' : 'off'))}</span></button>
     <p class="small">${esc(t('unlockAllHint'))}</p>`, { close: null })
@@ -178,6 +183,7 @@ function creditsScreen() {
       <li>${esc(t('creditsEarth'))}</li>
       <li>${esc(t('creditsDataSoon'))}</li>
       <li>${esc(t('creditsTools'))}</li>
+      <li>${esc(t('crMusic'))}: ${esc(t('musicCredit'))}</li>
     </ul>`, { close: null }) + `<button class="btn grey back" data-go="menu">← ${esc(t('back'))}</button>`);
 }
 
@@ -232,6 +238,7 @@ function gameScreen() {
       <div class="side-btns">
         ${langPicker()}
         <button class="round-btn" data-action="reset-view" title="${esc(t('resetView'))}" aria-label="${esc(t('resetView'))}">${icon('target')}</button>
+        <button class="round-btn" data-action="mute" aria-label="${esc(t('music'))}">${icon(audioSettings().muted ? 'mute' : 'sound')}</button>
         <button class="round-btn" data-action="help" aria-label="${esc(t('howToPlay'))}">${icon('question')}</button>
         <button class="round-btn" data-go="menu" aria-label="${esc(t('mainMenu'))}">${icon('menu')}</button>
       </div>
@@ -356,6 +363,7 @@ function creditsRoll() {
       ${line(t('crData'), 'NASA DONKI · NASA OSDR RadLab')}
       ${line(t('crModels'), 'NASA 3D Resources')}
       ${line(t('crEngine'), 'three.js')}
+      ${line(t('crMusic'), t('musicCredit'))}
       ${line(t('crFonts'), 'Lilita One · Nunito (Google Fonts)')}
       ${line(t('crChallenge'), 'NASA Space Apps Challenge 2026')}
       ${line(t('crEvent'), 'Salamanca')}
@@ -400,17 +408,35 @@ function reportHtml(r) {
     { close: null });
 }
 
+// Tutorial: one thing at a time. Text (with a button to hear it), a short animation, then "Next".
+function tutorialSteps() {
+  const map = MAPS[game.map], mars = game.map === 'mars';
+  return [
+    { icon: 'energy', title: t('tutEnergy'), text: t('help1'), demo: 'energy', cls: 'c-energy' },
+    { icon: 'oxygen', title: t('tutOxygen'), text: t('help2', { n: map.oxygenUse }) + (mars ? ' ' + t('moxieNote') : ''), demo: 'oxygen', cls: 'c-o2' },
+    { icon: 'shield', title: t('tutShield'), text: t('help3'), demo: 'shield', cls: 'c-shield' },
+    { icon: 'battery', title: t(mars ? 'tutDust' : 'tutBattery'), text: mars ? t('help4mars') : t('help4', { day: map.nightStart }), demo: mars ? 'dust' : 'battery', cls: 'c-bat' },
+    { icon: 'hammer', title: t('tutBuild'), text: t('help6'), demo: 'build', cls: 'c-build' },
+    { icon: 'sun', title: t('tutReal'), text: t('sunHowGame'), demo: 'real', cls: 'c-energy' },
+  ];
+}
+
 function helpHtml() {
-  const map = MAPS[game.map];
-  const step = (i, text) => `<li>${icon(i)}<span>${esc(text)}</span></li>`;
-  return windowHtml(esc(t('howToPlay')), `<ol class="report steps">
-      ${step('energy', t('help1'))}
-      ${step('oxygen', t('help2', { n: map.oxygenUse }))}
-      ${step('shield', t('help3'))}
-      ${step('battery', map.cycle ? t('help4', { day: map.nightStart }) : t('help4mars'))}
-      ${step('hammer', t('help6'))}
-    </ol>
-    <button class="btn green" data-action="close-help"><span>${esc(t('letsGo'))}</span>${icon('play')}</button>`, { close: 'close-help' });
+  const steps = tutorialSteps(), s = steps[helpStep], last = helpStep === steps.length - 1;
+  const words = { sun: t('demoSun'), energy: t('energyLabel'), machine: t('demoMachine'), shield: t('shieldLabel'), battery: t('battery'),
+    day: t('demoDay'), night: t('night'), dust: t('termDust'), build: t('build') };
+  const dots = steps.map((_, i) => `<i class="${i === helpStep ? 'on' : i < helpStep ? 'done' : ''}"></i>`).join('');
+  return windowHtml(`${icon(s.icon)} ${esc(s.title)} <span class="tut-count">${helpStep + 1}/${steps.length}</span>`, `
+    <div class="tut ${s.cls}">
+      <div class="tut-text"><p>${esc(s.text)}</p>
+        <button class="round-btn speak" data-action="speak" aria-label="${esc(t('readAloud'))}" title="${esc(t('readAloud'))}">${icon('sound')}</button></div>
+      <div class="demo">${DEMOS[s.demo](words)}<div class="demo-bar"><i></i></div></div>
+      <div class="tut-dots">${dots}</div>
+      <div class="tut-nav">
+        ${helpStep > 0 ? `<button class="btn grey" data-action="tut-back"><span>←</span></button>` : ''}
+        <button class="btn green" data-action="${last ? 'close-help' : 'tut-next'}"><span>${esc(t(last ? 'letsGo' : 'next'))}</span>${icon('play')}</button>
+      </div>
+    </div>`, { close: 'close-help', cls: 'tut-win' });
 }
 
 function termHtml(key) {
@@ -422,6 +448,15 @@ function termHtml(key) {
 
 // ---------- render & events ----------
 
+// Which music fits what is on screen now.
+function musicFor() {
+  if (cinematic === 'landing') return 'landing';
+  if (cinematic === 'launch' || screen === 'roll') return 'credits';
+  if (screen === 'game') return showHelp ? 'tutorial' : 'game';
+  if (screen === 'end' && game?.status === 'won' && game.mode === 'story') return 'credits';
+  return 'menu';
+}
+
 function render() {
   const screens = { menu: menuScreen, map: mapScreen, difficulty: difficultyScreen, game: gameScreen,
     end: endScreen, settings: settingsScreen, credits: creditsScreen, data: dataScreen, mode: modeScreen, roll: () => gameScreen() + creditsRoll() };
@@ -431,6 +466,7 @@ function render() {
   modalRoot.innerHTML = modal;
   modalRoot.hidden = !modal;
   document.title = t('title');
+  playMusic(musicFor());
   if (!has3d) return;
   setLabels({ shield: t('lblShield'), home: t('lblHome') });
   const inGame = (screen === 'game' || screen === 'roll') && game;
@@ -457,7 +493,8 @@ function startGame() {
   stopPlacing(); resetLander(); setPlanet(game.map);
   cinematic = 'landing';
   screen = 'game';
-  playLanding(() => { cinematic = null; showHelp = !helpSeen; render(); });
+  playMusic('landing', { restart: true });
+  playLanding(() => { cinematic = null; showHelp = !helpSeen; helpStep = 0; render(); });
   render();
 }
 
@@ -515,8 +552,12 @@ document.addEventListener('click', e => {
       if (game.status === 'playing') return render();
       return finishGame();
     case 'close-term': openTerm = null; return render();
-    case 'help': showHelp = true; return render();
-    case 'close-help': showHelp = false; helpSeen = true; return render();
+    case 'help': showHelp = true; helpStep = 0; return render();
+    case 'close-help': showHelp = false; helpSeen = true; stopSpeaking(); return render();
+    case 'tut-next': helpStep++; stopSpeaking(); return render();
+    case 'tut-back': helpStep = Math.max(0, helpStep - 1); stopSpeaking(); return render();
+    case 'speak': { const s = tutorialSteps()[helpStep]; speak(s.title + '. ' + s.text, lang()); return; }
+    case 'mute': toggleMute(); return render();
     case 'skip': if (has3d) skipAnimation(); return;
     case 'end-credits': return go('end');
     case 'toggle-unlock': setUnlockAll(!unlockAll()); return render();
@@ -541,7 +582,7 @@ document.addEventListener('click', e => {
 
 document.addEventListener('keydown', e => {
   if (e.key !== 'Escape') return;
-  if (openTerm) openTerm = null; else if (showSun) showSun = false; else if (showHelp) showHelp = false;
+  if (openTerm) openTerm = null; else if (showSun) showSun = false; else if (showHelp) { showHelp = false; helpSeen = true; stopSpeaking(); }
   else if (ui) { if (has3d) stopPlacing(); ui = null; } else return;
   render();
 });
@@ -552,6 +593,7 @@ function finishGame() {
   if (game.status === 'won' && game.map === 'moon') endInfo.unlocked = unlock('mars');
   if (game.status === 'won' && has3d) {
     cinematic = 'launch';
+    playMusic('credits', { restart: true });
     render();
     playLaunch(() => { cinematic = null; go('roll'); });
     return;
@@ -564,6 +606,8 @@ if (has3d) onPickBuilding(id => {
   ui = id != null ? { kind: 'selected', id } : null;
   render();
 });
+
+document.addEventListener('input', e => { if (e.target.matches('[data-volume]')) setVolume(Number(e.target.value)); });
 
 // When the credits finish rolling, show the end screen.
 document.addEventListener('animationend', e => { if (e.target.classList?.contains('cr-scroll') && screen === 'roll') go('end'); });

@@ -82,6 +82,14 @@ export const ICONS = {
       <path d="M25 46 Q32 64 39 46 Z" fill="#ffb300" stroke="#8a4b00" stroke-width="3" stroke-linejoin="round"/>`,
       grad(g, '#ffffff', '#b0bec5'));
   },
+  sound() {
+    return wrap(`<path d="M8 24 H20 L34 12 V52 L20 40 H8 Z" fill="#fff" stroke="#0d1b3d" stroke-width="4" stroke-linejoin="round"/>
+      <path d="M42 22 Q50 32 42 42 M48 14 Q62 32 48 50" fill="none" stroke="#fff" stroke-width="5" stroke-linecap="round"/>`);
+  },
+  mute() {
+    return wrap(`<path d="M8 24 H20 L34 12 V52 L20 40 H8 Z" fill="#fff" stroke="#0d1b3d" stroke-width="4" stroke-linejoin="round"/>
+      <path d="M42 24 L58 40 M58 24 L42 40" stroke="#ff8a7a" stroke-width="6" stroke-linecap="round"/>`);
+  },
   warning() {
     return wrap(`<path d="M32 5 L60 56 H4 Z" fill="#ffca28" stroke="#5d1a00" stroke-width="4.5" stroke-linejoin="round"/>
       <rect x="29" y="22" width="6" height="19" rx="3" fill="#5d1a00"/><circle cx="32" cy="48" r="3.6" fill="#5d1a00"/>`);

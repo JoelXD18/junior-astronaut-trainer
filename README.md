@@ -22,4 +22,6 @@ shielding. Every choice has a cost. Built for the NASA Space Apps Challenge 2026
 - 3D models and Earth texture: [NASA 3D Resources](https://github.com/nasa/NASA-3D-Resources)
   (Apollo Lunar Module, Habitat Demonstration Unit, Astronaut).
 - 3D engine: [three.js](https://threejs.org) (MIT license).
+- Music: tracks from [Pixabay](https://pixabay.com/music/) (Pixabay Content License). Track names and authors: see the in-game credits.
+- Fonts: Lilita One and Nunito (Google Fonts, SIL Open Font License).
 - Game idea and design: JoelXD18. Code written with the help of an AI assistant (Claude, by Anthropic).

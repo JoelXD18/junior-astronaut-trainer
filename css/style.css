@@ -411,3 +411,47 @@ button:focus-visible { outline: 3px solid #fff; outline-offset: 3px; }
 .cr-line span { color: var(--muted); font-size: 16px; text-transform: uppercase; letter-spacing: 2px; }
 .cr-line strong { font: 400 28px var(--title); color: #fff; }
 .cr-thanks { font: 400 30px var(--title); color: var(--gold); margin-top: 90px; }
+
+/* ---------- colour per thing (same in 3D labels, HUD and tutorial) ---------- */
+:root { --c-energy: #ffb300; --c-o2: #1e9be0; --c-shield: #7a63ff; --c-bat: #2eb862; --c-tank: #26c6da; --c-home: #cfd8dc; --c-rad: #ff7043; }
+.scene-label.t-solar { background: linear-gradient(#ffd54f, #f59f00); color: #3a2200; text-shadow: none; }
+.scene-label.t-oxygen { background: linear-gradient(#6ccfff, var(--c-o2)); }
+.scene-label.t-tank { background: linear-gradient(#80deea, #0097a7); }
+.scene-label.t-battery { background: linear-gradient(#81e6a1, var(--c-bat)); }
+.scene-label.t-shield { background: linear-gradient(#b3a6ff, var(--c-shield)); }
+.scene-label.t-home { background: linear-gradient(#ffffff, #b0bec5); color: #263238; }
+.shop-card[data-build="solar"] { border-top: 8px solid var(--c-energy); }
+.shop-card[data-build="battery"] { border-top: 8px solid var(--c-bat); }
+.shop-card[data-build="tank"] { border-top: 8px solid var(--c-tank); }
+.slot.oxygen .slot-label { background: linear-gradient(#6ccfff, var(--c-o2)); }
+.slot.shield .slot-label { background: linear-gradient(#b3a6ff, var(--c-shield)); }
+.slot.battery .slot-label { background: linear-gradient(#81e6a1, var(--c-bat)); }
+.res.o2 .res-label { color: #9be7ff; }
+.res.rad .res-label { color: #ffb199; }
+.res.bat .res-label { color: #b9f6ca; }
+
+/* ---------- tutorial ---------- */
+.tut-win { width: min(620px, 100%); }
+.tut-count { margin-left: auto; font-size: 16px; padding: 2px 10px; border-radius: 999px; background: rgba(8, 16, 40, .6); border: 2px solid var(--ink); }
+.tut-text { display: flex; gap: 12px; align-items: center; }
+.tut-text p { flex: 1; margin: 0 !important; font-size: 17px; font-weight: 800; }
+.tut.c-energy .tut-text p { color: #ffe08a; }
+.tut.c-o2 .tut-text p { color: #a8e4ff; }
+.tut.c-shield .tut-text p { color: #cfc6ff; }
+.tut.c-bat .tut-text p { color: #b9f6ca; }
+.speak { width: 52px; height: 52px; flex: none; background: linear-gradient(#ffd54f, #f59f00); }
+.demo { margin: 14px 0 10px; border-radius: 14px; overflow: hidden; border: 3px solid var(--ink); box-shadow: 0 4px 0 var(--ink); background: #0b1230; }
+.demo-svg { display: block; width: 100%; height: auto; }
+.demo-bar { height: 6px; background: #1b2650; }
+.demo-bar i { display: block; height: 100%; width: 0; background: #ff4d4d; animation: demobar 6s linear infinite; }
+@keyframes demobar { to { width: 100%; } }
+.tut-dots { display: flex; justify-content: center; gap: 8px; margin: 6px 0 12px; }
+.tut-dots i { width: 12px; height: 12px; border-radius: 50%; background: #3a456b; border: 2px solid var(--ink); }
+.tut-dots i.done { background: #9be15d; }
+.tut-dots i.on { background: var(--gold); transform: scale(1.3); }
+.tut-nav { display: flex; gap: 10px; }
+.tut-nav .btn.green { flex: 1; }
+#modal .tut-nav .btn.grey { width: auto; flex: none; }
+.vol-row { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+.vol-row .ico { font-size: 30px; }
+.vol-row input { flex: 1; accent-color: var(--gold); height: 24px; }

@@ -109,6 +109,79 @@ function makeTerrain() {
   }
   rocks.castShadow = true; rocks.receiveShadow = true;
   const g = new THREE.Group(); g.add(mesh, rocks);
+  parts.moonTex = tex;
+  return g;
+}
+
+// Mars: big mountains and a volcano on the horizon, rolling ground, and dry river channels
+// carved by water long ago (like the ones NASA rovers explore in Jezero and Gale craters).
+function makeMarsTerrain(tex) {
+  const size = 900, seg = 260;
+  const geo = new THREE.PlaneGeometry(size, size, seg, seg);
+  geo.rotateX(-Math.PI / 2);
+  const rnd = seeded(7);
+  const craters = [];
+  for (let i = 0; i < 40; i++) {
+    const r = Math.pow(rnd(), 2) * 24 + 4, x = (rnd() - .5) * size * .8, z = (rnd() - .5) * size * .8;
+    if (Math.hypot(x, z) > 60 + r) craters.push({ x, z, r, d: r * .1 }); // old, worn-down craters
+  }
+  // Dry river beds: centre line z = f(x) (main river) and a second one on a diagonal.
+  const river1 = x => 62 + 30 * Math.sin(x * .018) + 14 * Math.sin(x * .051 + 1);
+  const river2 = u => -120 + 34 * Math.sin(u * .014 + 2) + 10 * Math.sin(u * .043);
+  const SQ = Math.SQRT1_2;
+  const pos = geo.attributes.position, cols = new Float32Array(pos.count * 3);
+  const base = new THREE.Color(0xd2784a), dark = new THREE.Color(0x7c3a22), sand = new THREE.Color(0xe6b07a), tmp = new THREE.Color();
+  for (let i = 0; i < pos.count; i++) {
+    const x = pos.getX(i), z = pos.getZ(i), dist = Math.hypot(x, z);
+    let y = (fbm(x * .007, z * .007, 5) - .5) * 26 + (fbm(x * .06, z * .06, 3) - .5) * 1.6;
+    y *= THREE.MathUtils.smoothstep(dist, 22, 90);
+    // ridged mountains far from the base
+    const ridge = 1 - Math.abs(2 * fbm(x * .0045 + 9, z * .0045 - 4, 5) - 1);
+    const far = THREE.MathUtils.smoothstep(dist, 120, 300);
+    y += Math.pow(ridge, 3) * 140 * far;
+    // a big old volcano on the horizon
+    const dv = Math.hypot(x + 260, z + 240) / 150;
+    if (dv < 1.4) y += 120 * Math.pow(Math.max(0, 1 - dv / 1.4), 1.6) - (dv < .18 ? 30 * (1 - dv / .18) : 0);
+    for (const k of craters) {
+      const d = Math.hypot(x - k.x, z - k.z) / k.r;
+      if (d < 1) y -= k.d * (1 - d * d); else if (d < 1.5) y += k.d * .25 * (1 - (d - 1) / .5);
+    }
+    // river channels
+    let river = 0;
+    const d1 = Math.abs(z - river1(x)) / 9;
+    const u = (x + z) * SQ, v = (z - x) * SQ, d2 = Math.abs(v - river2(u)) / 7;
+    for (const d of [d1, d2]) {
+      if (d < 1) { y -= 4.5 * (1 - d * d); river = Math.max(river, 1 - d); }
+      else if (d < 1.8) y += .8 * (1 - (d - 1) / .8);
+    }
+    pos.setY(i, y);
+    // colours: rusty ground, darker high rock, pale sand on the river floors
+    const n = fbm(x * .03 + 3, z * .03, 3);
+    tmp.copy(base).lerp(dark, Math.min(1, Math.max(0, (y - 8) / 70) + (n - .5) * .5)).lerp(sand, river * .8);
+    cols.set([tmp.r, tmp.g, tmp.b], i * 3);
+  }
+  geo.setAttribute('color', new THREE.BufferAttribute(cols, 3));
+  geo.computeVertexNormals();
+  const mat = new THREE.MeshStandardMaterial({ map: tex, bumpMap: tex, bumpScale: 1.4, roughness: 1, vertexColors: true });
+  const mesh = new THREE.Mesh(geo, mat);
+  mesh.receiveShadow = true;
+
+  const rockGeo = new THREE.DodecahedronGeometry(1, 1);
+  const rp = rockGeo.attributes.position;
+  for (let i = 0; i < rp.count; i++) rp.setXYZ(i, rp.getX(i) * (1 + (hash(i, 4) - .5) * .6), rp.getY(i) * (.5 + hash(i, 5) * .4), rp.getZ(i) * (1 + (hash(i, 6) - .5) * .6));
+  rockGeo.computeVertexNormals();
+  const rocks = new THREE.InstancedMesh(rockGeo, new THREE.MeshStandardMaterial({ color: 0x6e3520, roughness: 1, flatShading: true }), 800);
+  const m = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler();
+  for (let i = 0; i < 800; i++) {
+    let x, z;
+    do { x = (rnd() - .5) * 300; z = (rnd() - .5) * 300; } while (Math.hypot(x, z) < 26);
+    const s = Math.pow(rnd(), 3) * 2.6 + .15;
+    q.setFromEuler(e.set(rnd() * 3, rnd() * 3, rnd() * 3));
+    m.compose(new THREE.Vector3(x, heightAt(geo, x, z, size, seg) + s * .15, z), q, new THREE.Vector3(s, s, s));
+    rocks.setMatrixAt(i, m);
+  }
+  rocks.castShadow = true; rocks.receiveShadow = true;
+  const g = new THREE.Group(); g.add(mesh, rocks);
   return g;
 }
 
@@ -158,7 +231,7 @@ function makeSky() {
 
 function label(key, icon) {
   const el = document.createElement('div');
-  el.className = 'scene-label';
+  el.className = 'scene-label t-' + key;
   el.innerHTML = `<span class="i">${icon}</span><span class="t"></span>`;
   const o = new CSS2DObject(el);
   parts.labels[key] = el;
@@ -272,7 +345,40 @@ function shieldPylon(level) {
   return g;
 }
 
-const BUILDERS = { solar: solarTower, oxygen: oxygenPlant, tank: tankPair, battery: batteryBank, shield: shieldPylon };
+// Mars solar farm: rows of tilted panels on the ground (Mars has wind and dust, no tall towers).
+function solarArray(level) {
+  const m = sharedMats(), g = new THREE.Group();
+  const rows = level + 1;
+  for (let r = 0; r < rows; r++) {
+    const p = new THREE.Mesh(new THREE.BoxGeometry(5.4, .1, 1.6), m.cells);
+    p.position.set(0, .9, (r - (rows - 1) / 2) * 2.1); p.rotation.x = -.45; g.add(p);
+    const fr = new THREE.Mesh(new THREE.BoxGeometry(5.5, .08, .1), m.frame);
+    fr.position.set(0, .55, p.position.z + .7); g.add(fr);
+    for (const sx of [-2.4, 2.4]) { const leg = new THREE.Mesh(new THREE.CylinderGeometry(.06, .06, .9), m.grey); leg.position.set(sx, .45, p.position.z); g.add(leg); }
+  }
+  return g;
+}
+
+// Mars oxygen machine: a gold box that pulls oxygen out of the CO₂ in the air, like NASA's MOXIE.
+function moxie(level) {
+  const m = sharedMats(), g = new THREE.Group();
+  const gold = metal(0xd4a537, .35, .9);
+  const box = new THREE.Mesh(new THREE.BoxGeometry(3.4, 2.4 + level * .3, 3), gold);
+  box.position.set(-1.6, box.geometry.parameters.height / 2, 0); g.add(box);
+  for (let i = 0; i < 3; i++) {
+    const fan = new THREE.Mesh(new THREE.CylinderGeometry(.55, .55, .2, 20), m.dark);
+    fan.rotation.z = Math.PI / 2; fan.position.set(-3.35, .8 + i * .7, -.8 + i * .8 * (i % 2 ? -1 : 1)); g.add(fan);
+  }
+  const tank = new THREE.Mesh(new THREE.CapsuleGeometry(.8, 2.2 + level * .5, 8, 20), m.white);
+  tank.rotation.z = Math.PI / 2; tank.position.set(2.2, 1, 0); g.add(tank);
+  const band = new THREE.Mesh(new THREE.TorusGeometry(.82, .07, 8, 24), m.o2Band);
+  band.rotation.y = Math.PI / 2; band.position.set(2.2, 1, 0); g.add(band);
+  return g;
+}
+
+const MOON_BUILDERS = { solar: solarTower, oxygen: oxygenPlant, tank: tankPair, battery: batteryBank, shield: shieldPylon };
+const MARS_BUILDERS = { ...MOON_BUILDERS, solar: solarArray, oxygen: moxie };
+const BUILDERS = new Proxy({}, { get: (_, type) => (planet === 'mars' ? MARS_BUILDERS : MOON_BUILDERS)[type] });
 const ICONS = { solar: 'sun', oxygen: 'oxygen', tank: 'tank', battery: 'battery', shield: 'shield' };
 
 // Radiation shield: a soft energy dome around the habitat (game effect, so kids can see it).
@@ -420,6 +526,25 @@ async function loadModels(base) {
   }
 }
 
+// Only on Mars: a wall of Martian soil around the habitat (extra radiation protection) and a greenhouse.
+function marsDecor() {
+  const g = new THREE.Group();
+  const soil = new THREE.MeshStandardMaterial({ color: 0x9c4e2c, roughness: 1, flatShading: true });
+  const berm = new THREE.Mesh(new THREE.TorusGeometry(6.2, 1.1, 6, 40, Math.PI * 1.6), soil);
+  berm.rotation.x = -Math.PI / 2; berm.rotation.z = 1.9; berm.scale.z = .7; berm.position.y = .2; g.add(berm);
+  const glass = new THREE.MeshStandardMaterial({ color: 0xbfe9ff, transparent: true, opacity: .35, roughness: .1, metalness: .2, depthWrite: false });
+  const dome = new THREE.Mesh(new THREE.SphereGeometry(2.6, 24, 12, 0, Math.PI * 2, 0, Math.PI / 2), glass);
+  dome.position.set(-6.5, 0, -7); g.add(dome);
+  const plants = new THREE.MeshStandardMaterial({ color: 0x3fa34d, roughness: .8 });
+  for (let i = 0; i < 9; i++) {
+    const p = new THREE.Mesh(new THREE.ConeGeometry(.35, .9, 6), plants);
+    p.position.set(-6.5 + Math.cos(i * 2.4) * 1.4 * (i % 3 / 2 + .3), .45, -7 + Math.sin(i * 2.4) * 1.4 * (i % 3 / 2 + .3)); g.add(p);
+  }
+  const ring = new THREE.Mesh(new THREE.CylinderGeometry(2.65, 2.65, .3, 24), metal(0xdddddd));
+  ring.position.set(-6.5, .15, -7); g.add(ring);
+  return shadow(g);
+}
+
 function makeBase() {
   const base = new THREE.Group();
   parts.base = base;
@@ -434,6 +559,7 @@ function makeBase() {
   lab('shield', icon('shield'), 0, 12.5, 0);
   lab('home', icon('home'), 0, 7.5, 0);
 
+  parts.marsDecor = marsDecor(); parts.marsDecor.visible = false; base.add(parts.marsDecor);
   parts.cables = new THREE.Group(); base.add(parts.cables);
   parts.buildings = new THREE.Group(); base.add(parts.buildings);
 
@@ -460,7 +586,7 @@ function makeHolder(b) {
   holder.add(shadow(BUILDERS[b.type](b.level)));
   holder.userData.buildingId = b.id;
   const el = document.createElement('div');
-  el.className = 'scene-label small';
+  el.className = 'scene-label small t-' + b.type;
   el.innerHTML = `<span class="i">${icon(ICONS[b.type])}</span>${b.level > 1 ? `<span class="lv">${b.level}</span>` : ''}`;
   const lab = new CSS2DObject(el);
   const box = new THREE.Box3().setFromObject(holder);
@@ -475,7 +601,7 @@ export function syncBuildings(list) {
   const seen = new Set();
   for (const b of list) {
     seen.add(b.id);
-    const key = b.type + b.level;
+    const key = planet + b.type + b.level;
     let o = objs.get(b.id);
     if (!o || o.key !== key) {
       if (o) removeHolder(o.holder);
@@ -611,7 +737,10 @@ export function initScene() {
   ambient = new THREE.AmbientLight(0x8890a0, .12);
   scene.add(sunLight, earthLight, ambient);
 
-  scene.add(makeTerrain(), makeSky(), makeBase());
+  parts.moonGround = makeTerrain();
+  parts.marsGround = makeMarsTerrain(parts.moonTex);
+  parts.marsGround.visible = false;
+  scene.add(parts.moonGround, parts.marsGround, makeSky(), makeBase());
   parts.dust = makeDust(); scene.add(parts.dust);
   scene.fog = new THREE.Fog(0x9c6b45, 60, 5000);
   storm.points = makeStormParticles();
@@ -668,8 +797,10 @@ export function setPlanet(p) {
   if (!ok || p === planet) return;
   planet = p;
   const mars = p === 'mars';
-  parts.groundMat.color.setHex(mars ? 0xd07a48 : 0xb9b6b0);
-  parts.rockMat.color.setHex(mars ? 0x7a4a33 : 0x8a8782);
+  parts.moonGround.visible = !mars;
+  parts.marsGround.visible = mars;
+  if (parts.marsDecor) parts.marsDecor.visible = mars;
+  for (const o of objs.values()) o.key = ''; // rebuild buildings in the Mars (or Moon) style
   if (parts.earth) parts.earth.visible = !mars;
   if (parts.rover) parts.rover.visible = mars;
   parts.sun.scale.setScalar(mars ? 170 : 260); // the Sun looks smaller from Mars
