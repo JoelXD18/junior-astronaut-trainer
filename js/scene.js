@@ -1606,9 +1606,8 @@ function tick() {
   // Shield
   const sh = mode === 'game' ? Math.min(target.shield / 5, 1) : 0;
   parts.shield.uniforms.power.value = lerp(parts.shield.uniforms.power.value, sh > 0 ? .35 + sh * .65 : 0, k);
-  // colour: blue when weak, purple in the middle, pink when very strong
-  const st = mode === 'game' ? Math.min(1, Math.max(0, (target.shield - 1) / 5)) : 0; // 1 energy = blue, 6+ = pink
-  shieldTarget.copy(st < .5 ? SH_BLUE : SH_PURPLE).lerp(st < .5 ? SH_PURPLE : SH_PINK, st < .5 ? st * 2 : (st - .5) * 2);
+  // 1 energy = blue, 2 = pink, 3 or more = purple
+  shieldTarget.copy(mode !== 'game' || target.shield <= 1 ? SH_BLUE : target.shield === 2 ? SH_PINK : SH_PURPLE);
   parts.shield.uniforms.color.value.lerp(shieldTarget, k);
   parts.shield.uniforms.time.value = time;
   parts.shield.uniforms.hit.value = storm.active && storm.blocked > 0 ? .5 + .5 * Math.sin(time * 25) : lerp(parts.shield.uniforms.hit.value, 0, k);
