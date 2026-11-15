@@ -357,4 +357,5 @@ export default {
   nickWords: {"format":"{a} {n} {d}","nouns":["Comet","Rocket","Star","Astronaut","Rover","Moon","Nebula","Meteor","Galaxy","Orbit","Satellite","Planet","Pilot","Falcon","Lander","Explorer"],"adjs":["Brave","Swift","Bright","Bold","Happy","Strong","Awesome","Loyal","Skilled","Tough","Cheerful","Stellar","Cosmic","Lunar","Solar","Agile"]},
   rankNickHint: "This is how other players see you in the ranking.",
   creditsLinkedin: "Creator on LinkedIn:",
+  loadingMission: "Preparing the mission…",
 };

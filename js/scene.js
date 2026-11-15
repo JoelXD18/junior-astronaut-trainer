@@ -1164,6 +1164,15 @@ function GAME_CAM() { return window.innerWidth < 700 ? new THREE.Vector3(34, 62,
 // The lander comes down from the sky onto the landing site, then the camera flies to the base view.
 // times: { T1, T2, T3, T4, fly } in seconds, worked out from how long the radio lines last.
 // hold(): true while the radio still has to finish before the next shot (safety for browser voices).
+// Get the scene ready before a film starts: wait for the lander model and prepare the graphics for the
+// current planet (so the first seconds don't stutter while the computer works that out).
+export async function prepareScene() {
+  if (!ok) return;
+  await Promise.race([lmReady, new Promise(r => setTimeout(r, 8000))]);
+  try { renderer.compile(scene, camera); } catch { /* not important */ }
+  await Promise.race([new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r))), new Promise(r => setTimeout(r, 400))]);
+}
+
 export async function playLanding(done, onProgress, { crash = false, times = null, hold = null } = {}) {
   if (!ok) { done?.(); return; }
   await Promise.race([lmReady, new Promise(r => setTimeout(r, 6000))]); // wait for the lander model

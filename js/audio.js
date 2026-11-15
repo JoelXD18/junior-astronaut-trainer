@@ -126,6 +126,16 @@ function playClip(c, done) {
 }
 function stopClip() { if (clip) { const a = clip; clip = null; a.pause(); a.onended?.(); } }
 
+// Download the recorded clips of some lines in advance (so the first words are not late). Resolves when they are
+// ready or after a few seconds, whatever comes first.
+export function preloadLines(lines, lang) {
+  const files = [...new Set(lines.map(l => clipFor(l.who, l.text, lang)?.file).filter(Boolean))];
+  return Promise.race([
+    Promise.all(files.map(f => fetch(f).then(r => r.blob()).catch(() => null))),
+    new Promise(r => setTimeout(r, 6000)),
+  ]);
+}
+
 // How long a radio line takes (seconds), including the beeps and the pause after it.
 export function lineTime(l, lang) {
   const c = clipFor(l.who, l.text, lang);

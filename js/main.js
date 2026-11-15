@@ -7,10 +7,10 @@ import { MAPS, DOSE_LIMIT, BUILDINGS, MAX_LEVEL, newGame, playDay, available, en
   ESCAPE, partsCollected, partsNeeded, roverCost, roverProblem, sendRover, canRepair, repairAndLaunch,
   roverDays, escapeDeadline, roverRepairProblem, repairRover, launchProblem } from './game.js';
 import { initScene, setMode, setLabels, updateScene, playStorm, syncBuildings, setSelected, onPickBuilding,
-  startPlacing, stopPlacing, resetView, setPlanet, playLanding, playLaunch, skipAnimation, resetLander, playIntro,
+  startPlacing, stopPlacing, resetView, setPlanet, playLanding, playLaunch, skipAnimation, resetLander, playIntro, prepareScene,
   setDebris, setCrashed, driveRover, returnRover, setRover, onPickDebris, playLose } from './scene.js';
 import { isUnlocked, unlock, best, saveBest, unlockAll, setUnlockAll } from './progress.js';
-import { playMusic, setVolume, toggleMute, audioSettings, speak, stopSpeaking, radio, stopRadio, radioBusy, radioTime, sfx } from './audio.js';
+import { playMusic, setVolume, toggleMute, audioSettings, speak, stopSpeaking, radio, stopRadio, radioBusy, radioTime, sfx, preloadLines } from './audio.js';
 import { DEMOS } from './demos.js';
 import { submitScore, topScores, myNick, newNick, nickName } from './ranking.js';
 import { icon } from './icons.js';
@@ -323,6 +323,7 @@ function gameScreen() {
 
     <div class="bottom">${bottom}</div>
   </section>
+  ${cinematic === 'loading' ? `<div class="loading-screen"><div class="ls-box"><span class="ls-ico">${icon('rocket')}</span><span class="ls-text">${esc(t('loadingMission'))}</span><span class="ls-bar"><i></i></span></div></div>` : ''}
   ${cinematic === 'landing' ? `<div class="landing-cap"><span class="cap-who" id="cap-who"></span><span class="cap-phase" id="cap-phase"></span></div>` : ''}
   ${cinematic ? `<button class="btn grey small skip" data-action="skip">${esc(t('skip'))} ⏭</button>` : ''}`;
 }
@@ -576,6 +577,7 @@ function termHtml(key) {
 // Which music fits what is on screen now.
 function musicFor() {
   if (cinematic === 'landing') return 'landing';
+  if (cinematic === 'loading') return 'menu';
   if (cinematic === 'launch' || screen === 'roll') return 'credits';
   if (cinematic === 'lose') return null; // silence, only the alarm
   if (screen === 'game') return showHelp ? 'tutorial' : 'game';
@@ -637,8 +639,18 @@ function startGame() {
   stopPlacing(); resetLander(); setPlanet(game.map);
   setDebris(game.mode === 'escape' ? game.debris : null);
   setCrashed(false);
-  cinematic = 'landing';
   screen = 'game';
+  // Loading screen: the ship, the first voices and the graphics get ready, then the landing starts in step.
+  cinematic = 'loading';
+  render();
+  const mars = game.map === 'mars';
+  const firstLines = ['approach', 'braking', 'final', 'crash', 'landed'].flatMap(p => radioScript(p, mars));
+  const myGame = game;
+  Promise.race([Promise.all([prepareScene(), preloadLines(firstLines, lang())]), new Promise(r => setTimeout(r, 10000))]).then(() => { if (game === myGame && cinematic === 'loading') beginLanding(); });
+}
+
+function beginLanding() {
+  cinematic = 'landing';
   playMusic('landing', { restart: true });
   // Captions during the landing (updated every frame without redrawing the screen)
   let lastPhase = '';
