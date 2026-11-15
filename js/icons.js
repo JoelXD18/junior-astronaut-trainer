@@ -53,6 +53,15 @@ export const ICONS = {
       <circle cx="22" cy="40" r="3" fill="#7986cb"/><circle cx="30" cy="50" r="2" fill="#7986cb"/>`,
       grad(g, '#e8eaf6', '#7986cb'));
   },
+  rover() {
+    const g = 'rv' + uid++;
+    return wrap(`<rect x="10" y="24" width="44" height="16" rx="5" fill="url(#${g})" stroke="#263238" stroke-width="3.5"/>
+      <rect x="30" y="12" width="4" height="13" fill="#263238"/><circle cx="32" cy="11" r="5" fill="#ffd54f" stroke="#263238" stroke-width="3"/>
+      <circle cx="18" cy="46" r="7" fill="#455a64" stroke="#263238" stroke-width="3.5"/><circle cx="46" cy="46" r="7" fill="#455a64" stroke="#263238" stroke-width="3.5"/>
+      <circle cx="18" cy="46" r="2.5" fill="#cfd8dc"/><circle cx="46" cy="46" r="2.5" fill="#cfd8dc"/>
+      <path d="M15 29 H49" stroke="#fff" stroke-width="2.5" opacity=".6" stroke-linecap="round"/>`,
+      grad(g, '#ffb74d', '#ef6c00'));
+  },
   hammer() {
     const g = 'h' + uid++;
     // a claw hammer: wooden handle, metal head with a flat striking face and a curved claw

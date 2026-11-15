@@ -553,22 +553,29 @@ export const SEV_SPOT = [6, 21], HELI_SPOT = [-3, 20]; // decorations outside th
 
 // Extra habitat modules: copies of NASA's Habitat Demonstration Unit (parts 1 and 2) around the main habitat,
 // joined to it by tunnels. The Moon and Mars bases are laid out differently.
+// The NASA habitat model is a dome with its own tube sticking out. Measured on the model (4.6 m tall): the dome's
+// centre is 1 m behind the middle of the model, the tube ends 4.02 m in front, and the dome is 1.76 m wide (radius).
+// Each new module is placed so that the previous tube ends right against its dome: a chain of real modules.
+const HAB = { h: 4.6, dome: -1.0, end: 4.02, r: 1.76 };
 const BASE_LAYOUT = {
-  moon: [[-9, -4, .9, 1], [6, -9.5, -.9, 2], [-8.5, 7, 2.6, 1]],          // x, z, turn, which model
-  mars: [[-9.5, -8, .5, 2], [0, -11, 0, 1], [9.5, -8, -.5, 2]],
+  moon: { start: 1.57, turns: [1.1, 1.1, 1.1] },  // the chain curves round the north side of the base
+  mars: { start: 4.2, turns: [1.2, 1.2] },        // a different, shorter base to the south
 };
-function buildModules(hab1, hab2, layout) {
-  const g = new THREE.Group(), white = metal(0xe6e6e2, .45, .35);
-  for (const [x, z, rot, which] of layout) {
-    const src = which === 1 ? hab1 : hab2;
-    if (!src) continue;
-    const m = placeModel(src.clone(true), 4.6, x, z, rot); // clone first, then scale (each copy on its own)
+function buildBase(hab, layout) {
+  const g = new THREE.Group();
+  const H0 = 5.5, s0 = H0 / HAB.h;
+  const main = placeModel(hab.clone(true), H0, 0, 0, layout.start); // clone first, then scale (each copy on its own)
+  g.add(main);
+  let rot = layout.start, dir = [Math.cos(rot), -Math.sin(rot)];
+  let tube = [dir[0] * HAB.end * s0, dir[1] * HAB.end * s0];
+  for (const turn of layout.turns) {
+    const c = [tube[0] + dir[0] * HAB.r, tube[1] + dir[1] * HAB.r];   // centre of the next dome
+    rot += turn; dir = [Math.cos(rot), -Math.sin(rot)];
+    const x = c[0] - dir[0] * HAB.dome, z = c[1] - dir[1] * HAB.dome;
+    const m = placeModel(hab.clone(true), HAB.h, x, z, rot);
     m.position.y = groundY(x, z);
     g.add(m);
-    const d = Math.hypot(x, z) - 5;
-    const tunnel = new THREE.Mesh(new THREE.CylinderGeometry(.85, .85, d, 14), white);
-    tunnel.position.set(x / 2, 1.2, z / 2); tunnel.rotation.z = Math.PI / 2; tunnel.rotation.y = -Math.atan2(z, x) + Math.PI;
-    g.add(tunnel);
+    tube = [x + dir[0] * HAB.end, z + dir[1] * HAB.end];
   }
   return shadow(g);
 }
@@ -725,13 +732,11 @@ async function loadModels(base) {
   loader.setDRACOLoader(draco);
   const load = n => loader.loadAsync(`assets/models/${n}.glb`).then(g => g.scene).catch(() => null);
   // Each model appears as soon as it has loaded (the big rover doesn't hold up the others).
-  // main habitat + extra modules (real NASA habitat models), different layout on each planet
-  Promise.all([load('habitat-1'), load('habitat-2')]).then(([hab, hab2]) => {
+  // main habitat + extra modules joined by their own tubes (real NASA habitat model), different on each planet
+  load('habitat-1').then(hab => {
     if (!hab) return;
-    const keep = hab.clone(true), keep2 = hab2 ? hab2.clone(true) : null;
-    base.add(placeModel(hab, 5.5, 0, 0, -.4));
-    parts.moonBase = buildModules(keep, keep2, BASE_LAYOUT.moon);
-    parts.marsBase = buildModules(keep, keep2, BASE_LAYOUT.mars);
+    parts.moonBase = buildBase(hab, BASE_LAYOUT.moon);
+    parts.marsBase = buildBase(hab, BASE_LAYOUT.mars);
     parts.moonBase.visible = planet !== 'mars'; parts.marsBase.visible = planet === 'mars';
     base.add(parts.moonBase, parts.marsBase);
   });
@@ -790,8 +795,6 @@ async function loadModels(base) {
 function marsDecor() {
   const g = new THREE.Group();
   const soil = new THREE.MeshStandardMaterial({ color: 0x9c4e2c, roughness: 1, flatShading: true });
-  const berm = new THREE.Mesh(new THREE.TorusGeometry(6.2, 1.1, 6, 40, Math.PI * 1.6), soil);
-  berm.rotation.x = -Math.PI / 2; berm.rotation.z = 1.9; berm.scale.z = .7; berm.position.y = .2; g.add(berm);
   return shadow(g);
 }
 
@@ -851,12 +854,13 @@ function makeRover() {
   return shadow(g);
 }
 
-// A small red sign over the rover when a storm has broken it.
+// A sign that always floats over the rover (so kids can find it); it turns into a red warning when broken.
 function brokenSign() {
   const el = document.createElement('div');
-  el.className = 'scene-label small t-broken';
-  el.innerHTML = `<span class="i">${icon('warning')}</span>`;
+  el.className = 'scene-label small t-rover';
+  el.innerHTML = `<span class="i">${icon('rover')}</span>`;
   const lab = new CSS2DObject(el); lab.position.y = 3.4; lab.visible = false;
+  lab.userData.broken = false;
   return lab;
 }
 // The rover used for the escape mode: the Apollo-style one on the Moon, Perseverance on Mars.
@@ -870,7 +874,7 @@ function roverStop(id) {
 function placeRover(r, pos, broken) {
   r.position.set(pos.x, vehicleY(pos.x, pos.z), pos.z);
   r.userData.broken = broken;
-  if (r.userData.sign) r.userData.sign.visible = broken;
+
 }
 
 // Show the rover where the game says it is (when it is not driving).
@@ -1500,7 +1504,17 @@ function tick() {
     o.userData.ring.visible = show; o.userData.label.visible = show; // CSS labels do not hide with their parent
     o.userData.ring.material.opacity = .45 + .4 * Math.sin(time * 3 + o.userData.debrisId);
   }
-  for (const r of [parts.lrv, parts.perse]) if (r?.userData.sign) r.userData.sign.visible = !!r.userData.broken && r.visible;
+  for (const r of [parts.lrv, parts.perse]) {
+    const s = r?.userData.sign;
+    if (!s) continue;
+    s.visible = r.visible && mode === 'game' && parts.debrisGroup.visible; // escape mode: the rover is a game piece
+    const broken = !!r.userData.broken;
+    if (s.userData.broken !== broken) {
+      s.userData.broken = broken;
+      s.element.className = 'scene-label small ' + (broken ? 't-broken' : 't-rover');
+      s.element.innerHTML = `<span class="i">${icon(broken ? 'warning' : 'rover')}</span>`;
+    }
+  }
   // Rover trip: out to the part, pick it up, back to the ship
   const trip = parts.roverTrip;
   if (trip) {
