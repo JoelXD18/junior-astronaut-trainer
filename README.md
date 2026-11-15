@@ -5,6 +5,8 @@ Built solo by team RAMOS for the NASA Space Apps Challenge 2026 (Salamanca local
 
 **▶ Play in the browser (no download, no account):** https://joelxd18.github.io/junior-astronaut-trainer/
 
+**🎬 30-second demo video:** https://joelxd18.github.io/junior-astronaut-trainer/demo/base-commander-demo.mp4 (narration voice generated with AI – Google Gemini text-to-speech; gameplay recorded from the real game)
+
 ## What it is
 
 You command a base on the Moon or on Mars. Every day you get energy from the Sun and you decide where it goes:
