@@ -953,7 +953,7 @@ function makeBase() {
   }
   // Habitat lights for the night
   for (const [x, z] of [[4, 4], [-4, 4], [0, -5]]) {
-    const l = new THREE.PointLight(0xffd8a0, 0, 16, 2); l.position.set(x, 3, z); base.add(l); parts.lights.push(l);
+    const l = new THREE.PointLight(0xffd8a0, 0, 16, 2); l.position.set(x, 3, z); l.visible = false; base.add(l); parts.lights.push(l);
   }
   const lab = (key, icon, x, y, z) => { const o = label(key, icon); o.position.set(x, y, z); base.add(o); };
   lab('shield', icon('shield'), 0, SHIELD_R + 1.5, 0);
@@ -1190,7 +1190,7 @@ export function initScene() {
 
   setMode('menu', true);
   const el = renderer.domElement;
-  window.__jamt = { camera, controls, parts, THREE, scene, storm: (s, b) => playStorm(s, b), seek: s => { if (anim) anim.t = s; }, get anim() { return anim && { kind: anim.kind, t: anim.t, T: anim.T, waiting: anim.waiting }; }, get state() { return { planet, mode, target, sun: sunLight.intensity, amb: ambient.intensity, bg: scene.background.getHexString(), sky: skyColor.getHexString() }; } }; // for testing in the browser console
+  window.__jamt = { camera, controls, parts, THREE, scene, renderer, storm: (s, b) => playStorm(s, b), seek: s => { if (anim) anim.t = s; }, get anim() { return anim && { kind: anim.kind, t: anim.t, T: anim.T, waiting: anim.waiting }; }, get state() { return { planet, mode, target, sun: sunLight.intensity, amb: ambient.intensity, bg: scene.background.getHexString(), sky: skyColor.getHexString() }; } }; // for testing in the browser console
   el.addEventListener('pointerdown', e => { downAt = [e.clientX, e.clientY]; });
   el.addEventListener('pointermove', onMove);
   el.addEventListener('pointerup', onUp);
@@ -1284,10 +1284,19 @@ function GAME_CAM() { return window.innerWidth < 700 ? new THREE.Vector3(34, 62,
 // hold(): true while the radio still has to finish before the next shot (safety for browser voices).
 // Get the scene ready before a film starts: wait for the lander model and prepare the graphics for the
 // current planet (so the first seconds don't stutter while the computer works that out).
+let nightLightsOn = false;
+function setNightLights(on) {
+  if (on === nightLightsOn) return;
+  nightLightsOn = on;
+  parts.lights.forEach(l => { l.visible = on; });
+  parts.bLights?.forEach(l => { l.visible = on; });
+}
+
 export async function prepareScene() {
   if (!ok) return;
   await Promise.race([lmReady, new Promise(r => setTimeout(r, 8000))]);
-  try { renderer.compile(scene, camera); } catch { /* not important */ }
+  // prepare the graphics for both day and night now, so nightfall later doesn't stutter
+  try { const was = nightLightsOn; setNightLights(true); renderer.compile(scene, camera); setNightLights(false); renderer.compile(scene, camera); setNightLights(was); } catch { /* not important */ }
   await Promise.race([new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r))), new Promise(r => setTimeout(r, 400))]);
 }
 
@@ -1562,8 +1571,10 @@ function tick() {
   parts.sun.material.opacity = lerp(parts.sun.material.opacity, night ? 0 : 1, k);
   parts.lights.forEach(l => { l.intensity = lerp(l.intensity, night ? 40 : 0, k); });
   if (lampMat) lampMat.emissiveIntensity = lerp(lampMat.emissiveIntensity, night ? 3 : 0, k);
-  parts.bLights?.forEach(l => { l.intensity = lerp(l.intensity, night && l.userData.on ? 40 : 0, k); l.visible = l.intensity > .5; });
-  parts.lights.forEach(l => { l.visible = l.intensity > .5; });
+  parts.bLights?.forEach(l => { l.intensity = lerp(l.intensity, night && l.userData.on ? 40 : 0, k); });
+  // switch every night light on or off together: each change in the number of lights makes the graphics card
+  // rebuild its shaders (a stutter), so it must happen once, not once per light
+  setNightLights(night || parts.lights[0].intensity > .5);
   for (const r of [parts.lrv, parts.perse]) if (r?.userData.spot) r.userData.spot.intensity = lerp(r.userData.spot.intensity, night ? 120 : 0, k);
   if (mats.cells) mats.cells.emissiveIntensity = lerp(mats.cells.emissiveIntensity, night ? 0 : .25, k);
   if (parts.globe) parts.globe.rotation.y += dt * .01;
