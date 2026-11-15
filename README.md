@@ -24,7 +24,9 @@ Mission Control warns you when "scientists saw a flare", and after a storm tells
 If NASA can't be reached, the game clearly says it is using a saved copy, not live data.
 
 ### Three modes
-- **Escape** – your ship crash-lands. Send the rover for its 5 broken parts (outside there is no shield!), repair
+- **Escape** – your ship crash-lands. Send the rover for its 5 broken parts: each trip takes 1–2 days, outside there is
+  no shield, and a strong storm damages the rover (it comes back late and must be repaired). The food lasts 21 days on the
+  Moon and 18 sols on Mars. Repair
   the ship and fly home.
 - **Survival** – keep the crew safe for 14 days.
 - **Infinite** – last as long as you can and beat your record.
@@ -71,7 +73,7 @@ The game idea, the modes, the look and every design choice are the creator's. An
 (**Claude Code, by Anthropic**) wrote the code under his direction, offered options with pros and cons when he asked
 (he chose), looked up and summarised the NASA data sources, wrote the English/Spanish texts and the radio script,
 and balanced the numbers by simulating thousands of games. **All code in this repository was written with AI
-assistance.** No AI-generated images, video or music are used. The voices are AI-generated (Google Gemini text-to-speech) from texts written for the game.
+assistance.** No AI-generated images or music are used. The voices (in the game and in the demo video narration) are AI-generated with Google Gemini text-to-speech from texts written for the game.
 
 ## Run locally
 
