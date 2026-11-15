@@ -548,6 +548,7 @@ const BUILDERS = new Proxy({}, { get: (_, type) => (planet === 'mars' ? MARS_BUI
 const ICONS = { solar: 'sun', oxygen: 'oxygen', tank: 'tank', battery: 'battery', shield: 'shield' };
 
 // Radiation shield: a soft energy dome around the habitat (game effect, so kids can see it).
+const SH_BLUE = new THREE.Color(0x3fa9ff), SH_PURPLE = new THREE.Color(0x9b6bff), SH_PINK = new THREE.Color(0xff5fd2), shieldTarget = new THREE.Color();
 const SHIELD_R = 14.5; // covers the habitat and its extra modules
 export const SEV_SPOT = [6, 21], HELI_SPOT = [-3, 20]; // decorations outside the dome (kept free in game.js)
 
@@ -946,15 +947,9 @@ function makeBase() {
   base.add(shieldDome());
   const f = flag(); f.position.set(-21.5, 0, 19.5); f.rotation.y = .5; base.add(f);
 
-  // Night lights over the buildings: a fixed set of six warm lights, each placed over a group of nearby buildings
-  // (they move whenever something is built or moved, so new buildings are lit too)
-  parts.cLights = [];
-  for (let i = 0; i < 6; i++) {
-    const l = new THREE.PointLight(0xffd8a0, 0, 22, 1.6); l.position.set(0, -50, 0); l.visible = false; base.add(l); parts.cLights.push(l);
-  }
   // Habitat lights for the night
   for (const [x, z] of [[4, 4], [-4, 4], [0, -5]]) {
-    const l = new THREE.PointLight(0xffd8a0, 0, 16, 2); l.position.set(x, 3, z); l.visible = false; base.add(l); parts.lights.push(l);
+    const l = new THREE.PointLight(0xffd8a0, 0, 16, 2); l.position.set(x, 3, z); base.add(l); parts.lights.push(l);
   }
   const lab = (key, icon, x, y, z) => { const o = label(key, icon); o.position.set(x, y, z); base.add(o); };
   lab('shield', icon('shield'), 0, SHIELD_R + 1.5, 0);
@@ -1011,6 +1006,9 @@ export function syncBuildings(list) {
     if (!o || o.key !== key) {
       if (o) removeHolder(o.holder);
       o = { holder: makeHolder(b), key };
+      const nl = new THREE.PointLight(0xffd8a0, night0(), 15, 1.8);
+      nl.position.set(1.8, o.holder.userData.lightY || 3.5, 1.8);
+      o.holder.add(nl); o.holder.userData.nightLight = nl;
       objs.set(b.id, o);
       parts.buildings.add(o.holder);
     }
@@ -1020,9 +1018,6 @@ export function syncBuildings(list) {
   }
   for (const [id, o] of objs) if (!seen.has(id)) { removeHolder(o.holder); objs.delete(id); }
   parts.spinners = [...objs.values()].map(o => o.holder.children[0]?.userData?.spin).filter(Boolean);
-  // every building (also new ones) glows a little at night, and the night lights go over each group of buildings
-  for (const o of objs.values()) addNightGlow(o.holder);
-  placeClusterLights([...objs.values()].map(o => o.holder.position));
 
   // Cables from every building to the habitat
   parts.cables.children.slice().forEach(c => { c.geometry.dispose(); parts.cables.remove(c); });
@@ -1311,19 +1306,19 @@ function placeClusterLights(points) {
   });
 }
 
+const night0 = () => (target.night && mode === 'game' ? 38 : 0); // a building built at night is lit at once
 let nightLightsOn = false;
 function setNightLights(on) {
   if (on === nightLightsOn) return;
   nightLightsOn = on;
   parts.lights.forEach(l => { l.visible = on; });
-  parts.cLights?.forEach(l => { l.visible = on; });
 }
 
 export async function prepareScene() {
   if (!ok) return;
   await Promise.race([lmReady, new Promise(r => setTimeout(r, 8000))]);
   // prepare the graphics for both day and night now, so nightfall later doesn't stutter
-  try { const was = nightLightsOn; setNightLights(true); renderer.compile(scene, camera); setNightLights(false); renderer.compile(scene, camera); setNightLights(was); } catch { /* not important */ }
+  try { renderer.compile(scene, camera); } catch { /* not important */ }
   await Promise.race([new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r))), new Promise(r => setTimeout(r, 400))]);
 }
 
@@ -1599,12 +1594,8 @@ function tick() {
   parts.lights.forEach(l => { l.intensity = lerp(l.intensity, night ? 40 : 0, k); });
   if (lampMat) lampMat.emissiveIntensity = lerp(lampMat.emissiveIntensity, night ? 3 : 0, k);
   // buildings glow warm at night (cheap: no extra lights to calculate on every pixel)
-  parts.cLights?.forEach(l => { l.intensity = lerp(l.intensity, night && l.userData.on ? 55 : 0, k); });
-  nightGlow = lerp(nightGlow, night ? 1 : 0, k);
-  if (Math.abs(nightGlow - lastGlow) > .005) { lastGlow = nightGlow; for (const m of glowMats) m.emissive.setRGB(.16 * nightGlow, .11 * nightGlow, .06 * nightGlow); }
-  // switch every night light on or off together: each change in the number of lights makes the graphics card
-  // rebuild its shaders (a stutter), so it must happen once, not once per light
-  setNightLights(night || parts.lights[0].intensity > .5);
+  // each building's own light fades in at night
+  for (const o of objs.values()) { const l = o.holder.userData.nightLight; if (l) l.intensity = lerp(l.intensity, night ? 38 : 0, k); }
   for (const r of [parts.lrv, parts.perse]) if (r?.userData.spot) r.userData.spot.intensity = lerp(r.userData.spot.intensity, night ? 120 : 0, k);
   if (mats.cells) mats.cells.emissiveIntensity = lerp(mats.cells.emissiveIntensity, night ? 0 : .25, k);
   if (parts.globe) parts.globe.rotation.y += dt * .01;
@@ -1615,6 +1606,10 @@ function tick() {
   // Shield
   const sh = mode === 'game' ? Math.min(target.shield / 5, 1) : 0;
   parts.shield.uniforms.power.value = lerp(parts.shield.uniforms.power.value, sh > 0 ? .35 + sh * .65 : 0, k);
+  // colour: blue when weak, purple in the middle, pink when very strong
+  const st = mode === 'game' ? Math.min(1, Math.max(0, (target.shield - 1) / 5)) : 0; // 1 energy = blue, 6+ = pink
+  shieldTarget.copy(st < .5 ? SH_BLUE : SH_PURPLE).lerp(st < .5 ? SH_PURPLE : SH_PINK, st < .5 ? st * 2 : (st - .5) * 2);
+  parts.shield.uniforms.color.value.lerp(shieldTarget, k);
   parts.shield.uniforms.time.value = time;
   parts.shield.uniforms.hit.value = storm.active && storm.blocked > 0 ? .5 + .5 * Math.sin(time * 25) : lerp(parts.shield.uniforms.hit.value, 0, k);
 

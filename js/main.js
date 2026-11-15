@@ -300,6 +300,7 @@ function gameScreen() {
       ${strip ? `<div class="strip" aria-hidden="true">${strip}</div>` : ''}
       ${game.mode === 'escape' ? `<button class="ribbon parts" data-term="Parts">${icon('gear')}<span>${esc(t('partsShort', { n: partsCollected(game), m: partsNeeded() }))}</span></button>` : ''}
       ${roverRibbon()}
+      ${nightRibbon()}
       ${game.mode === 'escape' && launchProblem(game, freeEnergy()) === 'storm' ? `<button class="ribbon rover-broken" data-term="Storm">${icon('rocket')}<span>${esc(t('launchStorm'))}</span></button>` : ''}
       ${game.dust > 0 ? `<button class="ribbon dust" data-term="Dust">${icon('warning')}<span>${esc(t('dustShort', { n: game.dust }))}</span></button>` : ''}
       ${fc.warned
@@ -463,6 +464,18 @@ function creditsRoll() {
   </section>`;
 }
 
+// The lunar night is coming: warn two days before, so there is time to fill the batteries.
+function daysToNight() {
+  const map = MAPS[game.map];
+  if (!map.cycle || isNight(map, game.day)) return 0;
+  for (let d = 1; d <= 2; d++) if (isNight(map, game.day + d)) return d;
+  return 0;
+}
+function nightRibbon() {
+  const n = daysToNight();
+  return n ? `<button class="ribbon night-soon" data-term="Night">${icon('moon')}<span>${esc(t(n === 1 ? 'nightTomorrow' : 'nightIn2'))}</span></button>` : '';
+}
+
 function roverRibbon() {
   const rv = game.mode === 'escape' && game.rover;
   if (!rv || rv.status === 'home') return '';
@@ -525,6 +538,7 @@ function reportHtml(r) {
   if (r.oxygenLost > 0) items.push(['oxygen', t('oxygenTankFull', { n: r.oxygenLost }), 'bad']);
   if (r.wasted > 0) items.push(['battery', t('wastedMsg', { n: r.wasted }), 'bad']);
   if (r.status === 'playing' && !r.night && isNight(map, r.day + 1)) items.push(['moon', t('nightComing'), 'bad']);
+  else if (r.status === 'playing' && !r.night && isNight(map, r.day + 2)) items.push(['moon', t('nightIn2Report'), 'bad']);
   if (r.dustStarted) items.push(['warning', t('dustStarted', { n: game.dust }), 'bad']);
   const done = r.status !== 'playing';
   return windowHtml(esc(t('reportTitle', { day: r.day })),

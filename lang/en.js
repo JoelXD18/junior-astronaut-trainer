@@ -358,4 +358,7 @@ export default {
   rankNickHint: "This is how other players see you in the ranking.",
   creditsLinkedin: "Creator on LinkedIn:",
   loadingMission: "Preparing the mission…",
+  nightIn2: "Night in 2 days: save energy!",
+  nightTomorrow: "Night comes tomorrow!",
+  nightIn2Report: "The lunar night starts in 2 days: no sunlight for many days. Fill your batteries now!",
 };

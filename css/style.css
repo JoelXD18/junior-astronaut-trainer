@@ -765,3 +765,4 @@ button, .btn, [data-action], [data-go] { touch-action: manipulation; -webkit-tap
 .ls-bar i { display: block; height: 100%; width: 40%; border-radius: 999px; background: linear-gradient(90deg, #ffd54f, #f2a20c); animation: lsSlide 1.1s ease-in-out infinite; }
 @keyframes lsSlide { 0% { transform: translateX(-110%); } 100% { transform: translateX(260%); } }
 .scene-label.t-rover { background: linear-gradient(#ffffff, #cfd8dc); }
+.ribbon.night-soon { background: linear-gradient(#7c83ff, #3b3fa8); animation: alarm 1.6s ease-in-out infinite; }
