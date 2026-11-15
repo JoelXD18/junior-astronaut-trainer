@@ -324,6 +324,38 @@ function shadow(o) { o.traverse(m => { if (m.isMesh) { m.castShadow = true; m.re
 
 // ---------- buildings (made in code, sized in meters) ----------
 const mats = {};
+
+// ---------- night lights ----------
+// Instead of many real lights (slow on phones), each building gets a glowing lamp and a soft pool of light
+// drawn on the ground; the rovers get real headlights. They fade in at night.
+let poolMat = null, lampMat = null;
+const POOL_GEO = new THREE.CircleGeometry(1, 40);
+const LAMP_GEO = new THREE.SphereGeometry(.28, 12, 8);
+function nightMats() {
+  if (poolMat) return;
+  const c = document.createElement('canvas'); c.width = c.height = 128;
+  const g = c.getContext('2d'), gr = g.createRadialGradient(64, 64, 0, 64, 64, 64);
+  gr.addColorStop(0, 'rgba(255,214,150,1)'); gr.addColorStop(.45, 'rgba(255,190,110,.45)'); gr.addColorStop(1, 'rgba(255,170,90,0)');
+  g.fillStyle = gr; g.fillRect(0, 0, 128, 128);
+  poolMat = new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(c), transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending });
+  lampMat = new THREE.MeshStandardMaterial({ color: 0xfff1c9, emissive: 0xffc46b, emissiveIntensity: 0 });
+}
+function lightPool(radius) {
+  nightMats();
+  const p = new THREE.Mesh(POOL_GEO, poolMat);
+  p.rotation.x = -Math.PI / 2; p.position.y = .07; p.scale.setScalar(radius);
+  p.raycast = () => {}; // not clickable
+  return p;
+}
+function headlights(g, front = 1.6, height = 1.1, side = .5) {
+  nightMats();
+  const spot = new THREE.SpotLight(0xfff2cc, 0, 34, .55, .55, 1.4);
+  spot.position.set(front, height, 0); spot.target.position.set(front + 10, 0, 0);
+  g.add(spot, spot.target);
+  for (const z of [-side, side]) { const l = new THREE.Mesh(LAMP_GEO, lampMat); l.scale.setScalar(.6); l.position.set(front, height - .1, z); g.add(l); }
+  const beam = lightPool(3.2); beam.scale.set(4.5, 3, 1); beam.position.set(front + 4.5, .07, 0); g.add(beam);
+  g.userData.spot = spot;
+}
 function sharedMats() {
   if (mats.cells) return mats;
   mats.cells = new THREE.MeshStandardMaterial({ color: 0x0c1a3a, roughness: .25, metalness: .8, emissive: 0x0a1a44, emissiveIntensity: 0 });
@@ -606,6 +638,7 @@ async function loadModels(base) {
     parts.perse.position.y = groundY(ROVER_HOME.x, ROVER_HOME.z);
     parts.perse.userData.forward = PERSE_FORWARD;
     parts.perse.userData.sign = brokenSign(); parts.perse.add(parts.perse.userData.sign);
+    { const h = new THREE.Group(); h.rotation.y = PERSE_FORWARD; parts.perse.add(h); headlights(h, 1.7, 1.2, .6); parts.perse.userData.spot = h.userData.spot; }
     parts.perse.visible = planet === 'mars';
     base.add(parts.perse);
   });
@@ -782,6 +815,7 @@ function makeBase() {
   parts.debrisGroup = new THREE.Group(); parts.debrisGroup.visible = false; base.add(parts.debrisGroup);
   parts.lrv = makeRover(); parts.lrv.position.copy(ROVER_HOME); parts.lrv.rotation.y = 2.2; parts.lrv.visible = false; base.add(parts.lrv);
   parts.lrv.userData.sign = brokenSign(); parts.lrv.add(parts.lrv.userData.sign);
+  headlights(parts.lrv);
   parts.smoke = makeSmoke(); parts.smoke.visible = false; base.add(parts.smoke);
   base.add(shieldDome());
   const f = flag(); f.position.set(-21.5, 0, 19.5); f.rotation.y = .5; base.add(f);
@@ -825,6 +859,9 @@ function makeHolder(b) {
   el.innerHTML = `<span class="i">${icon(ICONS[b.type])}</span>${b.level > 1 ? `<span class="lv">${b.level}</span>` : ''}`;
   const lab = new CSS2DObject(el);
   const box = new THREE.Box3().setFromObject(holder);
+  // night lights: a lamp on top and a pool of light on the ground around the building
+  holder.add(lightPool((b.radius || 3) + 3));
+  const lamp = new THREE.Mesh(LAMP_GEO, lampMat); lamp.position.y = box.max.y + .25; lamp.raycast = () => {}; holder.add(lamp);
   lab.position.set(0, box.max.y + 1.2, 0);
   holder.add(lab);
   return holder;
@@ -1324,10 +1361,12 @@ function tick() {
 
   sunLight.intensity = lerp(sunLight.intensity, night ? 0 : 3.2, k);
   // Mars: its dusty air spreads sunlight around, so shadows are softer and everything is easier to see
-  ambient.intensity = lerp(ambient.intensity, night ? .05 : planet === 'mars' ? .55 : .12, k);
+  ambient.intensity = lerp(ambient.intensity, night ? .1 : planet === 'mars' ? .55 : .12, k);
   earthLight.intensity = lerp(earthLight.intensity, night ? .35 : .12, k);
   parts.sun.material.opacity = lerp(parts.sun.material.opacity, night ? 0 : 1, k);
   parts.lights.forEach(l => { l.intensity = lerp(l.intensity, night ? 40 : 0, k); });
+  if (poolMat) { poolMat.opacity = lerp(poolMat.opacity, night ? .85 : 0, k); lampMat.emissiveIntensity = lerp(lampMat.emissiveIntensity, night ? 3 : 0, k); }
+  for (const r of [parts.lrv, parts.perse]) if (r?.userData.spot) r.userData.spot.intensity = lerp(r.userData.spot.intensity, night ? 120 : 0, k);
   if (mats.cells) mats.cells.emissiveIntensity = lerp(mats.cells.emissiveIntensity, night ? 0 : .25, k);
   if (parts.globe) parts.globe.rotation.y += dt * .01;
 

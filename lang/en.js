@@ -49,7 +49,7 @@ export default {
   stormBlocked: 'A solar storm (strength {s}) hit! Your shield blocked all of it. 🛡️',
   stormPartial: 'A solar storm (strength {s}) hit! Your shield blocked {b}. The crew got {d}% more radiation.',
   stormNone: 'No solar storm today.',
-  falseAlarm: 'The warning was a false alarm. Space weather is hard to predict, even for scientists!',
+  falseAlarm: "Lucky! The flare missed the base: no storm reached you today. Scientists can see a flare, but not always know if it will hit, so warnings are sometimes false alarms.",
   surprise: 'It came with no warning!',
   shieldUnused: 'You spent {n} energy on the shield, but there was no storm.',
   baseDoseMsg: 'The Moon has no air to protect you, so the crew always gets a little radiation: +{d}%.',
@@ -335,4 +335,5 @@ export default {
   roverHitReport: "A strong storm hit the rover outside! It is damaged: it will come back 1 day late, and it will need a repair.",
   demoTrip: "Trip: 1–2 days",
   demoShip: "Your ship",
+  launchStorm: "Storm warning: wait for a calm day to take off",
 };

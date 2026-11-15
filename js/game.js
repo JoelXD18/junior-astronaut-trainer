@@ -264,9 +264,14 @@ export function repairRover(state, budget) {
   state.rover = { status: 'home', target: null, daysLeft: 0 };
 }
 
-export function canRepair(state, budget = available(state)) {
-  return state.mode === 'escape' && partsCollected(state) >= ESCAPE.parts && budget >= ESCAPE.repairCost;
+// Why the ship can't be repaired and launched now (or null). Taking off during a storm warning is not safe.
+export function launchProblem(state, budget = available(state)) {
+  if (state.mode !== 'escape' || partsCollected(state) < ESCAPE.parts) return 'parts';
+  if (state.today?.warned) return 'storm';
+  if (budget < ESCAPE.repairCost) return 'noEnergy';
+  return null;
 }
+export function canRepair(state, budget = available(state)) { return !launchProblem(state, budget); }
 
 // Fix the ship and take off: you win!
 export function repairAndLaunch(state, budget) {

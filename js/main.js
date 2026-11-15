@@ -5,7 +5,7 @@ import { MAPS, DOSE_LIMIT, BUILDINGS, MAX_LEVEL, newGame, playDay, available, en
   batteryMax, oxygenMax, solarEnergy, batteryCap, tankCap, oxygenBonus, shieldBonus, shieldBlocks,
   validSpot, buildProblem, build, upgradeCost, upgradeProblem, upgrade, moveBuilding,
   ESCAPE, partsCollected, partsNeeded, roverCost, roverProblem, sendRover, canRepair, repairAndLaunch,
-  roverDays, escapeDeadline, roverRepairProblem, repairRover } from './game.js';
+  roverDays, escapeDeadline, roverRepairProblem, repairRover, launchProblem } from './game.js';
 import { initScene, setMode, setLabels, updateScene, playStorm, syncBuildings, setSelected, onPickBuilding,
   startPlacing, stopPlacing, resetView, setPlanet, playLanding, playLaunch, skipAnimation, resetLander, playIntro,
   setDebris, setCrashed, driveRover, returnRover, setRover, onPickDebris, playLose } from './scene.js';
@@ -244,6 +244,7 @@ function gameScreen() {
       ${strip ? `<div class="strip" aria-hidden="true">${strip}</div>` : ''}
       ${game.mode === 'escape' ? `<button class="ribbon parts" data-term="Parts">${icon('gear')}<span>${esc(t('partsShort', { n: partsCollected(game), m: partsNeeded() }))}</span></button>` : ''}
       ${roverRibbon()}
+      ${game.mode === 'escape' && launchProblem(game, freeEnergy()) === 'storm' ? `<button class="ribbon rover-broken" data-term="Storm">${icon('rocket')}<span>${esc(t('launchStorm'))}</span></button>` : ''}
       ${game.dust > 0 ? `<button class="ribbon dust" data-term="Dust">${icon('warning')}<span>${esc(t('dustShort', { n: game.dust }))}</span></button>` : ''}
       ${fc.warned
         ? `<button class="ribbon warn" data-term="Storm">${icon('warning')}<span>${esc(t('warnShort'))}</span>${fc.hint ? flareChip(fc.hint) : ''}</button>`
@@ -448,7 +449,7 @@ function reportHtml(r) {
     if (!r.warned) items.push(['warning', t('surprise'), '']);
   } else {
     items.push(['sun', t('stormNone'), 'good']);
-    if (r.warned) items.push(['warning', t('falseAlarm'), '']);
+    if (r.warned) items.push(['shield', t('falseAlarm'), 'good']);
     if (r.shield > 0) items.push(['shield', t('shieldUnused', { n: r.shield }), '']);
   }
   if (r.outsideDose) items.push(['radiation', t('outsideStorm', { d: r.outsideDose }), 'bad']);
@@ -703,7 +704,7 @@ document.addEventListener('click', e => {
         if (game.status === 'playing') choice = defaultChoice();
         const r = lastReport;
         if (has3d && r.roverHit && !r.partBack) setRover(game.rover);
-        if (has3d && r.partBack) { busy = true; returnRover(r.partBack, { withPart: true, broken: !!r.roverBroken }, () => { busy = false; render(); }); }
+        if (has3d && r.partBack) returnRover(r.partBack, { withPart: true, broken: !!r.roverBroken }, () => render());
         if (r.roverHit) radio([{ who: 'crew', text: t('r_rover_broken') }], lang(), showRadioLine);
         if (r.partBack) radio([{ who: 'crew', text: t('r_rover_back', { n: partsCollected(game), m: partsNeeded() }) }], lang(), showRadioLine);
         if (r.dustStarted) radio([{ who: 'control', text: t('r_dust_start', { n: game.dust }) }], lang(), showRadioLine);
@@ -734,8 +735,8 @@ document.addEventListener('click', e => {
       const id = ui.id;
       sfx('rover');
       sendRover(game, id, freeEnergy());
-      ui = null; busy = true;
-      driveRover(id, () => { busy = false; render(); });
+      ui = null;
+      driveRover(id, () => render());
       return render();
     }
     case 'repair-rover': {

@@ -49,7 +49,7 @@ export default {
   stormBlocked: '¡Llegó una tormenta solar (fuerza {s})! Tu escudo la paró entera. 🛡️',
   stormPartial: '¡Llegó una tormenta solar (fuerza {s})! Tu escudo paró {b}. La tripulación recibió un {d}% más de radiación.',
   stormNone: 'Hoy no hubo tormenta solar.',
-  falseAlarm: 'El aviso fue una falsa alarma. ¡Predecir el tiempo espacial es difícil, hasta para los científicos!',
+  falseAlarm: "¡Suerte! La erupción no llegó a la base: hoy no hubo tormenta. Los científicos ven la erupción, pero no siempre saben si llegará, así que a veces el aviso es una falsa alarma.",
   surprise: '¡Llegó sin avisar!',
   shieldUnused: 'Gastaste {n} de energía en el escudo, pero no hubo tormenta.',
   baseDoseMsg: 'La Luna no tiene aire que te proteja, así que la tripulación siempre recibe un poco de radiación: +{d}%.',
@@ -330,4 +330,5 @@ export default {
   roverHitReport: "¡Una tormenta fuerte ha pillado al rover fuera! Está dañado: volverá 1 día tarde y habrá que repararlo.",
   demoTrip: "Viaje: 1–2 días",
   demoShip: "Tu nave",
+  launchStorm: "Aviso de tormenta: espera a un día tranquilo para despegar",
 };
