@@ -351,4 +351,5 @@ export default {
   rankRetry: "Reintentar",
   nickWords: {"format":"{n} {a} {d}","nouns":["Cometa","Cohete","Estrella","Astronauta","Rover","Luna","Nebulosa","Meteoro","Galaxia","Órbita","Satélite","Planeta","Piloto","Halcón","Módulo","Explorador"],"adjs":["Valiente","Veloz","Brillante","Audaz","Feliz","Fuerte","Genial","Leal","Hábil","Tenaz","Alegre","Estelar","Cósmico","Lunar","Solar","Ágil"]},
   rankNickHint: "Así te ven los demás jugadores en el ranking.",
+  creditsLinkedin: "El creador en LinkedIn:",
 };

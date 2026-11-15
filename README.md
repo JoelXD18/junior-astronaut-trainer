@@ -66,7 +66,7 @@ Mars is unlocked by winning on the Moon (or in Settings, for teachers and judges
 - Fonts: Lilita One and Nunito (Google Fonts, SIL Open Font License).
 - Voices: generated with Google Gemini text-to-speech (AI voices Charon, Kore and Leda), recorded once with `tools/make-voices-gemini.mjs`; the radio lines get a radio-interference effect with ffmpeg. If a clip is missing, the browser's own speech synthesis reads the line.
 - Sound effects (engine, landing, crash, launch, alarm, storm, building, rover): made in code with the Web Audio API, no sound files.
-- Game idea and design: JoelXD18 (team RAMOS).
+- Game idea and design: JoelXD18 (team RAMOS) – [Joel Ramos Lázaro on LinkedIn](https://www.linkedin.com/in/joel-ramos-lazaro).
 
 ## Use of AI
 

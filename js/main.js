@@ -248,6 +248,7 @@ function creditsScreen() {
   return centered(windowHtml(esc(t('credits')), `<div class="credits-brand">${brandTitle()}</div>
     <p>${esc(t('creditsText'))}</p>
     <p>${esc(t('creditsGame'))}</p>
+    <p class="credit-link"><a href="https://www.linkedin.com/in/joel-ramos-lazaro" target="_blank" rel="noopener">in</a> ${esc(t('creditsLinkedin'))} <a href="https://www.linkedin.com/in/joel-ramos-lazaro" target="_blank" rel="noopener">Joel Ramos Lázaro</a></p>
     <h3>${esc(t('creditsData'))}</h3>
     <ul class="credit-list">
       <li>${esc(t('creditsModels'))}</li>

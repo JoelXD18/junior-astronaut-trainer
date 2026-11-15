@@ -718,3 +718,6 @@ body.intro .menu, body.intro-lock .menu { pointer-events: none; }
 .rank-intro { display: flex; align-items: center; justify-content: center; gap: 8px; margin: 10px 0 4px; padding: 8px 12px; border-radius: 12px; text-align: center;
   font: 400 18px/1.2 var(--title); color: #fff; background: rgba(255, 213, 79, .16); border: 2px solid rgba(255, 213, 79, .6); }
 .rank-intro .ico { font-size: 24px; flex: none; }
+.credit-link { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-weight: 800; }
+.credit-link a:first-child { display: inline-grid; place-items: center; width: 26px; height: 26px; border-radius: 6px; background: #0a66c2; color: #fff; font: 800 15px/1 Arial, sans-serif; text-decoration: none; }
+.credit-link a:last-child { color: #8fc8ff; }
