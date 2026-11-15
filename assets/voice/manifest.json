@@ -200,6 +200,10 @@
    "control|Base, Mission Control here. A dust storm is starting: wind full of red dust. For 4 sols your solar panels will make about half the energy. It is not radiation, so the shield does not help.": {
     "file": "assets/voice/en/control-6083d94963.mp3",
     "dur": 10.24
+   },
+   "control|Base, Mission Control here. Lucky you: the flare missed the base, no storm today. Space weather is hard to predict, even for scientists!": {
+    "file": "assets/voice/en/control-3ef44a1dec.mp3",
+    "dur": 10
    }
   },
   "es": {
@@ -402,6 +406,10 @@
    "control|Base, aquí Control de Misión. Empieza una tormenta de polvo: viento lleno de polvo rojo. Durante 4 soles vuestros paneles darán más o menos la mitad de energía. No es radiación, así que el escudo no ayuda.": {
     "file": "assets/voice/es/control-b345ccd334.mp3",
     "dur": 12.02
+   },
+   "control|Base, aquí Control de Misión. ¡Qué suerte! La erupción no llegó a la base: hoy no hay tormenta. ¡El tiempo espacial es difícil de predecir, incluso para los científicos!": {
+    "file": "assets/voice/es/control-5b67a8e2a7.mp3",
+    "dur": 10.29
    }
   }
  },

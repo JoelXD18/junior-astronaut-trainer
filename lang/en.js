@@ -336,4 +336,5 @@ export default {
   demoTrip: "Trip: 1–2 days",
   demoShip: "Your ship",
   launchStorm: "Storm warning: wait for a calm day to take off",
+  r_ctrl_false_alarm: "Base, Mission Control here. Lucky you: the flare missed the base, no storm today. Space weather is hard to predict, even for scientists!",
 };

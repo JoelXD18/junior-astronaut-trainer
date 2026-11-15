@@ -331,4 +331,5 @@ export default {
   demoTrip: "Viaje: 1–2 días",
   demoShip: "Tu nave",
   launchStorm: "Aviso de tormenta: espera a un día tranquilo para despegar",
+  r_ctrl_false_alarm: "Base, aquí Control de Misión. ¡Qué suerte! La erupción no llegó a la base: hoy no hay tormenta. ¡El tiempo espacial es difícil de predecir, incluso para los científicos!",
 };

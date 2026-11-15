@@ -707,6 +707,7 @@ document.addEventListener('click', e => {
         if (has3d && r.partBack) returnRover(r.partBack, { withPart: true, broken: !!r.roverBroken }, () => render());
         if (r.roverHit) radio([{ who: 'crew', text: t('r_rover_broken') }], lang(), showRadioLine);
         if (r.partBack) radio([{ who: 'crew', text: t('r_rover_back', { n: partsCollected(game), m: partsNeeded() }) }], lang(), showRadioLine);
+        if (r.warned && !r.storm) radio([{ who: 'control', text: t('r_ctrl_false_alarm') }], lang(), showRadioLine);
         if (r.dustStarted) radio([{ who: 'control', text: t('r_dust_start', { n: game.dust }) }], lang(), showRadioLine);
         render();
       };
