@@ -204,6 +204,10 @@
    "control|Base, Mission Control here. Lucky you: the flare missed the base, no storm today. Space weather is hard to predict, even for scientists!": {
     "file": "assets/voice/en/control-3ef44a1dec.mp3",
     "dur": 10
+   },
+   "control|Base, Mission Control here. The supply ship has landed with a fresh crew! The tired crew flies home, and the new crew starts with no radiation.": {
+    "file": "assets/voice/en/control-8d867f0fa0.mp3",
+    "dur": 8.99
    }
   },
   "es": {
@@ -410,6 +414,10 @@
    "control|Base, aquí Control de Misión. ¡Qué suerte! La erupción no llegó a la base: hoy no hay tormenta. ¡El tiempo espacial es difícil de predecir, incluso para los científicos!": {
     "file": "assets/voice/es/control-5b67a8e2a7.mp3",
     "dur": 10.29
+   },
+   "control|Base, aquí Control de Misión. ¡La nave de suministros ha llegado con una tripulación nueva! La tripulación cansada vuelve a casa, y la nueva empieza sin radiación.": {
+    "file": "assets/voice/es/control-d4d866b855.mp3",
+    "dur": 12.56
    }
   }
  },

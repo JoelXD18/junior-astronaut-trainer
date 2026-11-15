@@ -353,7 +353,6 @@ function headlights(g, front = 1.6, height = 1.1, side = .5) {
   spot.position.set(front, height, 0); spot.target.position.set(front + 10, 0, 0);
   g.add(spot, spot.target);
   for (const z of [-side, side]) { const l = new THREE.Mesh(LAMP_GEO, lampMat); l.scale.setScalar(.6); l.position.set(front, height - .1, z); g.add(l); }
-  const beam = lightPool(3.2); beam.scale.set(4.5, 3, 1); beam.position.set(front + 4.5, .07, 0); g.add(beam);
   g.userData.spot = spot;
 }
 function sharedMats() {
@@ -820,6 +819,11 @@ function makeBase() {
   base.add(shieldDome());
   const f = flag(); f.position.set(-21.5, 0, 19.5); f.rotation.y = .5; base.add(f);
 
+  // Building lights for the night: the same warm light as the habitat's, moved to the buildings
+  parts.bLights = [];
+  for (let i = 0; i < 10; i++) {
+    const l = new THREE.PointLight(0xffd8a0, 0, 16, 2); l.position.set(0, -50, 0); base.add(l); parts.bLights.push(l);
+  }
   // Habitat lights for the night
   for (const [x, z] of [[4, 4], [-4, 4], [0, -5]]) {
     const l = new THREE.PointLight(0xffd8a0, 0, 16, 2); l.position.set(x, 3, z); base.add(l); parts.lights.push(l);
@@ -860,8 +864,9 @@ function makeHolder(b) {
   const lab = new CSS2DObject(el);
   const box = new THREE.Box3().setFromObject(holder);
   // night lights: a lamp on top and a pool of light on the ground around the building
-  holder.add(lightPool((b.radius || 3) + 3));
+  nightMats();
   const lamp = new THREE.Mesh(LAMP_GEO, lampMat); lamp.position.y = box.max.y + .25; lamp.raycast = () => {}; holder.add(lamp);
+  holder.userData.lightY = Math.min(4, box.max.y * .6 + 1.5);
   lab.position.set(0, box.max.y + 1.2, 0);
   holder.add(lab);
   return holder;
@@ -886,6 +891,13 @@ export function syncBuildings(list) {
     o.radius = b.radius;
   }
   for (const [id, o] of objs) if (!seen.has(id)) { removeHolder(o.holder); objs.delete(id); }
+  // put the night lights next to the buildings (one each, as many as there are lights)
+  const holders = [...objs.values()].map(o => o.holder);
+  parts.bLights?.forEach((l, i) => {
+    const h = holders[i];
+    if (h) { l.position.set(h.position.x + 2, h.userData.lightY || 3, h.position.z + 2); l.userData.on = true; }
+    else { l.position.set(0, -50, 0); l.userData.on = false; }
+  });
 
   // Cables from every building to the habitat
   parts.cables.children.slice().forEach(c => { c.geometry.dispose(); parts.cables.remove(c); });
@@ -1365,7 +1377,8 @@ function tick() {
   earthLight.intensity = lerp(earthLight.intensity, night ? .35 : .12, k);
   parts.sun.material.opacity = lerp(parts.sun.material.opacity, night ? 0 : 1, k);
   parts.lights.forEach(l => { l.intensity = lerp(l.intensity, night ? 40 : 0, k); });
-  if (poolMat) { poolMat.opacity = lerp(poolMat.opacity, night ? .85 : 0, k); lampMat.emissiveIntensity = lerp(lampMat.emissiveIntensity, night ? 3 : 0, k); }
+  if (lampMat) lampMat.emissiveIntensity = lerp(lampMat.emissiveIntensity, night ? 3 : 0, k);
+  parts.bLights?.forEach(l => { l.intensity = lerp(l.intensity, night && l.userData.on ? 40 : 0, k); });
   for (const r of [parts.lrv, parts.perse]) if (r?.userData.spot) r.userData.spot.intensity = lerp(r.userData.spot.intensity, night ? 120 : 0, k);
   if (mats.cells) mats.cells.emissiveIntensity = lerp(mats.cells.emissiveIntensity, night ? 0 : .25, k);
   if (parts.globe) parts.globe.rotation.y += dt * .01;

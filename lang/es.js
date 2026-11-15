@@ -254,7 +254,7 @@ export default {
   modeEscape: "Escape",
   modeEscapeDesc: "¡Tu nave se estrella! Manda el rover a por sus {n} piezas rotas y repárala antes de que se acabe la comida.",
   modeInfinite: "Infinito",
-  modeInfiniteDesc: "¿Cuántos días aguantas? Bate tu récord.",
+  modeInfiniteDesc: "¿Cuántos días aguantas? Cada 20 días llega una tripulación nueva. ¡Bate tu récord!",
   partsShort: "Piezas de la nave {n}/{m}",
   termParts: "Piezas de la nave",
   termPartsText: "Tu nave se rompió al aterrizar y sus piezas están esparcidas. Toca una pieza (anillo amarillo) y manda el rover. Un viaje dura 1 día, o 2 si la pieza está lejos. Si una tormenta fuerte pilla al rover fuera, trae la pieza igual, pero 1 día tarde y averiado: repáralo antes del siguiente viaje. ¡Trae todas las piezas, repara la nave y despega antes de que se acabe la comida!",
@@ -351,4 +351,6 @@ export default {
   rankRetry: "Reintentar",
   nickWords: {"format":"{n} {a} {d}","nouns":["Cometa","Cohete","Estrella","Astronauta","Rover","Luna","Nebulosa","Meteoro","Galaxia","Órbita","Satélite","Planeta","Piloto","Halcón","Módulo","Explorador"],"adjs":["Valiente","Veloz","Brillante","Audaz","Feliz","Fuerte","Genial","Leal","Hábil","Tenaz","Alegre","Estelar","Cósmico","Lunar","Solar","Ágil"]},
   rankNickHint: "Así te verán los demás jugadores en el ranking.",
+  r_ctrl_new_crew: "Base, aquí Control de Misión. ¡La nave de suministros ha llegado con una tripulación nueva! La tripulación cansada vuelve a casa, y la nueva empieza sin radiación.",
+  newCrewReport: "¡Una nave de suministros ha traído una tripulación nueva (cada {n} días)! La dosis de radiación vuelve a empezar en 0 %.",
 };

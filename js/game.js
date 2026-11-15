@@ -100,6 +100,10 @@ export const DIFFICULTY = {
 
 export const DOSE_PER_STORM_POINT = 10; // % of the safe limit per unblocked storm point
 export const DOSE_LIMIT = 100;
+// Infinite mode: like crews on a real space station, a fresh crew arrives every CREW_ROTATION days.
+// Without it the everyday background radiation alone would end every game (on the Moon, 2% a day = day 50).
+export const CREW_ROTATION = 20;
+export const INFINITE_RAMP = 30; // storms in infinite mode: x2 as often by day 31, x3 by day 61…
 
 // Small seeded random generator so a game can be saved and replayed.
 export function makeRng(seed) {
@@ -151,7 +155,9 @@ export function available(state) {
 function rollWeather(state, rng) {
   const diff = DIFFICULTY[state.difficulty];
   const pool = state.pool || [];
-  const storm = rng() < Math.min(.6, diff.stormChance * (state.activity || 1));
+  // Infinite mode gets harder little by little: the Sun heads towards its most active years, so storms come more often
+  const rising = state.mode === 'infinite' ? 1 + (state.day - 1) / INFINITE_RAMP : 1;
+  const storm = rng() < Math.min(.6, diff.stormChance * (state.activity || 1) * rising);
   let strength = 0, flare = null;
   if (storm) {
     if (pool.length) {
@@ -409,6 +415,7 @@ export function playDay(state, { oxygen = 0, shield = 0 }) {
   else if (state.mode === 'escape' && state.day >= escapeDeadline(state)) state.status = 'lost-time';
   else {
     state.day++;
+    if (state.mode === 'infinite' && (state.day - 1) % CREW_ROTATION === 0) { state.dose = 0; report.newCrew = true; }
     const rng = rngFor(state);
     state.today = rollWeather(state, rng);
     report.dustStarted = false;
