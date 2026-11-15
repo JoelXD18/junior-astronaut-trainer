@@ -12,6 +12,7 @@ import { initScene, setMode, setLabels, updateScene, playStorm, syncBuildings, s
 import { isUnlocked, unlock, best, saveBest, unlockAll, setUnlockAll } from './progress.js';
 import { playMusic, setVolume, toggleMute, audioSettings, speak, stopSpeaking, radio, stopRadio, radioBusy, radioTime, sfx } from './audio.js';
 import { DEMOS } from './demos.js';
+import { submitScore, topScores, myNick, newNick, nickName } from './ranking.js';
 import { icon } from './icons.js';
 import { loadSpaceWeather, getWeather, onWeather, flareStrength } from './spaceweather.js';
 
@@ -95,6 +96,7 @@ function effectText(type, level) {
 
 function go(next) {
   if (next === 'menu') stopRadio();
+  if (next === 'ranking') loadRank();
   if (next === 'menu' && has3d) { resetLander(); stopPlacing(); setPlanet('moon'); }
   screen = next; render();
 }
@@ -128,7 +130,8 @@ function menuScreen() {
       <button class="btn green xl" data-go="map">${icon('play')}<span>${esc(t('play'))}</span></button>
       <button class="btn blue" data-go="settings">${icon('gear')}<span>${esc(t('settings'))}</span></button>
       <button class="btn blue" data-go="data">${icon('radiation')}<span>${esc(t('nasaData'))}</span></button>
-      <button class="btn blue" data-go="credits">${icon('trophy')}<span>${esc(t('credits'))}</span></button>
+      <button class="btn blue" data-go="ranking">${icon('trophy')}<span>${esc(t('ranking'))}</span></button>
+      <button class="btn blue" data-go="credits">${icon('menu')}<span>${esc(t('credits'))}</span></button>
     </div>
     ${sunChip()}
     ${langPicker()}
@@ -187,6 +190,49 @@ function dataScreen() {
     ${sec('home', t('dataModelsTitle'), t('dataModelsWhat'), t('dataModelsWhy'))}
     <p class="source saved"><a href="https://github.com/nasa/NASA-3D-Resources" target="_blank" rel="noopener">NASA 3D Resources</a></p>`,
     { close: null, cls: 'data-win' }) + `<button class="btn grey back" data-go="menu">← ${esc(t('back'))}</button>`);
+}
+
+// ---------- world ranking (Infinite mode) ----------
+const rank = { map: 'moon', difficulty: 'normal', status: 'idle', data: null };
+function loadRank(map = rank.map, difficulty = rank.difficulty) {
+  Object.assign(rank, { map, difficulty, status: 'loading' });
+  topScores(map, difficulty)
+    .then(data => { if (rank.map === map && rank.difficulty === difficulty) Object.assign(rank, { status: 'ok', data }); })
+    .catch(() => { rank.status = 'error'; })
+    .finally(() => { if (screen === 'ranking' || screen === 'end') render(); });
+}
+function rankList(data) {
+  if (!data?.list.length) return `<p class="rank-empty">${esc(t('rankEmpty'))}</p>`;
+  return `<ol class="rank-list">${data.list.map(r => `<li class="${r.me ? 'me' : ''}"><span class="rk">#${r.rank}</span>
+    <span class="rn">${esc(nickName(r.nick))}${r.me ? ` <small>${esc(t('rankYou'))}</small>` : ''}</span>
+    <span class="rd">${esc(t('rankDays', { n: r.days }))}</span></li>`).join('')}</ol>
+    ${data.myRank ? `<p class="rank-mine">${esc(t('rankPos', { r: data.myRank, p: data.players, n: data.myDays }))}</p>` : ''}`;
+}
+function rankingScreen() {
+  const tab = (attr, val, label, on) => `<button class="rank-tab ${on ? 'on' : ''}" ${attr}="${val}">${label}</button>`;
+  const body = rank.status === 'loading' ? `<p class="rank-empty">${esc(t('rankLoading'))}</p>`
+    : rank.status === 'error' ? `<p class="notice bad">${icon('warning')} ${esc(t('rankError'))}</p>` : rankList(rank.data);
+  return centered(windowHtml(`${icon('trophy')} ${esc(t('rankTitle'))}`, `
+    <p class="small">${esc(t('rankIntro'))}</p>
+    <div class="rank-tabs">${tab('data-rank-map', 'moon', `${icon('moon')} ${esc(t('moon'))}`, rank.map === 'moon')}${tab('data-rank-map', 'mars', `${icon('mars')} ${esc(t('mars'))}`, rank.map === 'mars')}</div>
+    <div class="rank-tabs small-tabs">${['easy', 'normal', 'hard'].map(d => tab('data-rank-diff', d, esc(t(d)), rank.difficulty === d)).join('')}</div>
+    ${body}
+    <p class="rank-nick">${esc(t('rankYouAre'))} <b>${esc(nickName(myNick()))}</b> <button class="btn grey tiny" data-action="rank-reroll">🎲 ${esc(t('rankReroll'))}</button></p>`,
+    { close: null }) + `<button class="btn grey back" data-go="menu">← ${esc(t('back'))}</button>`);
+}
+// End of an Infinite game: offer to upload the record (only if you lasted at least one day).
+function rankOffer(days) {
+  const r = endInfo.rank || (endInfo.rank = { state: 'ask' });
+  if (days < 1) return '';
+  if (r.state === 'skipped') return '';
+  if (r.state === 'ask') return `<div class="rank-offer"><p><b>${esc(t('rankAsk', { n: days }))}</b></p>
+    <p class="rank-nick">${esc(t('rankYouAre'))} <b>${esc(nickName(myNick()))}</b> <button class="btn grey tiny" data-action="rank-reroll">🎲 ${esc(t('rankReroll'))}</button></p>
+    <div class="sel-actions"><button class="btn green" data-action="rank-send">${icon('trophy')}<span>${esc(t('rankSend'))}</span></button>
+    <button class="btn grey" data-action="rank-skip"><span>${esc(t('rankSkip'))}</span></button></div></div>`;
+  if (r.state === 'sending') return `<div class="rank-offer"><p>${esc(t('rankSending'))}</p></div>`;
+  if (r.state === 'error') return `<div class="rank-offer"><p class="notice bad">${icon('warning')} ${esc(t('rankError'))}</p>
+    <button class="btn blue" data-action="rank-send"><span>${esc(t('rankRetry'))}</span></button></div>`;
+  return `<div class="rank-offer"><p class="rank-ok">${icon('trophy')} ${esc(t('rankSent'))}</p>${rank.status === 'ok' ? rankList(rank.data) : ''}</div>`;
 }
 
 function creditsScreen() {
@@ -368,7 +414,8 @@ function endScreen() {
     ${lost ? `<div class="lose-cause"><span class="lc-ico">${icon(ico)}</span><div><span class="lc-why">${esc(t('loseWhy'))}</span><strong>${esc(t(key + 'Title'))}</strong></div></div>`
       : `<div class="end-ico">${icon(survival ? 'trophy' : ico)}</div>`}
     ${survival ? `<p class="record">${esc(t('survivalDays', { n: done }))}</p>
-      <p class="small">${esc(t(endInfo.newRecord ? 'newRecord' : 'bestRecord', { n: best(game.map, game.difficulty) }))}</p>` : ''}
+      <p class="small">${esc(t(endInfo.newRecord ? 'newRecord' : 'bestRecord', { n: best(game.map, game.difficulty) }))}</p>
+      ${rankOffer(done)}` : ''}
     <p>${esc(t(key + 'Text', { n: map.oxygenUse, d: escapeDeadline(game) }))}</p>
     ${game.status !== 'won' ? `<p class="end-tip">${icon('question')} ${esc(t(key + 'Tip'))}</p>` : ''}
     ${endInfo.unlocked ? `<p class="unlocked">${icon('mars')} ${esc(t('marsUnlocked'))}</p>` : ''}
@@ -528,7 +575,7 @@ function musicFor() {
 
 function render() {
   const screens = { menu: menuScreen, map: mapScreen, difficulty: difficultyScreen, game: gameScreen,
-    end: endScreen, settings: settingsScreen, credits: creditsScreen, data: dataScreen, mode: modeScreen, roll: () => gameScreen() + creditsRoll() };
+    end: endScreen, settings: settingsScreen, credits: creditsScreen, ranking: rankingScreen, data: dataScreen, mode: modeScreen, roll: () => gameScreen() + creditsRoll() };
   app.innerHTML = screens[screen]();
   app.className = 'screen-' + screen;
   const modal = openTerm ? termHtml(openTerm) : showSun ? sunHtml() : showHelp ? helpHtml() : lastReport ? reportHtml(lastReport) : '';
@@ -675,6 +722,8 @@ document.addEventListener('click', e => {
   if (!b || b.disabled) return;
   const d = b.dataset;
   if (d.lang) return setLang(d.lang);
+  if (d.rankMap) return (loadRank(d.rankMap, rank.difficulty), render());
+  if (d.rankDiff) return (loadRank(rank.map, d.rankDiff), render());
   if (d.term) { openTerm = d.term; return render(); }
   if (d.go) return go(d.go);
   if (d.map) { pick.map = d.map; return go('mode'); }
@@ -769,6 +818,17 @@ document.addEventListener('click', e => {
       return render();
     }
     case 'again': return startGame();
+    case 'rank-reroll': newNick(); return render();
+    case 'rank-skip': endInfo.rank = { state: 'skipped' }; return render();
+    case 'rank-send': {
+      const days = game.day - 1;
+      endInfo.rank = { state: 'sending' }; render();
+      submitScore(game.map, game.difficulty, days)
+        .then(() => { endInfo.rank = { state: 'sent' }; loadRank(game.map, game.difficulty); })
+        .catch(() => { endInfo.rank = { state: 'error' }; })
+        .finally(() => render());
+      return;
+    }
   }
 });
 

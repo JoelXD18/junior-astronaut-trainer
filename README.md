@@ -29,7 +29,7 @@ If NASA can't be reached, the game clearly says it is using a saved copy, not li
   Moon and 18 sols on Mars. Repair
   the ship and fly home.
 - **Survival** – keep the crew safe for 14 days.
-- **Infinite** – last as long as you can and beat your record.
+- **Infinite** – last as long as you can and beat your record, with a world ranking per map and difficulty.
 
 The Moon has 7 days of sun and 7 of night (shortened from the real ~14 + 14 Earth days). Mars has less sunlight,
 dust storms, slower warnings (messages from Earth take minutes) and a thinner radiation dose thanks to its air.
@@ -56,6 +56,7 @@ Mars is unlocked by winning on the Moon (or in Settings, for teachers and judges
 - 3D models and Earth texture: [NASA 3D Resources](https://github.com/nasa/NASA-3D-Resources)
   (Apollo Lunar Module, Habitat Demonstration Unit, Astronaut, Mars 2020 Perseverance Rover).
 - 3D engine: [three.js](https://threejs.org) (MIT license).
+- World ranking (Infinite mode): [Supabase](https://supabase.com) free tier. Only a random player code, a nickname picked from word lists, the map, the difficulty and the days are stored; no personal data.
 - Music (Pixabay Content License):
   [Synthwave No Copyright](https://pixabay.com/es/music/pop-sintetizado-synthwave-no-copyright-630654/) by MiroMaxMusic,
   [Background Music](https://pixabay.com/es/music/sintetizador-background-music-618629/) by JonasBlakewood,

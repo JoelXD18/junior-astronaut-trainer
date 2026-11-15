@@ -676,3 +676,24 @@ body.intro .menu, body.intro-lock .menu { pointer-events: none; }
   .menu .event-badge { font-size: 10.5px; padding: 3px 8px; }
   .menu > .sun-chip { font-size: 12px; }
 }
+
+/* world ranking */
+.rank-tabs { display: flex; gap: 8px; justify-content: center; margin: 8px 0; flex-wrap: wrap; }
+.rank-tab { display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; border-radius: 999px; font: 400 17px var(--title); color: #fff;
+  background: rgba(8, 16, 40, .6); border: 2px solid var(--ink); }
+.rank-tab .ico { font-size: 20px; }
+.rank-tab.on { background: linear-gradient(#ffd54f, #f2a20c); color: #2a1d05; }
+.small-tabs .rank-tab { font-size: 14px; padding: 4px 12px; }
+.rank-list { list-style: none; margin: 10px 0; padding: 0; display: grid; gap: 6px; }
+.rank-list li { display: flex; align-items: center; gap: 10px; padding: 7px 12px; border-radius: 12px; background: rgba(8, 16, 40, .45); border: 2px solid rgba(8, 16, 40, .8); }
+.rank-list li:nth-child(1) .rk { color: #ffd54f; } .rank-list li:nth-child(2) .rk { color: #e0e0e0; } .rank-list li:nth-child(3) .rk { color: #ffab76; }
+.rank-list li.me { background: rgba(67, 209, 122, .25); border-color: #43d17a; }
+.rank-list .rk { font: 400 20px var(--title); min-width: 38px; }
+.rank-list .rn { flex: 1; text-align: left; font-weight: 800; }
+.rank-list .rd { font: 400 18px var(--title); color: var(--gold); }
+.rank-empty { text-align: center; color: var(--muted); margin: 14px 0; }
+.rank-mine { text-align: center; font-weight: 800; }
+.rank-nick { display: flex; align-items: center; justify-content: center; gap: 8px; flex-wrap: wrap; }
+.btn.tiny { min-height: 0; padding: 3px 10px; font-size: 13px; }
+.rank-offer { margin: 10px 0; padding: 10px 12px; border-radius: 14px; background: rgba(255, 210, 80, .12); border: 2px solid var(--gold); }
+.rank-ok { font: 400 18px var(--title); color: #9be15d; display: flex; gap: 6px; justify-content: center; align-items: center; }
