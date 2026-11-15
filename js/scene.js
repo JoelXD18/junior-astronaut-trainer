@@ -813,7 +813,7 @@ function makePart(i) {
   const main = shapes[i % shapes.length](); main.position.y = .4; main.rotation.set(.4 * i, i, .3); g.add(main);
   const strut = new THREE.Mesh(new THREE.CylinderGeometry(.06, .06, 1.6, 6), grey);
   strut.rotation.set(1.1, i, .5); strut.position.set(.4, .5, .2); g.add(strut);
-  const ring = new THREE.Mesh(new THREE.RingGeometry(1.5, 1.8, 40), new THREE.MeshBasicMaterial({ color: 0xffb300, transparent: true, opacity: .8, side: THREE.DoubleSide, depthWrite: false }));
+  const ring = new THREE.Mesh(new THREE.RingGeometry(1.5, 1.8, 40), new THREE.MeshBasicMaterial({ color: 0xff6d1a, transparent: true, opacity: .8, side: THREE.DoubleSide, depthWrite: false }));
   ring.rotation.x = -Math.PI / 2; ring.position.y = .06; g.add(ring);
   g.userData.ring = ring;
   // a much bigger invisible ball around the part, so it is easy to tap (also on a phone)
