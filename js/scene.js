@@ -103,6 +103,7 @@ function makeTerrain() {
   };
   parts.groundMat = mat;
   const mesh = new THREE.Mesh(geo, mat);
+  mesh.userData.grid = { size, seg };
   mesh.receiveShadow = true;
 
   // Scattered rocks
@@ -185,6 +186,7 @@ function makeMarsTerrain(tex) {
       .replace('#include <dithering_fragment>', '#include <dithering_fragment>\ngl_FragColor.a *= 1.0 - smoothstep(330.0, 440.0, vEdge);');
   };
   const mesh = new THREE.Mesh(geo, mat);
+  mesh.userData.grid = { size, seg };
   mesh.receiveShadow = true;
 
   const rockGeo = new THREE.DodecahedronGeometry(1, 1);
@@ -229,14 +231,21 @@ function planetBody(R, tex, color, which) {
 
 // Exact height of the ground (Moon or Mars) at a point, so the lander stands on it.
 const downRay = new THREE.Raycaster();
+// Height of the ground: read from the terrain's grid of points (much faster than a ray against every triangle).
 function groundY(x, z) {
   const g = planet === 'mars' ? parts.marsGround : parts.moonGround;
-  if (!g) return 0;
-  const mesh = g.children[0];
-  mesh.updateMatrixWorld();
-  downRay.set(new THREE.Vector3(x, 300, z), new THREE.Vector3(0, -1, 0));
-  const hit = downRay.intersectObject(mesh)[0];
-  return hit ? hit.point.y : 0;
+  const mesh = g?.children[0], grid = mesh?.userData.grid;
+  if (!grid) return 0;
+  const { size, seg } = grid, step = size / seg, pos = mesh.geometry.attributes.position;
+  const fx = Math.min(seg - 1e-6, Math.max(0, (x + size / 2) / step)), fz = Math.min(seg - 1e-6, Math.max(0, (z + size / 2) / step));
+  const ix = Math.floor(fx), iz = Math.floor(fz), tx = fx - ix, tz = fz - iz;
+  const h = (i, j) => pos.getY(j * (seg + 1) + i);
+  return (h(ix, iz) * (1 - tx) + h(ix + 1, iz) * tx) * (1 - tz) + (h(ix, iz + 1) * (1 - tx) + h(ix + 1, iz + 1) * tx) * tz;
+}
+// A vehicle stands on the highest of the ground under its middle and its four corners, so on a slope
+// (like the banks of a dry river on Mars) it never sinks into the ground.
+function vehicleY(x, z, r = 1.6) {
+  return Math.max(groundY(x, z), groundY(x + r, z), groundY(x - r, z), groundY(x, z + r), groundY(x, z - r));
 }
 const LAND = { x: -26, z: 14 };
 function landingSpot() { return new THREE.Vector3(LAND.x, groundY(LAND.x, LAND.z), LAND.z); }
@@ -316,6 +325,7 @@ function label(key, icon) {
   el.innerHTML = `<span class="i">${icon}</span><span class="t"></span>`;
   const o = new CSS2DObject(el);
   parts.labels[key] = el;
+  (parts.labelObjs ||= {})[key] = o;
   return o;
 }
 
@@ -382,7 +392,7 @@ function decal(text, bg, fg, size = 1.3) {
     g.fillText(text, 64, 68);
     labelTex[text] = new THREE.CanvasTexture(c); labelTex[text].colorSpace = THREE.SRGBColorSpace;
   }
-  const m = new THREE.Mesh(new THREE.CircleGeometry(size / 2, 32), new THREE.MeshStandardMaterial({ map: labelTex[text], transparent: true, roughness: .6 }));
+  const m = new THREE.Mesh(new THREE.CircleGeometry(size / 2, 32), new THREE.MeshBasicMaterial({ map: labelTex[text], transparent: true }));
   m.raycast = () => {};
   return m;
 }
@@ -449,12 +459,12 @@ function tankPair(level) {
 // Higher level = more cells.
 function batteryBank(level) {
   const m = sharedMats(), g = new THREE.Group();
-  const cells = 2 + level, h = 2.3 + level * .25;
+  const cells = 2 + Math.min(level, 2), h = 2.3 + level * .3, gap = 1.2;
   const body = metal(0x2e9d5a, .45, .35, { emissive: 0x1c7a40, emissiveIntensity: .45 }), cap = metal(0xeeeeee, .3, .6); // a slight glow: green even in shadow
-  const plate = new THREE.Mesh(new THREE.BoxGeometry(cells * 1.35 + .8, .3, 2.2), m.grey);
+  const plate = new THREE.Mesh(new THREE.BoxGeometry(cells * gap + .8, .3, 2.2), m.grey);
   plate.position.y = .15; g.add(plate);
   for (let i = 0; i < cells; i++) {
-    const x = (i - (cells - 1) / 2) * 1.35;
+    const x = (i - (cells - 1) / 2) * gap;
     const cell = new THREE.Mesh(new THREE.CylinderGeometry(.55, .55, h, 20), body); cell.position.set(x, .3 + h / 2, 0); g.add(cell);
     const top = new THREE.Mesh(new THREE.CylinderGeometry(.56, .56, .35, 20), cap); top.position.set(x, .3 + h - .1, 0); g.add(top);
     const term = new THREE.Mesh(new THREE.CylinderGeometry(.2, .2, .3, 12), cap); term.position.set(x, .3 + h + .2, 0); g.add(term);
@@ -462,7 +472,7 @@ function batteryBank(level) {
   }
   // charge meter: 8 lights on a post, lit by how full the batteries are
   const post = new THREE.Mesh(new THREE.BoxGeometry(.5, h + .4, .35), m.dark);
-  post.position.set((cells * 1.35) / 2 + .55, .3 + (h + .4) / 2, 0); g.add(post);
+  post.position.set((cells * gap) / 2 + .55, .3 + (h + .4) / 2, 0); g.add(post);
   const leds = [];
   for (let i = 0; i < 8; i++) {
     const mat = new THREE.MeshStandardMaterial({ color: 0x113322, emissive: C.bat, emissiveIntensity: 0 });
@@ -538,6 +548,30 @@ const BUILDERS = new Proxy({}, { get: (_, type) => (planet === 'mars' ? MARS_BUI
 const ICONS = { solar: 'sun', oxygen: 'oxygen', tank: 'tank', battery: 'battery', shield: 'shield' };
 
 // Radiation shield: a soft energy dome around the habitat (game effect, so kids can see it).
+const SHIELD_R = 14.5; // covers the habitat and its extra modules
+
+// Extra habitat modules around the main habitat, joined to it by tunnels, so it looks like a real base.
+function habitatModules() {
+  const g = new THREE.Group(), white = metal(0xe6e6e2, .45, .35), dark = metal(0x6d7178, .6, .5);
+  nightMats();
+  for (const [x, z, rot, len] of [[-8.5, -4.5, .5, 6], [5.5, -8.5, -1.1, 5.5], [-8, 6, -.4, 5]]) {
+    const m = new THREE.Group(); m.position.set(x, 0, z); m.rotation.y = rot;
+    const body = new THREE.Mesh(new THREE.CapsuleGeometry(1.9, len, 8, 24), white); body.rotation.z = Math.PI / 2; body.position.y = 2.1; m.add(body);
+    for (const sx of [-len / 3, len / 3]) { const leg = new THREE.Mesh(new THREE.BoxGeometry(.4, 1, 3), dark); leg.position.set(sx, .5, 0); m.add(leg); }
+    for (let i = 0; i < 3; i++) { // windows that glow at night
+      const w = new THREE.Mesh(new THREE.BoxGeometry(.8, .45, .1), lampMat); w.position.set((i - 1) * 1.6, 2.5, 1.86); m.add(w);
+      const w2 = w.clone(); w2.position.z = -1.86; m.add(w2);
+    }
+    const band = new THREE.Mesh(new THREE.CylinderGeometry(1.95, 1.95, .35, 24), metal(0x5b6ea8, .4, .5)); band.rotation.z = Math.PI / 2; band.position.y = 2.1; m.add(band);
+    g.add(m);
+    // tunnel to the main habitat
+    const to = new THREE.Vector3(-x, 0, -z), d = to.length() - 3.2;
+    const tunnel = new THREE.Mesh(new THREE.CylinderGeometry(.8, .8, d, 14), white);
+    tunnel.position.set(x / 2, 1.3, z / 2); tunnel.rotation.z = Math.PI / 2; tunnel.rotation.y = -Math.atan2(z, x) + Math.PI; g.add(tunnel);
+  }
+  return shadow(g);
+}
+
 function shieldDome() {
   const mat = new THREE.ShaderMaterial({
     transparent: true, depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending,
@@ -556,7 +590,7 @@ function shieldDome() {
       }
       void main(){
         float rim = pow(1. - abs(dot(vN, vV)), 2.2);
-        float lat = asin(clamp(vP.y / 11., 0., 1.));            // height on the dome
+        float lat = asin(clamp(vP.y / 14.5, 0., 1.));          // height on the dome
         vec2 uv = vec2(atan(vP.z, vP.x) * 3.5, lat * 7.);
         float edge = 1. - smoothstep(.0, .07, hex(uv));          // the lines of the honeycomb
         float scan = smoothstep(.25, 0., abs(fract(lat * .32 - time * .18) - .5));  // a band that sweeps up
@@ -565,7 +599,7 @@ function shieldDome() {
         float a = power * (.06 + rim * .75 + edge * .32 + scan * .18) + hit * (rim + .25 + ripple * .4);
         gl_FragColor = vec4(col * (1. + hit * .8), clamp(a, 0., 1.) * .85); }`,
   });
-  const dome = new THREE.Mesh(new THREE.SphereGeometry(11, 64, 32, 0, Math.PI * 2, 0, Math.PI / 2), mat);
+  const dome = new THREE.Mesh(new THREE.SphereGeometry(SHIELD_R, 64, 32, 0, Math.PI * 2, 0, Math.PI / 2), mat);
   parts.shield = mat;
   return dome;
 }
@@ -706,7 +740,8 @@ async function loadModels(base) {
     parts.perse.userData.forward = PERSE_FORWARD;
     parts.perse.userData.sign = brokenSign(); parts.perse.add(parts.perse.userData.sign);
     { const h = new THREE.Group(); h.rotation.y = PERSE_FORWARD; parts.perse.add(h); headlights(h, 1.7, 1.2, .6); parts.perse.userData.spot = h.userData.spot; }
-    parts.perse.visible = planet === 'mars';
+    parts.perse.visible = planet === 'mars' || parts.debrisGroup.visible;
+    if (parts.lrv?.visible) { parts.lrv.visible = false; }
     base.add(parts.perse);
   });
   const astro = await load('astronaut');
@@ -805,7 +840,7 @@ function brokenSign() {
   return lab;
 }
 // The rover used for the escape mode: the Apollo-style one on the Moon, Perseverance on Mars.
-const curRover = () => (planet === 'mars' && parts.perse ? parts.perse : parts.lrv);
+const curRover = () => parts.perse || parts.lrv;
 function roverStop(id) {
   const o = debrisObjs.get(id);
   if (!o) return ROVER_HOME.clone();
@@ -813,7 +848,7 @@ function roverStop(id) {
   return target.add(new THREE.Vector3().subVectors(ROVER_HOME, target).setY(0).normalize().multiplyScalar(3));
 }
 function placeRover(r, pos, broken) {
-  r.position.set(pos.x, groundY(pos.x, pos.z), pos.z);
+  r.position.set(pos.x, vehicleY(pos.x, pos.z), pos.z);
   r.userData.broken = broken;
   if (r.userData.sign) r.userData.sign.visible = broken;
 }
@@ -844,8 +879,8 @@ export function setDebris(list) {
     if (!o.userData.carried) o.visible = !d.collected;
   }
   for (const [id, o] of debrisObjs) if (!list.some(d => d.id === id)) { o.traverse(x => { if (x.isCSS2DObject) x.element.remove(); }); parts.debrisGroup.remove(o); debrisObjs.delete(id); }
-  if (parts.lrv) parts.lrv.visible = planet !== 'mars';
-  if (parts.perse) parts.perse.visible = planet === 'mars';
+  if (parts.lrv) parts.lrv.visible = !parts.perse;
+  if (parts.perse) parts.perse.visible = true;
 }
 
 // The ship after a crash: tilted, with smoke. Repaired: upright again.
@@ -897,7 +932,8 @@ function makeBase() {
     const l = new THREE.PointLight(0xffd8a0, 0, 16, 2); l.position.set(x, 3, z); base.add(l); parts.lights.push(l);
   }
   const lab = (key, icon, x, y, z) => { const o = label(key, icon); o.position.set(x, y, z); base.add(o); };
-  lab('shield', icon('shield'), 0, 12.5, 0);
+  lab('shield', icon('shield'), 0, SHIELD_R + 1.5, 0);
+  base.add(habitatModules());
   lab('home', icon('home'), 0, 7.5, 0);
 
   parts.marsDecor = marsDecor(); parts.marsDecor.visible = false; base.add(parts.marsDecor);
@@ -1204,8 +1240,8 @@ export function setPlanet(p) {
   for (const o of objs.values()) o.key = ''; // rebuild buildings in the Mars (or Moon) style
   if (parts.lm && !anim) { parts.lm.position.copy(landingSpot()); parts.lm.rotation.set(0, .6, 0); }
   if (parts.earth) parts.earth.visible = !mars;
-  if (parts.perse) parts.perse.visible = mars;
-  if (parts.lrv) parts.lrv.visible = !mars && parts.debrisGroup.visible;
+  if (parts.perse) parts.perse.visible = mars || parts.debrisGroup.visible;
+  if (parts.lrv) parts.lrv.visible = !parts.perse && parts.debrisGroup.visible;
   parts.sun.scale.setScalar(mars ? 170 : 260); // the Sun looks smaller from Mars
   // on the bright Martian ground an added-light shield is invisible: draw it as a normal see-through dome
   parts.shield.blending = mars ? THREE.NormalBlending : THREE.AdditiveBlending;
@@ -1457,7 +1493,7 @@ function tick() {
     const p = Math.min(1, trip.t / trip.dur), e = p < .85 ? p / .85 * .9 : .9 + ease((p - .85) / .15) * .1;
     r.position.lerpVectors(trip.from, trip.to, Math.min(1, e));
     const bump = trip.broken ? Math.abs(Math.sin(trip.t * 5)) * .25 : Math.abs(Math.sin(trip.t * 9)) * .05;
-    r.position.y = groundY(r.position.x, r.position.z) + bump;
+    r.position.y = vehicleY(r.position.x, r.position.z) + bump;
     r.rotation.z = trip.broken ? .12 + Math.sin(trip.t * 5) * .06 : 0;
     for (const w of r.userData.wheels || []) w.rotation.y -= (turning ? 1.5 : trip.speed / .45) * step;
     if (trip.carry) { trip.carry.position.copy(r.position).add(new THREE.Vector3(0, 1.4, 0)); trip.carry.scale.setScalar(.6); }
@@ -1495,6 +1531,7 @@ function tick() {
   for (const r of [parts.lrv, parts.perse]) if (r?.userData.spot) r.userData.spot.intensity = lerp(r.userData.spot.intensity, night ? 120 : 0, k);
   if (mats.cells) mats.cells.emissiveIntensity = lerp(mats.cells.emissiveIntensity, night ? 0 : .25, k);
   if (parts.globe) parts.globe.rotation.y += dt * .01;
+  if (parts.labelObjs?.shield) parts.labelObjs.shield.visible = mode === 'game' && target.shield > 0;
   if (parts.spinners) for (const s of parts.spinners) { s.crystal.rotation.y += dt * .8; s.rings.rotation.y += dt * 1.2; s.rings.rotation.x = Math.sin(time * .7) * .3; }
   crystalMat.emissiveIntensity = .7 + .35 * Math.sin(time * 3) + (target.shield > 0 ? .8 : 0);
 
@@ -1537,8 +1574,8 @@ function tick() {
       const px = x + (55 - y) * SUN_DIR.x * -.6, pz = z + (55 - y) * SUN_DIR.z * -.6;
       const r = Math.hypot(px, pz);
       let len = 5 * sp;                                   // trail length
-      if (storm.blocked > 0 && r < 11.5 && i % storm.strength < storm.blocked) {
-        const surf = Math.sqrt(Math.max(0, 121 - r * r));  // stopped by the shield dome: the streak shrinks into it
+      if (storm.blocked > 0 && r < SHIELD_R + .5 && i % storm.strength < storm.blocked) {
+        const surf = Math.sqrt(Math.max(0, SHIELD_R * SHIELD_R - r * r));  // stopped by the shield dome: the streak shrinks into it
         if (y < surf) { len = Math.max(0, len - (surf - y)); y = surf; }
       }
       pos.setXYZ(i, px, y, pz);
@@ -1557,6 +1594,17 @@ function tick() {
 }
 
 // Back to normal (used when leaving a game): lander on the ground, no animation.
+export function resetBase() {
+  if (!ok) return;
+  syncBuildings([]);
+  setDebris(null);
+  parts.smoke.visible = false; parts.crashed = false;
+  parts.roverTrip = null;
+  if (parts.perse) { parts.perse.position.set(ROVER_HOME.x, groundY(ROVER_HOME.x, ROVER_HOME.z), ROVER_HOME.z); parts.perse.userData.broken = false; }
+  target = { ...target, night: false, dust: false, shield: 0, oxygen: 0 };
+  storm.active = false; storm.points.visible = false;
+}
+
 export function resetLander() {
   anim = null;
   parts.astronauts?.forEach(a => { a.visible = true; });

@@ -7,7 +7,7 @@ import { MAPS, DOSE_LIMIT, BUILDINGS, MAX_LEVEL, newGame, playDay, available, en
   ESCAPE, partsCollected, partsNeeded, roverCost, roverProblem, sendRover, canRepair, repairAndLaunch,
   roverDays, escapeDeadline, roverRepairProblem, repairRover, launchProblem } from './game.js';
 import { initScene, setMode, setLabels, updateScene, playStorm, syncBuildings, setSelected, onPickBuilding,
-  startPlacing, stopPlacing, resetView, setPlanet, playLanding, playLaunch, skipAnimation, resetLander, playIntro, prepareScene,
+  startPlacing, stopPlacing, resetView, setPlanet, playLanding, playLaunch, skipAnimation, resetLander, playIntro, prepareScene, resetBase,
   setDebris, setCrashed, driveRover, returnRover, setRover, onPickDebris, playLose } from './scene.js';
 import { isUnlocked, unlock, best, saveBest, unlockAll, setUnlockAll } from './progress.js';
 import { playMusic, setVolume, toggleMute, audioSettings, speak, stopSpeaking, radio, stopRadio, radioBusy, radioTime, sfx, preloadLines } from './audio.js';
@@ -97,7 +97,7 @@ function effectText(type, level) {
 function go(next) {
   if (next === 'menu') stopRadio();
   if (next === 'ranking') loadRank();
-  if (next === 'menu' && has3d) { resetLander(); stopPlacing(); setPlanet('moon'); }
+  if (next === 'menu' && has3d) { resetLander(); stopPlacing(); resetBase(); setPlanet('moon'); }
   screen = next; render();
 }
 

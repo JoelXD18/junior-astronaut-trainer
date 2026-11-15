@@ -19,7 +19,7 @@ export const MAPS = {
     start: [
       ['solar', -20, -10], ['solar', -15, -16], ['solar', -24, -3],
       ['oxygen', 18, -8], ['tank', 24, -1],
-      ['battery', 17, 9], ['battery', 22, 15],
+      ['battery', 16, 9], ['battery', 25, 17],
       ['shield', 7, 5],
     ],
   },
@@ -46,7 +46,7 @@ export const MAPS = {
     start: [
       ['solar', -20, -10], ['solar', -15, -16], ['solar', -24, -3], ['solar', -27, -12],
       ['oxygen', 18, -8], ['tank', 24, -1],
-      ['battery', 17, 9], ['battery', 22, 15],
+      ['battery', 16, 9], ['battery', 25, 17],
       ['shield', 7, 5],
     ],
   },
@@ -83,7 +83,7 @@ export const BUILDINGS = {
 };
 export const MAX_LEVEL = 3;
 export const BASE_RADIUS = 48;              // you can build up to this distance from the habitat
-const KEEP_OUT = [[0, 0, 12], [-26, 14, 7]]; // habitat + shield dome, landing site
+const KEEP_OUT = [[0, 0, 15], [-26, 14, 7]]; // habitat modules + shield dome, landing site
 
 // What each building gives, by level
 export const solarEnergy = level => level + 1;        // 2, 3, 4 energy per sunny day
