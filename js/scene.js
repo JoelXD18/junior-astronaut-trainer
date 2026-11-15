@@ -834,8 +834,8 @@ function makeBase() {
 
   // Building lights for the night: the same warm light as the habitat's, moved to the buildings
   parts.bLights = [];
-  for (let i = 0; i < 10; i++) {
-    const l = new THREE.PointLight(0xffd8a0, 0, 16, 2); l.position.set(0, -50, 0); base.add(l); parts.bLights.push(l);
+  for (let i = 0; i < 8; i++) {
+    const l = new THREE.PointLight(0xffd8a0, 0, 16, 2); l.position.set(0, -50, 0); l.visible = false; base.add(l); parts.bLights.push(l);
   }
   // Habitat lights for the night
   for (const [x, z] of [[4, 4], [-4, 4], [0, -5]]) {
@@ -1020,11 +1020,16 @@ function makeStormParticles() {
 }
 
 export function initScene() {
-  try { renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' }); }
+  // Phones have very sharp screens: drawing every one of their pixels makes the game slow, so the 3D is drawn at a
+  // lower resolution there (it still looks sharp), and it drops a little more by itself if the device struggles.
+  const touch = matchMedia('(pointer: coarse)').matches;
+  try { renderer = new THREE.WebGLRenderer({ antialias: !touch, powerPreference: 'high-performance' }); }
   catch { ok = false; return false; }
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.75));
+  quality.max = Math.min(window.devicePixelRatio || 1, touch ? 1.5 : 1.5);
+  quality.ratio = quality.max;
+  renderer.setPixelRatio(quality.ratio);
   renderer.shadowMap.enabled = true;
-  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  renderer.shadowMap.type = THREE.PCFShadowMap; // softer-edged shadows cost much more
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = 1.05;
 
@@ -1048,7 +1053,7 @@ export function initScene() {
   sunLight = new THREE.DirectionalLight(0xfff6e8, 3.2);
   sunLight.position.copy(SUN_DIR).multiplyScalar(120);
   sunLight.castShadow = true;
-  sunLight.shadow.mapSize.set(2048, 2048);
+  sunLight.shadow.mapSize.set(touch ? 1024 : 2048, touch ? 1024 : 2048);
   Object.assign(sunLight.shadow.camera, { left: -50, right: 50, top: 50, bottom: -50, near: 10, far: 300 });
   sunLight.shadow.bias = -.0005;
   earthLight = new THREE.DirectionalLight(0x9db8ff, .12);
@@ -1075,17 +1080,35 @@ export function initScene() {
   el.addEventListener('pointermove', onMove);
   el.addEventListener('pointerup', onUp);
   renderer.setAnimationLoop(tick);
+  // Always fill the screen: phones change size when rotated or when the browser bars hide, sometimes a moment
+  // after the "resize" event, so the size is checked again a little later too.
   window.addEventListener('resize', resize);
+  window.addEventListener('orientationchange', () => { resize(); setTimeout(resize, 350); setTimeout(resize, 900); });
+  window.visualViewport?.addEventListener('resize', resize);
+  if ('ResizeObserver' in window) new ResizeObserver(resize).observe(wrap);
   resize();
   return true;
 }
 
+const quality = { max: 1.5, ratio: 1.5, frames: 0, time: 0 };
 function resize() {
-  const w = window.innerWidth, h = window.innerHeight;
-  renderer.setSize(w, h);
+  const w = Math.max(1, wrap.clientWidth || window.innerWidth), h = Math.max(1, wrap.clientHeight || window.innerHeight);
+  renderer.setSize(w, h, false); // the canvas is stretched by CSS to fill the screen; this sets how many pixels it draws
   labelRenderer.setSize(w, h);
   camera.aspect = w / h;
   camera.updateProjectionMatrix();
+}
+// If the device can't keep up (slower than ~35 frames a second), draw at a slightly lower resolution.
+function adaptQuality(raw) {
+  quality.frames++; quality.time += raw;
+  if (quality.time < 2.5) return;
+  const fps = quality.frames / quality.time;
+  quality.frames = 0; quality.time = 0;
+  if (fps < 35 && quality.ratio > .75) quality.ratio = Math.max(.75, quality.ratio - .25);
+  else if (fps > 55 && quality.ratio < quality.max) quality.ratio = Math.min(quality.max, quality.ratio + .25);
+  else return;
+  renderer.setPixelRatio(quality.ratio);
+  resize();
 }
 
 // 'menu': slow low orbit with the horizon, the Earth and the landing site.
@@ -1338,7 +1361,8 @@ function tick() {
   const raw = clock.getDelta(), dt = Math.min(raw, .05), time = clock.elapsedTime;
   const k = 1 - Math.pow(.03, dt);
   const night = target.night && mode === 'game';
-  if (anim) runAnim(Math.min(raw, .25)); // real time, even on slow devices
+  if (!document.hidden) adaptQuality(Math.min(raw, 1));
+  if (anim) runAnim(Math.min(raw, 1)); // real time, even after a slow frame, so the animation stays with the voices
 
   // Smoke from the damaged ship
   if (parts.smoke.visible) {
@@ -1401,7 +1425,8 @@ function tick() {
   parts.sun.material.opacity = lerp(parts.sun.material.opacity, night ? 0 : 1, k);
   parts.lights.forEach(l => { l.intensity = lerp(l.intensity, night ? 40 : 0, k); });
   if (lampMat) lampMat.emissiveIntensity = lerp(lampMat.emissiveIntensity, night ? 3 : 0, k);
-  parts.bLights?.forEach(l => { l.intensity = lerp(l.intensity, night && l.userData.on ? 40 : 0, k); });
+  parts.bLights?.forEach(l => { l.intensity = lerp(l.intensity, night && l.userData.on ? 40 : 0, k); l.visible = l.intensity > .5; });
+  parts.lights.forEach(l => { l.visible = l.intensity > .5; });
   for (const r of [parts.lrv, parts.perse]) if (r?.userData.spot) r.userData.spot.intensity = lerp(r.userData.spot.intensity, night ? 120 : 0, k);
   if (mats.cells) mats.cells.emissiveIntensity = lerp(mats.cells.emissiveIntensity, night ? 0 : .25, k);
   if (parts.globe) parts.globe.rotation.y += dt * .01;

@@ -721,3 +721,35 @@ body.intro .menu, body.intro-lock .menu { pointer-events: none; }
 .credit-link { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-weight: 800; }
 .credit-link a:first-child { display: inline-grid; place-items: center; width: 26px; height: 26px; border-radius: 6px; background: #0a66c2; color: #fff; font: 800 15px/1 Arial, sans-serif; text-decoration: none; }
 .credit-link a:last-child { color: #8fc8ff; }
+
+/* the 3D canvas always fills the screen, whatever size it was drawn at */
+.scene-bg { width: 100vw; height: 100vh; height: 100dvh; }
+.scene-bg canvas { width: 100% !important; height: 100% !important; }
+
+/* ---------- buttons on phones: no double-tap zoom, no grey flash, no text selection ---------- */
+button, .btn, [data-action], [data-go] { touch-action: manipulation; -webkit-tap-highlight-color: transparent; user-select: none; -webkit-user-select: none; }
+
+/* ---------- short screens (phones sideways): everything fits, and scrolls instead of being cut ---------- */
+@media (max-height: 520px) {
+  .menu { height: 100%; overflow-y: auto; align-content: safe center; padding: 6px 16px; }
+  .menu .stack { gap: 6px; }
+  .menu .stack .btn { padding: 5px 12px; font-size: 15px; }
+  .menu .stack .btn.xl { padding: 7px 12px; font-size: 18px; }
+  .menu > .sun-chip { font-size: 12px; }
+  .menu .brand-main { font-size: clamp(26px, 5.4vw, 46px); }
+  .centered { justify-content: safe center; padding: 6px 12px; gap: 8px; }
+  .choice-cards { gap: 8px; }
+  .choice { padding: 8px 8px !important; gap: 2px !important; }
+  .c-ico { font-size: 34px; }
+  .choice strong { font-size: 18px; }
+  .choice small { font-size: 12px; line-height: 1.2; }
+  .c-stars { font-size: 18px; }
+  .btn.back { padding: 5px 14px; font-size: 15px; }
+  /* tutorial: smaller picture so the text and the buttons fit */
+  .tut-win .win-body { padding-top: 8px; }
+  .tut-text p { font-size: 14px; }
+  .demo { margin: 6px auto 4px; max-width: 60vh; }
+  .demo-svg { max-height: 30vh; }
+  .tut-dots { margin: 2px 0 6px; }
+  .tut-nav .btn { padding: 5px 12px; font-size: 16px; min-height: 0; }
+}
