@@ -601,16 +601,29 @@ function makeFlame() {
 function makeSmoke() {
   const n = 120, geo = new THREE.BufferGeometry();
   geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(n * 3), 3));
-  const p = new THREE.Points(geo, new THREE.PointsMaterial({ color: 0x9b9b9b, size: 1.4, transparent: true, opacity: .45, depthWrite: false }));
+  // soft grey puffs rising from the damaged ship (not squares)
+  const p = new THREE.Points(geo, new THREE.PointsMaterial({ color: 0x8a8a8a, size: 4, map: softDot(), transparent: true, opacity: .32, depthWrite: false }));
   p.userData.seeds = Array.from({ length: n }, () => [Math.random(), (Math.random() - .5) * 2, (Math.random() - .5) * 2]);
   p.position.set(-26, 0, 14);
   return p;
 }
 
+// A soft round dot (white in the middle, fading to nothing) so particles look like glows and puffs, not squares.
+let dotTex = null;
+function softDot() {
+  if (dotTex) return dotTex;
+  const c = document.createElement('canvas'); c.width = c.height = 64;
+  const g = c.getContext('2d'), gr = g.createRadialGradient(32, 32, 0, 32, 32, 32);
+  gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(.35, 'rgba(255,255,255,.75)'); gr.addColorStop(1, 'rgba(255,255,255,0)');
+  g.fillStyle = gr; g.fillRect(0, 0, 64, 64);
+  return (dotTex = new THREE.CanvasTexture(c));
+}
+
+// Dust thrown up by a landing or a crash: soft clouds that grow and fade.
 function makeDust() {
-  const n = 260, geo = new THREE.BufferGeometry();
+  const n = 220, geo = new THREE.BufferGeometry();
   geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(n * 3), 3));
-  const p = new THREE.Points(geo, new THREE.PointsMaterial({ color: 0xc9c2b4, size: .9, transparent: true, opacity: .8, depthWrite: false }));
+  const p = new THREE.Points(geo, new THREE.PointsMaterial({ color: 0xc9c2b4, size: 2.4, map: softDot(), transparent: true, opacity: .7, depthWrite: false }));
   p.userData.dirs = Array.from({ length: n }, () => { const a = Math.random() * Math.PI * 2; return [Math.cos(a), Math.sin(a), .4 + Math.random(), Math.random() * .8]; });
   p.visible = false;
   return p;
@@ -989,12 +1002,20 @@ function onUp(e) {
 
 export function resetView() { setMode('game', true); }
 
+// Solar storm: streaks of radiation falling from the Sun's direction, each a glowing head with a fading trail.
 function makeStormParticles() {
-  const n = 900, g = new THREE.BufferGeometry();
+  const n = 700, g = new THREE.BufferGeometry();
   g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(n * 3), 3));
-  const p = new THREE.Points(g, new THREE.PointsMaterial({ color: 0xfff0a0, size: .5, transparent: true, opacity: .95, blending: THREE.AdditiveBlending, depthWrite: false }));
+  const heads = new THREE.Points(g, new THREE.PointsMaterial({ color: 0xffe9a8, size: 1.5, map: softDot(), transparent: true, opacity: 1, blending: THREE.AdditiveBlending, depthWrite: false }));
+  const tg = new THREE.BufferGeometry();
+  tg.setAttribute('position', new THREE.BufferAttribute(new Float32Array(n * 6), 3));
+  const col = new Float32Array(n * 6);
+  for (let i = 0; i < n; i++) { col.set([1, .85, .45], i * 6); col.set([0, 0, 0], i * 6 + 3); } // bright at the head, nothing at the tail
+  tg.setAttribute('color', new THREE.BufferAttribute(col, 3));
+  const tails = new THREE.LineSegments(tg, new THREE.LineBasicMaterial({ vertexColors: true, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false }));
+  const p = new THREE.Group(); p.add(tails, heads);
   p.visible = false;
-  p.userData.seeds = Array.from({ length: n }, () => [(Math.random() - .5) * 70, Math.random() * 60, (Math.random() - .5) * 70, .7 + Math.random() * .8]);
+  p.userData = { heads, tails, seeds: Array.from({ length: n }, () => [(Math.random() - .5) * 70, Math.random() * 60, (Math.random() - .5) * 70, .7 + Math.random() * .8]) };
   return p;
 }
 
@@ -1358,9 +1379,11 @@ function tick() {
   if (parts.dust.visible) {
     const d = parts.dust; d.userData.t += dt;
     const t = d.userData.t, pos = d.geometry.attributes.position;
-    d.userData.dirs.forEach(([x, z, sp, h], i) => pos.setXYZ(i, x * t * 9 * sp, h * t * 3 * (1.5 - t * .5), z * t * 9 * sp));
+    const out = 1 - Math.pow(1 - Math.min(1, t / 2.4), 2); // fast at first, then slowing down
+    d.userData.dirs.forEach(([x, z, sp, h], i) => pos.setXYZ(i, x * out * 20 * sp, .4 + h * out * 4 * (1.3 - out * .6), z * out * 20 * sp));
     pos.needsUpdate = true;
-    d.material.opacity = Math.max(0, .8 - t * .35);
+    d.material.size = 2.2 + t * 3.2;              // the puffs grow as they spread
+    d.material.opacity = Math.max(0, .7 * (1 - t / 2.4));
     if (t > 2.4) d.visible = false;
   }
 
@@ -1410,18 +1433,27 @@ function tick() {
   // Solar storm
   if (storm.active) {
     storm.t += dt;
-    const p = storm.points, pos = p.geometry.attributes.position;
-    const count = Math.min(p.userData.seeds.length, storm.strength * 180);
-    p.visible = true; p.geometry.setDrawRange(0, count);
+    const p = storm.points, { heads, tails } = p.userData;
+    const pos = heads.geometry.attributes.position, tp = tails.geometry.attributes.position;
+    const count = Math.min(p.userData.seeds.length, storm.strength * 140);
+    p.visible = true; heads.geometry.setDrawRange(0, count); tails.geometry.setDrawRange(0, count * 2);
+    const fade = Math.min(1, storm.t * 3, (3 - storm.t) * 2); // fades in and out
+    heads.material.opacity = fade; heads.material.color.setRGB(1 * fade, .91 * fade, .66 * fade);
     for (let i = 0; i < count; i++) {
       const [x, y0, z, sp] = p.userData.seeds[i];
       let y = 55 - ((y0 + storm.t * 40 * sp) % 60);
       const px = x + (55 - y) * SUN_DIR.x * -.6, pz = z + (55 - y) * SUN_DIR.z * -.6;
       const r = Math.hypot(px, pz);
-      if (storm.blocked > 0 && r < 11.5 && i % storm.strength < storm.blocked) y = Math.max(y, Math.sqrt(Math.max(0, 121 - r * r)));
+      let len = 5 * sp;                                   // trail length
+      if (storm.blocked > 0 && r < 11.5 && i % storm.strength < storm.blocked) {
+        const surf = Math.sqrt(Math.max(0, 121 - r * r));  // stopped by the shield dome: the streak shrinks into it
+        if (y < surf) { len = Math.max(0, len - (surf - y)); y = surf; }
+      }
       pos.setXYZ(i, px, y, pz);
+      tp.setXYZ(i * 2, px, y, pz);
+      tp.setXYZ(i * 2 + 1, px - SUN_DIR.x * -.6 * len, y + len, pz - SUN_DIR.z * -.6 * len);
     }
-    pos.needsUpdate = true;
+    pos.needsUpdate = true; tp.needsUpdate = true;
     const hurt = storm.blocked < storm.strength;
     scene.background.copy(hurt && Math.sin(storm.t * 10) > .7 ? FLASH : skyColor);
     if (storm.t > 3) { storm.active = false; p.visible = false; }
