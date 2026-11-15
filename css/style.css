@@ -697,3 +697,17 @@ body.intro .menu, body.intro-lock .menu { pointer-events: none; }
 .btn.tiny { min-height: 0; padding: 3px 10px; font-size: 13px; }
 .rank-offer { margin: 10px 0; padding: 10px 12px; border-radius: 14px; background: rgba(255, 210, 80, .12); border: 2px solid var(--gold); }
 .rank-ok { font: 400 18px var(--title); color: #9be15d; display: flex; gap: 6px; justify-content: center; align-items: center; }
+
+/* ranking: empty places and the big astronaut-name card */
+.rank-list li.empty { opacity: .45; }
+.rank-list li.empty .rn, .rank-list li.empty .rd { color: var(--muted); }
+.nick-card { display: grid; justify-items: center; gap: 6px; margin: 12px auto 4px; padding: 14px 16px; max-width: 420px; text-align: center;
+  border-radius: 18px; border: 3px solid var(--ink); background: linear-gradient(#3b5fd0, #1d2f78);
+  box-shadow: inset 0 0 0 3px rgba(255, 213, 79, .7), 0 6px 0 var(--ink); }
+.nc-label { font: 400 16px var(--title); color: var(--gold); text-transform: uppercase; letter-spacing: .5px; }
+.nc-name { font: 400 clamp(26px, 6vw, 36px)/1.1 var(--title); color: #fff; text-shadow: 0 3px 0 var(--ink), 0 0 16px rgba(120, 190, 255, .7); }
+.nc-hint { font-size: 13px; color: #cfe0ff; }
+.nc-roll { font-size: 18px; padding: 8px 18px; min-height: 0; }
+.rank-list li { padding: 5px 12px; }
+.rank-list .rk { font-size: 18px; }
+.window .nick-card { margin-top: 0; }

@@ -341,8 +341,8 @@ export default {
   rankYou: "(tú)",
   rankDays: "{n} días",
   rankPos: "Tu mejor marca: puesto {r} de {p} jugadores ({n} días).",
-  rankYouAre: "Tu apodo:",
-  rankReroll: "Otro",
+  rankYouAre: "Tu nombre de astronauta",
+  rankReroll: "¡Otro nombre!",
   rankAsk: "¿Subir esta partida ({n} días aguantados) al ranking mundial?",
   rankSend: "Subirla",
   rankSkip: "No, gracias",
@@ -350,4 +350,5 @@ export default {
   rankSent: "¡Récord subido! Así va el ranking:",
   rankRetry: "Reintentar",
   nickWords: {"format":"{n} {a} {d}","nouns":["Cometa","Cohete","Estrella","Astronauta","Rover","Luna","Nebulosa","Meteoro","Galaxia","Órbita","Satélite","Planeta","Piloto","Halcón","Módulo","Explorador"],"adjs":["Valiente","Veloz","Brillante","Audaz","Feliz","Fuerte","Genial","Leal","Hábil","Tenaz","Alegre","Estelar","Cósmico","Lunar","Solar","Ágil"]},
+  rankNickHint: "Así te verán los demás jugadores en el ranking.",
 };

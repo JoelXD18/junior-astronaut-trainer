@@ -346,8 +346,8 @@ export default {
   rankYou: "(you)",
   rankDays: "{n} days",
   rankPos: "Your best: #{r} of {p} players ({n} days).",
-  rankYouAre: "Your nickname:",
-  rankReroll: "Another one",
+  rankYouAre: "Your astronaut name",
+  rankReroll: "Another name!",
   rankAsk: "Upload this game (you lasted {n} days) to the world ranking?",
   rankSend: "Upload it",
   rankSkip: "No, thanks",
@@ -355,4 +355,5 @@ export default {
   rankSent: "Record uploaded! Here is the ranking:",
   rankRetry: "Try again",
   nickWords: {"format":"{a} {n} {d}","nouns":["Comet","Rocket","Star","Astronaut","Rover","Moon","Nebula","Meteor","Galaxy","Orbit","Satellite","Planet","Pilot","Falcon","Lander","Explorer"],"adjs":["Brave","Swift","Bright","Bold","Happy","Strong","Awesome","Loyal","Skilled","Tough","Cheerful","Stellar","Cosmic","Lunar","Solar","Agile"]},
+  rankNickHint: "This is how other players will see you in the ranking.",
 };

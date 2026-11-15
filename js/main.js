@@ -201,23 +201,31 @@ function loadRank(map = rank.map, difficulty = rank.difficulty) {
     .catch(() => { rank.status = 'error'; })
     .finally(() => { if (screen === 'ranking' || screen === 'end') render(); });
 }
+// Always the top 10 places; an empty place shows "-".
 function rankList(data) {
-  if (!data?.list.length) return `<p class="rank-empty">${esc(t('rankEmpty'))}</p>`;
-  return `<ol class="rank-list">${data.list.map(r => `<li class="${r.me ? 'me' : ''}"><span class="rk">#${r.rank}</span>
-    <span class="rn">${esc(nickName(r.nick))}${r.me ? ` <small>${esc(t('rankYou'))}</small>` : ''}</span>
-    <span class="rd">${esc(t('rankDays', { n: r.days }))}</span></li>`).join('')}</ol>
-    ${data.myRank ? `<p class="rank-mine">${esc(t('rankPos', { r: data.myRank, p: data.players, n: data.myDays }))}</p>` : ''}`;
+  const rows = Array.from({ length: 10 }, (_, i) => data?.list[i] || { rank: i + 1, empty: true });
+  return `<ol class="rank-list">${rows.map(r => `<li class="${r.me ? 'me' : ''} ${r.empty ? 'empty' : ''}"><span class="rk">#${r.rank}</span>
+    <span class="rn">${r.empty ? '-' : esc(nickName(r.nick))}${r.me ? ` <small>${esc(t('rankYou'))}</small>` : ''}</span>
+    <span class="rd">${r.empty ? '-' : esc(t('rankDays', { n: r.days }))}</span></li>`).join('')}</ol>
+    ${data?.myRank > 10 ? `<p class="rank-mine">${esc(t('rankPos', { r: data.myRank, p: data.players, n: data.myDays }))}</p>` : ''}`;
+}
+// The player's astronaut name, big and clear, with a dice button to get another one.
+function nickCard() {
+  return `<div class="nick-card"><span class="nc-label">🧑‍🚀 ${esc(t('rankYouAre'))}</span>
+    <span class="nc-name">${esc(nickName(myNick()))}</span>
+    <span class="nc-hint">${esc(t('rankNickHint'))}</span>
+    <button class="btn orange nc-roll" data-action="rank-reroll"><span>🎲 ${esc(t('rankReroll'))}</span></button></div>`;
 }
 function rankingScreen() {
   const tab = (attr, val, label, on) => `<button class="rank-tab ${on ? 'on' : ''}" ${attr}="${val}">${label}</button>`;
   const body = rank.status === 'loading' ? `<p class="rank-empty">${esc(t('rankLoading'))}</p>`
     : rank.status === 'error' ? `<p class="notice bad">${icon('warning')} ${esc(t('rankError'))}</p>` : rankList(rank.data);
   return centered(windowHtml(`${icon('trophy')} ${esc(t('rankTitle'))}`, `
+    ${nickCard()}
     <p class="small">${esc(t('rankIntro'))}</p>
     <div class="rank-tabs">${tab('data-rank-map', 'moon', `${icon('moon')} ${esc(t('moon'))}`, rank.map === 'moon')}${tab('data-rank-map', 'mars', `${icon('mars')} ${esc(t('mars'))}`, rank.map === 'mars')}</div>
     <div class="rank-tabs small-tabs">${['easy', 'normal', 'hard'].map(d => tab('data-rank-diff', d, esc(t(d)), rank.difficulty === d)).join('')}</div>
-    ${body}
-    <p class="rank-nick">${esc(t('rankYouAre'))} <b>${esc(nickName(myNick()))}</b> <button class="btn grey tiny" data-action="rank-reroll">🎲 ${esc(t('rankReroll'))}</button></p>`,
+    ${body}`,
     { close: null }) + `<button class="btn grey back" data-go="menu">← ${esc(t('back'))}</button>`);
 }
 // End of an Infinite game: offer to upload the record (only if you lasted at least one day).
@@ -226,7 +234,7 @@ function rankOffer(days) {
   if (days < 1) return '';
   if (r.state === 'skipped') return '';
   if (r.state === 'ask') return `<div class="rank-offer"><p><b>${esc(t('rankAsk', { n: days }))}</b></p>
-    <p class="rank-nick">${esc(t('rankYouAre'))} <b>${esc(nickName(myNick()))}</b> <button class="btn grey tiny" data-action="rank-reroll">🎲 ${esc(t('rankReroll'))}</button></p>
+    ${nickCard()}
     <div class="sel-actions"><button class="btn green" data-action="rank-send">${icon('trophy')}<span>${esc(t('rankSend'))}</span></button>
     <button class="btn grey" data-action="rank-skip"><span>${esc(t('rankSkip'))}</span></button></div></div>`;
   if (r.state === 'sending') return `<div class="rank-offer"><p>${esc(t('rankSending'))}</p></div>`;
