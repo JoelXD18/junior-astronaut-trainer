@@ -2,7 +2,7 @@
 // The 3D Moon base (scene.js) is always behind; the screens are drawn on top of it.
 import { t, setLang, lang, onLangChange, LANGUAGES } from './i18n.js';
 import { MAPS, DOSE_LIMIT, BUILDINGS, MAX_LEVEL, newGame, playDay, available, energyToday, isNight, forecast,
-  batteryMax, oxygenMax, solarEnergy, batteryCap, tankCap, oxygenBonus, shieldBonus, shieldBlocks,
+  batteryMax, oxygenMax, solarEnergy, batteryCap, tankCap, oxygenBonus, shieldBonus, shieldBlocks, shieldMaxEnergy,
   validSpot, buildProblem, build, upgradeCost, upgradeProblem, upgrade, moveBuilding,
   ESCAPE, partsCollected, partsNeeded, roverCost, roverProblem, sendRover, canRepair, repairAndLaunch,
   roverDays, escapeDeadline, roverRepairProblem, repairRover, launchProblem } from './game.js';
@@ -356,7 +356,7 @@ function dock() {
       <span class="orb-of">${esc(t('energyOf', { n: total }))}</span>
     </button>
     ${slot('oxygen', 'oxygen', t('oxygen'), `+${o2} O₂`, total - choice.shield)}
-    ${slot('shield', 'shield', t('shieldLabel'), blocks ? esc(t('shieldBlocksToday', { n: blocks })) : '—', total - choice.oxygen)}
+    ${slot('shield', 'shield', t('shieldLabel'), blocks ? esc(t('shieldBlocksToday', { n: blocks })) : '—', Math.min(total - choice.oxygen, shieldMaxEnergy(game)))}
     <div class="slot battery ${lost > 0 ? 'full' : ''}">
       <span class="slot-label">${esc(t('battery'))}</span>
       <span class="slot-ico">${icon('battery')}</span>
@@ -798,7 +798,8 @@ document.addEventListener('click', e => {
   if (d.step) {
     const total = available(game);
     const other = d.step === 'oxygen' ? choice.shield : choice.oxygen;
-    choice[d.step] = Math.max(0, Math.min(total - other, choice[d.step] + Number(d.d)));
+    const cap = d.step === 'shield' ? shieldMaxEnergy(game) : Infinity; // more than the strongest storm is useless
+    choice[d.step] = Math.max(0, Math.min(total - other, cap, choice[d.step] + Number(d.d)));
     return render();
   }
   switch (d.action) {

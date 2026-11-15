@@ -426,6 +426,10 @@ export function playDay(state, { oxygen = 0, shield = 0 }) {
   return report;
 }
 
+// The strongest storm is 5 points (an X5 flare or bigger), so the shield never needs more than that.
+export const MAX_STORM = 5;
+export function shieldMaxEnergy(state) { return Math.max(1, MAX_STORM - shieldBonus(shieldLevel(state))); }
+
 // How many storm points the shield blocks with this much energy.
 export function shieldBlocks(state, energy) {
   return energy > 0 ? energy + shieldBonus(shieldLevel(state)) : 0;
