@@ -549,29 +549,29 @@ const ICONS = { solar: 'sun', oxygen: 'oxygen', tank: 'tank', battery: 'battery'
 
 // Radiation shield: a soft energy dome around the habitat (game effect, so kids can see it).
 const SHIELD_R = 14.5; // covers the habitat and its extra modules
+export const SEV_SPOT = [6, 21], HELI_SPOT = [-3, 20]; // decorations outside the dome (kept free in game.js)
 
-// Extra habitat modules around the main habitat, joined to it by tunnels, so it looks like a real base.
-function habitatModules() {
-  const g = new THREE.Group(), white = metal(0xe6e6e2, .45, .35), dark = metal(0x6d7178, .6, .5);
-  nightMats();
-  for (const [x, z, rot, len] of [[-8.5, -4.5, .5, 6], [5.5, -8.5, -1.1, 5.5], [-8, 6, -.4, 5]]) {
-    const m = new THREE.Group(); m.position.set(x, 0, z); m.rotation.y = rot;
-    const body = new THREE.Mesh(new THREE.CapsuleGeometry(1.9, len, 8, 24), white); body.rotation.z = Math.PI / 2; body.position.y = 2.1; m.add(body);
-    for (const sx of [-len / 3, len / 3]) { const leg = new THREE.Mesh(new THREE.BoxGeometry(.4, 1, 3), dark); leg.position.set(sx, .5, 0); m.add(leg); }
-    for (let i = 0; i < 3; i++) { // windows that glow at night
-      const w = new THREE.Mesh(new THREE.BoxGeometry(.8, .45, .1), lampMat); w.position.set((i - 1) * 1.6, 2.5, 1.86); m.add(w);
-      const w2 = w.clone(); w2.position.z = -1.86; m.add(w2);
-    }
-    const band = new THREE.Mesh(new THREE.CylinderGeometry(1.95, 1.95, .35, 24), metal(0x5b6ea8, .4, .5)); band.rotation.z = Math.PI / 2; band.position.y = 2.1; m.add(band);
+// Extra habitat modules: copies of NASA's Habitat Demonstration Unit (parts 1 and 2) around the main habitat,
+// joined to it by tunnels. The Moon and Mars bases are laid out differently.
+const BASE_LAYOUT = {
+  moon: [[-9, -4, .9, 1], [6, -9.5, -.9, 2], [-8.5, 7, 2.6, 1]],          // x, z, turn, which model
+  mars: [[-9.5, -8, .5, 2], [0, -11, 0, 1], [9.5, -8, -.5, 2]],
+};
+function buildModules(hab1, hab2, layout) {
+  const g = new THREE.Group(), white = metal(0xe6e6e2, .45, .35);
+  for (const [x, z, rot, which] of layout) {
+    const src = which === 1 ? hab1 : hab2;
+    if (!src) continue;
+    const m = placeModel(src.clone(true), 4.6, x, z, rot); // clone first, then scale (each copy on its own)
+    m.position.y = groundY(x, z);
     g.add(m);
-    // tunnel to the main habitat
-    const to = new THREE.Vector3(-x, 0, -z), d = to.length() - 3.2;
-    const tunnel = new THREE.Mesh(new THREE.CylinderGeometry(.8, .8, d, 14), white);
-    tunnel.position.set(x / 2, 1.3, z / 2); tunnel.rotation.z = Math.PI / 2; tunnel.rotation.y = -Math.atan2(z, x) + Math.PI; g.add(tunnel);
+    const d = Math.hypot(x, z) - 5;
+    const tunnel = new THREE.Mesh(new THREE.CylinderGeometry(.85, .85, d, 14), white);
+    tunnel.position.set(x / 2, 1.2, z / 2); tunnel.rotation.z = Math.PI / 2; tunnel.rotation.y = -Math.atan2(z, x) + Math.PI;
+    g.add(tunnel);
   }
   return shadow(g);
 }
-
 function shieldDome() {
   const mat = new THREE.ShaderMaterial({
     transparent: true, depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending,
@@ -725,7 +725,37 @@ async function loadModels(base) {
   loader.setDRACOLoader(draco);
   const load = n => loader.loadAsync(`assets/models/${n}.glb`).then(g => g.scene).catch(() => null);
   // Each model appears as soon as it has loaded (the big rover doesn't hold up the others).
-  load('habitat-1').then(hab => { if (hab) base.add(placeModel(hab, 5.5, 0, 0, -.4)); });
+  // main habitat + extra modules (real NASA habitat models), different layout on each planet
+  Promise.all([load('habitat-1'), load('habitat-2')]).then(([hab, hab2]) => {
+    if (!hab) return;
+    const keep = hab.clone(true), keep2 = hab2 ? hab2.clone(true) : null;
+    base.add(placeModel(hab, 5.5, 0, 0, -.4));
+    parts.moonBase = buildModules(keep, keep2, BASE_LAYOUT.moon);
+    parts.marsBase = buildModules(keep, keep2, BASE_LAYOUT.mars);
+    parts.moonBase.visible = planet !== 'mars'; parts.marsBase.visible = planet === 'mars';
+    base.add(parts.moonBase, parts.marsBase);
+  });
+  // the Moon: NASA's Space Exploration Vehicle, a pressurised car for astronauts, parked outside the dome
+  load('sev').then(car => {
+    if (!car) return;
+    parts.sev = placeModel(car, 3.4, SEV_SPOT[0], SEV_SPOT[1], 2.3);
+    parts.sev.position.y = groundY(SEV_SPOT[0], SEV_SPOT[1]);
+    parts.sev.visible = planet !== 'mars';
+    base.add(parts.sev);
+  });
+  // Mars: the Ingenuity helicopter on its landing pad
+  load('ingenuity').then(heli => {
+    if (!heli) return;
+    const g = new THREE.Group();
+    const pad = new THREE.Mesh(new THREE.CylinderGeometry(2.2, 2.4, .15, 32), metal(0x8a7a6a, .9, .1));
+    pad.position.y = .07; g.add(pad);
+    const mark = new THREE.Mesh(new THREE.RingGeometry(1.3, 1.6, 32), new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.DoubleSide }));
+    mark.rotation.x = -Math.PI / 2; mark.position.y = .16; g.add(mark);
+    g.add(placeModel(heli, 1.6, 0, 0, .4));
+    g.position.set(HELI_SPOT[0], groundY(HELI_SPOT[0], HELI_SPOT[1]), HELI_SPOT[1]);
+    parts.heli = shadow(g); parts.heli.visible = planet === 'mars';
+    base.add(parts.heli);
+  });
   lmReady = load('lunar-module').then(lm => {
     if (!lm) return;
     parts.lm = placeModel(lm, 7, -26, 14, .6);
@@ -756,22 +786,12 @@ async function loadModels(base) {
   }
 }
 
-// Only on Mars: a wall of Martian soil around the habitat (extra radiation protection) and a greenhouse.
+// Only on Mars: a wall of Martian soil around the habitat (extra radiation protection).
 function marsDecor() {
   const g = new THREE.Group();
   const soil = new THREE.MeshStandardMaterial({ color: 0x9c4e2c, roughness: 1, flatShading: true });
   const berm = new THREE.Mesh(new THREE.TorusGeometry(6.2, 1.1, 6, 40, Math.PI * 1.6), soil);
   berm.rotation.x = -Math.PI / 2; berm.rotation.z = 1.9; berm.scale.z = .7; berm.position.y = .2; g.add(berm);
-  const glass = new THREE.MeshStandardMaterial({ color: 0xbfe9ff, transparent: true, opacity: .35, roughness: .1, metalness: .2, depthWrite: false });
-  const dome = new THREE.Mesh(new THREE.SphereGeometry(2.6, 24, 12, 0, Math.PI * 2, 0, Math.PI / 2), glass);
-  dome.position.set(-6.5, 0, -7); g.add(dome);
-  const plants = new THREE.MeshStandardMaterial({ color: 0x3fa34d, roughness: .8 });
-  for (let i = 0; i < 9; i++) {
-    const p = new THREE.Mesh(new THREE.ConeGeometry(.35, .9, 6), plants);
-    p.position.set(-6.5 + Math.cos(i * 2.4) * 1.4 * (i % 3 / 2 + .3), .45, -7 + Math.sin(i * 2.4) * 1.4 * (i % 3 / 2 + .3)); g.add(p);
-  }
-  const ring = new THREE.Mesh(new THREE.CylinderGeometry(2.65, 2.65, .3, 24), metal(0xdddddd));
-  ring.position.set(-6.5, .15, -7); g.add(ring);
   return shadow(g);
 }
 
@@ -933,7 +953,6 @@ function makeBase() {
   }
   const lab = (key, icon, x, y, z) => { const o = label(key, icon); o.position.set(x, y, z); base.add(o); };
   lab('shield', icon('shield'), 0, SHIELD_R + 1.5, 0);
-  base.add(habitatModules());
   lab('home', icon('home'), 0, 7.5, 0);
 
   parts.marsDecor = marsDecor(); parts.marsDecor.visible = false; base.add(parts.marsDecor);
@@ -1241,6 +1260,9 @@ export function setPlanet(p) {
   if (parts.lm && !anim) { parts.lm.position.copy(landingSpot()); parts.lm.rotation.set(0, .6, 0); }
   if (parts.earth) parts.earth.visible = !mars;
   if (parts.perse) parts.perse.visible = mars || parts.debrisGroup.visible;
+  if (parts.moonBase) { parts.moonBase.visible = !mars; parts.marsBase.visible = mars; }
+  if (parts.sev) parts.sev.visible = !mars;
+  if (parts.heli) parts.heli.visible = mars;
   if (parts.lrv) parts.lrv.visible = !parts.perse && parts.debrisGroup.visible;
   parts.sun.scale.setScalar(mars ? 170 : 260); // the Sun looks smaller from Mars
   // on the bright Martian ground an added-light shield is invisible: draw it as a normal see-through dome

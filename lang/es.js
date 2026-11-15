@@ -149,7 +149,7 @@ export default {
   resetView: 'Volver a la vista de la base',
   help6: 'Toca un edificio para mejorarlo o moverlo. Arrastra para girar la vista, con el botón derecho o dos dedos para moverla, y la rueda o pellizcar para acercar.',
 
-  creditsModels: 'Modelos 3D: NASA 3D Resources (módulo lunar Apollo, Habitat Demonstration Unit, astronauta, róver Perseverance).',
+  creditsModels: "Modelos 3D: NASA 3D Resources (módulo lunar Apollo, Habitat Demonstration Unit, astronauta, róver Perseverance, Space Exploration Vehicle, helicóptero Ingenuity).",
   creditsEarth: "Imagen de la Tierra y mapa de Marte: NASA 3D Resources. Mapa de la Luna: NASA LRO / LROC (NASA SVS CGI Moon Kit).",
   logoTop: "Entrenador de jóvenes astronautas",
   logoMain: "Base Commander",

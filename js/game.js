@@ -83,7 +83,7 @@ export const BUILDINGS = {
 };
 export const MAX_LEVEL = 3;
 export const BASE_RADIUS = 48;              // you can build up to this distance from the habitat
-const KEEP_OUT = [[0, 0, 15], [-26, 14, 7]]; // habitat modules + shield dome, landing site
+const KEEP_OUT = [[0, 0, 15], [-26, 14, 7], [6, 21, 5], [-3, 20, 3.5]]; // habitat + dome, landing site, SEV car, Ingenuity pad
 
 // What each building gives, by level
 export const solarEnergy = level => level + 1;        // 2, 3, 4 energy per sunny day

@@ -56,7 +56,7 @@ Mars is unlocked by winning on the Moon (or in Settings, for teachers and judges
 ## Credits and sources
 
 - 3D models and Earth texture: [NASA 3D Resources](https://github.com/nasa/NASA-3D-Resources)
-  (Apollo Lunar Module, Habitat Demonstration Unit, Astronaut, Mars 2020 Perseverance Rover).
+  (Apollo Lunar Module, Habitat Demonstration Unit, Astronaut, Mars 2020 Perseverance Rover, Space Exploration Vehicle, Ingenuity Mars Helicopter).
 - 3D engine: [three.js](https://threejs.org) (MIT license).
 - World ranking (Infinite mode): [Supabase](https://supabase.com) free tier. Only a random player code, a nickname picked from word lists, the map, the difficulty and the days are stored; no personal data.
 - Music (Pixabay Content License):

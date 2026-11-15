@@ -153,7 +153,7 @@ export default {
   resetView: 'Back to the base view',
   help6: 'Tap a building to upgrade or move it. Drag to turn the view, right-drag or two fingers to move it, wheel or pinch to zoom.',
 
-  creditsModels: '3D models: NASA 3D Resources (Apollo Lunar Module, Habitat Demonstration Unit, Astronaut, Perseverance rover).',
+  creditsModels: "3D models: NASA 3D Resources (Apollo Lunar Module, Habitat Demonstration Unit, Astronaut, Perseverance rover, Space Exploration Vehicle, Ingenuity helicopter).",
   creditsEarth: "Earth image and Mars map: NASA 3D Resources. Moon map: NASA LRO / LROC (NASA SVS CGI Moon Kit).",
   logoTop: "Junior Astronaut Mission Trainer",
   logoMain: "Base Commander",
