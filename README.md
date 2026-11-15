@@ -29,7 +29,7 @@ If NASA can't be reached, the game clearly says it is using a saved copy, not li
   Moon and 18 sols on Mars. Repair
   the ship and fly home.
 - **Survival** – keep the crew safe for 14 days.
-- **Infinite** – last as long as you can and beat your record, with a world ranking per map and difficulty. Every 20 days a supply ship brings a fresh crew (like real space-station crews), and storms slowly become more frequent.
+- **Infinite** – last as long as you can and beat your record, with a world ranking per map and difficulty. There is no everyday background radiation here (only storms add dose), and storms slowly become more frequent.
 
 The Moon has 7 days of sun and 7 of night (shortened from the real ~14 + 14 Earth days). Mars has less sunlight,
 dust storms, slower warnings (messages from Earth take minutes) and a thinner radiation dose thanks to its air.

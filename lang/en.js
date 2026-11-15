@@ -259,7 +259,7 @@ export default {
   modeEscape: "Escape",
   modeEscapeDesc: "Your ship crashes! Send the rover for its {n} broken parts and repair it before the food runs out.",
   modeInfinite: "Infinite",
-  modeInfiniteDesc: "How many days can you last? Every 20 days a fresh crew arrives. Beat your record!",
+  modeInfiniteDesc: "How many days can you last? Beat your record!",
   partsShort: "Ship parts {n}/{m}",
   termParts: "Ship parts",
   termPartsText: "Your ship broke when it landed and its parts are scattered around. Tap a part (yellow ring) and send the rover. A trip takes 1 day, or 2 if the part is far. If a strong storm catches the rover outside, it still brings the part, but 1 day late and broken: repair it before the next trip. Bring back all the parts, repair the ship and take off before the food runs out!",
@@ -356,6 +356,4 @@ export default {
   rankRetry: "Try again",
   nickWords: {"format":"{a} {n} {d}","nouns":["Comet","Rocket","Star","Astronaut","Rover","Moon","Nebula","Meteor","Galaxy","Orbit","Satellite","Planet","Pilot","Falcon","Lander","Explorer"],"adjs":["Brave","Swift","Bright","Bold","Happy","Strong","Awesome","Loyal","Skilled","Tough","Cheerful","Stellar","Cosmic","Lunar","Solar","Agile"]},
   rankNickHint: "This is how other players will see you in the ranking.",
-  r_ctrl_new_crew: "Base, Mission Control here. The supply ship has landed with a fresh crew! The tired crew flies home, and the new crew starts with no radiation.",
-  newCrewReport: "A supply ship brought a fresh crew (every {n} days)! The radiation dose starts again at 0%.",
 };

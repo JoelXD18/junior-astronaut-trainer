@@ -100,9 +100,6 @@ export const DIFFICULTY = {
 
 export const DOSE_PER_STORM_POINT = 10; // % of the safe limit per unblocked storm point
 export const DOSE_LIMIT = 100;
-// Infinite mode: like crews on a real space station, a fresh crew arrives every CREW_ROTATION days.
-// Without it the everyday background radiation alone would end every game (on the Moon, 2% a day = day 50).
-export const CREW_ROTATION = 20;
 export const INFINITE_RAMP = 30; // storms in infinite mode: x2 as often by day 31, x3 by day 61…
 
 // Small seeded random generator so a game can be saved and replayed.
@@ -384,12 +381,13 @@ export function playDay(state, { oxygen = 0, shield = 0 }) {
   const stormDose = (storm - blocked) * DOSE_PER_STORM_POINT;
   const out = state.rover?.status === 'out';
   const outsideDose = out && storm > 0 ? storm * ESCAPE.outsideDose : 0; // no shield outside the base
-  const dose = state.dose + map.baseDose + stormDose + outsideDose;
+  const baseDose = state.mode === 'infinite' ? 0 : map.baseDose; // infinite: only storms add radiation, or it could never be infinite
+  const dose = state.dose + baseDose + stormDose + outsideDose;
 
   const report = {
     day: state.day, night: isNight(map, state.day), energy: energyToday(state), spent: state.spent,
     oxygen, shield, shieldPower, o2Bonus, wasted, oxygenLost, storm, blocked, warned: state.today.warned, flare: state.today.flare,
-    stormDose, baseDose: map.baseDose, outsideDose, outside: out,
+    stormDose, baseDose, outsideDose, outside: out,
   };
   // the rover: a strong storm damages it; it still brings the part, but limps (one day slower) and comes back broken
   if (out) {
@@ -415,7 +413,6 @@ export function playDay(state, { oxygen = 0, shield = 0 }) {
   else if (state.mode === 'escape' && state.day >= escapeDeadline(state)) state.status = 'lost-time';
   else {
     state.day++;
-    if (state.mode === 'infinite' && (state.day - 1) % CREW_ROTATION === 0) { state.dose = 0; report.newCrew = true; }
     const rng = rngFor(state);
     state.today = rollWeather(state, rng);
     report.dustStarted = false;

@@ -4,7 +4,7 @@ import { t, setLang, lang, onLangChange, LANGUAGES } from './i18n.js';
 import { MAPS, DOSE_LIMIT, BUILDINGS, MAX_LEVEL, newGame, playDay, available, energyToday, isNight, forecast,
   batteryMax, oxygenMax, solarEnergy, batteryCap, tankCap, oxygenBonus, shieldBonus, shieldBlocks,
   validSpot, buildProblem, build, upgradeCost, upgradeProblem, upgrade, moveBuilding,
-  ESCAPE, CREW_ROTATION, partsCollected, partsNeeded, roverCost, roverProblem, sendRover, canRepair, repairAndLaunch,
+  ESCAPE, partsCollected, partsNeeded, roverCost, roverProblem, sendRover, canRepair, repairAndLaunch,
   roverDays, escapeDeadline, roverRepairProblem, repairRover, launchProblem } from './game.js';
 import { initScene, setMode, setLabels, updateScene, playStorm, syncBuildings, setSelected, onPickBuilding,
   startPlacing, stopPlacing, resetView, setPlanet, playLanding, playLaunch, skipAnimation, resetLander, playIntro,
@@ -510,7 +510,6 @@ function reportHtml(r) {
     if (r.shield > 0) items.push(['shield', t('shieldUnused', { n: r.shield }), '']);
   }
   if (r.outsideDose) items.push(['radiation', t('outsideStorm', { d: r.outsideDose }), 'bad']);
-  if (r.newCrew) items.push(['rocket', t('newCrewReport', { n: CREW_ROTATION }), 'good']);
   if (r.partBack) items.push(['gear', t('partBackReport', { n: partsCollected(game), m: partsNeeded() }), 'good']);
   if (r.roverHit) items.push(['warning', t('roverHitReport'), 'bad']);
   if (r.roverBroken) items.push(['warning', t('roverBrokenReport', { e: ESCAPE.roverRepair }), 'bad']);
@@ -520,7 +519,7 @@ function reportHtml(r) {
     if (left <= 4) items.push(['warning', t('escapeDaysLeft', { n: left }), 'bad']);
   }
   if (r.spent) items.push(['hammer', t(game.mode === 'escape' ? 'spentMsgEscape' : 'spentMsg', { n: r.spent }), '']);
-  items.push(['radiation', t('baseDoseMsg', { d: r.baseDose }), '']);
+  if (r.baseDose) items.push(['radiation', t('baseDoseMsg', { d: r.baseDose }), '']);
   items.push(['oxygen', t('oxygenMsg', { use: map.oxygenUse, left: game.oxygen }), game.oxygen <= map.oxygenUse ? 'bad' : '']);
   if (r.oxygenLost > 0) items.push(['oxygen', t('oxygenTankFull', { n: r.oxygenLost }), 'bad']);
   if (r.wasted > 0) items.push(['battery', t('wastedMsg', { n: r.wasted }), 'bad']);
@@ -771,7 +770,6 @@ document.addEventListener('click', e => {
         if (r.roverHit) radio([{ who: 'crew', text: t('r_rover_broken') }], lang(), showRadioLine);
         if (r.partBack) radio([{ who: 'crew', text: t('r_rover_back', { n: partsCollected(game), m: partsNeeded() }) }], lang(), showRadioLine);
         if (r.warned && !r.storm) radio([{ who: 'control', text: t('r_ctrl_false_alarm') }], lang(), showRadioLine);
-        if (r.newCrew) radio([{ who: 'control', text: t('r_ctrl_new_crew') }], lang(), showRadioLine);
         if (r.dustStarted) radio([{ who: 'control', text: t('r_dust_start', { n: game.dust }) }], lang(), showRadioLine);
         render();
       };
