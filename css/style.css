@@ -566,3 +566,93 @@ body.intro .menu, body.intro-lock .menu { pointer-events: none; }
 .lose-cause .lc-why { display: block; font-weight: 800; font-size: 14px; opacity: .8; }
 .lose-cause strong { display: block; font: 400 26px var(--title); color: #c81e1e; }
 .lose-fx ~ #radio-sub, body:has(.lose-fx) #radio-sub, body:has(.lose-fx) .skip { display: none !important; }
+
+/* ---------- phones (upright): nothing may stick out or overlap ---------- */
+@media (max-width: 640px) {
+  .top-right { width: 46vw; grid-template-columns: minmax(0, 1fr); }
+  .side-btns { justify-content: flex-end; flex-wrap: wrap; max-width: 100%; }
+  .side-btns .lang-picker { display: none; } /* the language is chosen in the menu */
+  .round-btn { width: 32px; height: 32px; padding: 6px; }
+  .top-left { max-width: calc(54vw - 22px); }
+  .top-left > * { max-width: 100%; }
+  .ribbon { font-size: 12px; padding: 4px 12px; gap: 5px; white-space: normal; text-align: left; line-height: 1.1; }
+  .ribbon.warn { font-size: 13px; padding: 5px 14px; }
+  .ribbon .ico { font-size: 16px; flex: none; }
+  .ribbon .price { font-size: 11px; padding: 0 4px; margin-left: 2px; }
+  .top-left .sun-chip { white-space: normal; }
+}
+
+/* ---------- phones held sideways (short screens): compact HUD so the base stays visible ---------- */
+@media (max-height: 520px) {
+  body { font-size: 14px; }
+  .top-left { top: 6px; left: 8px; gap: 4px; max-width: 34vw; }
+  .day-plate { padding: 3px 10px 3px 5px; border-radius: 12px; gap: 5px; }
+  .day-ico { font-size: 26px; }
+  .day-num { font-size: 20px; }
+  .day-num small { font-size: 12px; }
+  .day-label { font-size: 10px; }
+  .strip { display: none; }
+  .ribbon { font-size: 12px; padding: 3px 12px; gap: 5px; white-space: normal; line-height: 1.1; }
+  .ribbon.warn { font-size: 13px; padding: 4px 14px; }
+  .ribbon.calm { display: none; }
+  .ribbon .ico { font-size: 15px; }
+  .top-left .sun-chip { font-size: 11px; padding: 2px 6px 2px 4px; }
+  .top-right { top: 4px; right: 8px; width: 30vw; gap: 0; grid-template-columns: minmax(0, 1fr); }
+  .res { padding: 12px 18px 0 0; }
+  .res-label { font-size: 10px; left: 4px; }
+  .res-track { height: 16px; border-width: 2px; border-radius: 6px; box-shadow: none; }
+  .res-num { font-size: 11px; right: 18px; }
+  .res-num small { font-size: 9px; }
+  .res-ico { width: 24px; height: 24px; top: 7px; }
+  .side-btns { gap: 4px; justify-content: flex-end; margin-top: 2px; }
+  .side-btns .lang-picker { display: none; }
+  .round-btn { width: 28px; height: 28px; padding: 5px; border-width: 2px; }
+  /* the dock: one low row */
+  .bottom { bottom: 4px; padding: 0 6px; }
+  .dock { flex-wrap: nowrap; gap: 6px; padding: 10px 8px 6px; border-radius: 16px; row-gap: 0; }
+  .energy-orb { width: 60px; border-radius: 12px; padding: 2px; }
+  .orb-ico { font-size: 18px; }
+  .orb-num { font-size: 22px; }
+  .orb-label { font-size: 9px; }
+  .slot { width: 106px; padding: 12px 2px 4px; border-radius: 10px; gap: 0; }
+  .slot-label { font-size: 10px; padding: 0 7px; top: -9px; border-width: 2px; }
+  .slot-ico { display: none; }
+  .slot-ctrl { min-height: 32px; gap: 4px; }
+  .slot-ctrl output { font-size: 22px; }
+  .slot-out { font-size: 10px; min-height: 12px; }
+  .pm { width: 28px; height: 28px; font-size: 20px; border-width: 2px; }
+  .dock-actions { grid-template-columns: 1fr; width: auto; min-width: 128px; gap: 6px; }
+  .dock-actions .btn, .dock-actions .build, .dock-actions .end { font-size: 14px; min-height: 34px; padding: 4px 10px; }
+  /* windows: never taller than the screen; scroll inside */
+  .window { max-height: calc(100vh - 12px); max-height: calc(100dvh - 12px); display: flex; flex-direction: column; }
+  .window .win-body { overflow-y: auto; }
+  .win-head h2 { font-size: 18px; }
+  .demo-svg { max-height: 34vh; }
+  #radio-sub { bottom: 104px; font-size: 12px; max-width: 70vw; }
+  .landing-cap { bottom: 8%; }
+  .skip { right: 8px; bottom: 8px; }
+}
+@media (max-height: 520px) {
+  /* menu sideways: logo on the left, buttons on the right */
+  .menu { display: grid; grid-template-columns: 1.15fr 1fr; grid-template-rows: auto auto auto; column-gap: 20px; row-gap: 8px;
+    align-content: center; justify-items: center; padding: 8px 16px; }
+  .menu .logo { grid-column: 1; grid-row: 1 / span 3; margin: 0; }
+  .menu .stack { grid-column: 2; grid-row: 1; gap: 8px; margin: 0; width: min(300px, 100%); }
+  .menu .stack .btn { min-height: 0; padding: 7px 14px; font-size: 17px; }
+  .menu .stack .btn.xl { font-size: 21px; padding: 9px 14px; }
+  .menu > .sun-chip { grid-column: 2; grid-row: 2; }
+  .menu > .lang-picker { grid-column: 2; grid-row: 3; }
+  .logo-small { font-size: 15px; }
+  .brand { padding: 10px 18px 8px; }
+  .brand-main { font-size: clamp(28px, 6vw, 52px); }
+  .brand-top { font-size: 13px; }
+  .logo-sub { font-size: 12px; padding: 4px 10px; margin-top: 6px; }
+  .event-badge { font-size: 11px; padding: 3px 9px; margin-top: 6px; }
+  .tap-start .brand-main { font-size: clamp(30px, 7vw, 60px); }
+}
+@media (min-height: 521px) and (max-height: 860px) {
+  .menu { gap: 8px; padding-top: 10px; padding-bottom: 10px; }
+  .menu .stack { gap: 11px; margin: 4px 0; }
+  .menu .brand { padding-top: 10px; padding-bottom: 8px; }
+  .menu .logo-sub, .menu .event-badge { margin-top: 6px; }
+}

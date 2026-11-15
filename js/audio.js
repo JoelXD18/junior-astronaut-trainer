@@ -16,41 +16,57 @@ let current = null;      // name of the track that should be playing
 let unlocked = false;    // true after the first user gesture
 let duck = 1;            // lowered while the narrator reads text aloud
 
+// On iPhones and iPads the volume of an <audio> element cannot be changed from code (it is always 100%),
+// so the music goes through Web Audio, where a "gain" node sets the volume on every device.
 function player(name) {
   if (!players[name]) {
     const a = new Audio(TRACKS[name].src);
     a.loop = TRACKS[name].loop;
     a.preload = 'none';
-    a.volume = 0;
-    players[name] = a;
+    const p = { a, vol: 0, gain: null };
+    try {
+      const c = audioCtx();
+      p.gain = c.createGain(); p.gain.gain.value = 0;
+      c.createMediaElementSource(a).connect(p.gain).connect(c.destination);
+    } catch { p.gain = null; a.volume = 0; }
+    players[name] = p;
   }
   return players[name];
 }
+function setVol(p, v) { p.vol = v; if (p.gain) p.gain.gain.value = v; else p.a.volume = v; }
 
 const target = () => (settings.muted ? 0 : settings.volume * duck);
 
-// Smoothly move every track towards its volume (current track up, others down to silence).
+// Smoothly move every track towards its volume (current track up, others down to silence and paused).
 let fading = null;
 function fade() {
   clearInterval(fading);
   fading = setInterval(() => {
     let busy = false;
-    for (const [name, a] of Object.entries(players)) {
+    for (const [name, p] of Object.entries(players)) {
       const want = name === current ? target() : 0;
-      const v = a.volume + Math.sign(want - a.volume) * Math.min(.05, Math.abs(want - a.volume));
-      a.volume = Math.max(0, Math.min(1, v));
-      if (Math.abs(a.volume - want) > .001) busy = true;
-      if (name !== current && a.volume === 0 && !a.paused) a.pause();
+      let v = Math.max(0, Math.min(1, p.vol + Math.sign(want - p.vol) * Math.min(.05, Math.abs(want - p.vol))));
+      if (Math.abs(v - want) < .002) v = want; // land exactly on the target (so a silent track really reaches 0 and stops)
+      setVol(p, v);
+      if (Math.abs(p.vol - want) > .001) busy = true;
+      if (name !== current && p.vol === 0 && !p.a.paused) p.a.pause();
     }
     if (!busy) clearInterval(fading);
   }, 40);
 }
 
+// Phones: stop the music when the game goes to the background, and go on when it comes back.
+document.addEventListener('visibilitychange', () => {
+  const p = current && players[current];
+  if (document.hidden) { for (const q of Object.values(players)) q.a.pause(); ctx?.suspend?.(); }
+  else if (p && unlocked) { ctx?.resume?.(); p.a.play().catch(() => {}); }
+});
+
 export function playMusic(name, { restart = false } = {}) {
   if (name === current && !restart) return;
   current = name;
   if (!unlocked || !name) return fade();
-  const a = player(name);
+  const a = player(name).a;
   if (restart || a.ended) a.currentTime = 0;
   a.play().catch(() => { /* blocked until the user taps */ });
   fade();
@@ -66,15 +82,17 @@ function save() { try { localStorage.setItem(KEY, JSON.stringify(settings)); } c
 function unlock() {
   if (unlocked) return;
   unlocked = true;
+  try { audioCtx(); } catch { /* no Web Audio */ } // phones only allow it to start during a tap
   if (current) { const name = current; current = null; playMusic(name); }
 }
-['pointerdown', 'keydown', 'touchstart'].forEach(ev => window.addEventListener(ev, unlock, { once: false, passive: true }));
+// iPhones only allow sound to start on "touchend" and "click", so listen to those too; every tap also wakes the audio up
+['pointerdown', 'keydown', 'touchstart', 'touchend', 'click'].forEach(ev => window.addEventListener(ev, () => { unlock(); if (ctx?.state === 'suspended' && !document.hidden) ctx.resume(); }, { passive: true }));
 
 // Read a text aloud in the game's language (narrator for the tutorial). Music is lowered meanwhile.
 export function speak(text, lang) {
   stopClip();
   const c = clipFor('narrator', text, lang);
-  if (c) { setDuck(true); playClip(c, () => setDuck(false)); return true; }
+  if (c) { if (settings.muted) return true; setDuck(true); playClip(c, () => setDuck(false)); return true; }
   if (!('speechSynthesis' in window)) return false;
   speechSynthesis.cancel();
   const u = new SpeechSynthesisUtterance(text);
@@ -318,3 +336,6 @@ function synth(name, vol = 1) {
   }
   return () => stopAll.forEach(f => f());
 }
+
+// For testing in the browser console: which tracks are playing and how loud.
+export const musicState = () => Object.fromEntries(Object.entries(players).map(([n, p]) => [n, { playing: !p.a.paused, vol: +p.vol.toFixed(2), webAudio: !!p.gain }]));
