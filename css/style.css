@@ -769,5 +769,5 @@ button, .btn, [data-action], [data-go] { touch-action: manipulation; -webkit-tap
 .btn.end { position: relative; overflow: hidden; }
 .btn.end .day-timer { position: absolute; left: 0; bottom: 0; height: 5px; width: calc(var(--left, 1) * 100%); background: rgba(255,255,255,.75); border-radius: 0 3px 3px 0; transition: width .25s linear; pointer-events: none; }
 .btn.end .day-clock { position: absolute; top: 3px; right: 8px; font-size: .62em; opacity: .85; font-variant-numeric: tabular-nums; pointer-events: none; }
-.btn.end.hurry .day-timer { background: #ff5252; }
+.btn.end.hurry .day-timer { background: #fff; }
 .btn.end.hurry { animation: alarm 1s ease-in-out infinite; }

@@ -367,7 +367,7 @@ function dock() {
       ${game.mode === 'escape' && partsCollected(game) >= partsNeeded()
         ? `<button class="btn orange build repair" data-action="repair" ${busy || !canRepair(game, freeEnergy()) ? 'disabled' : ''}>${icon('rocket')}<span>${esc(t('repairLaunch'))}</span><span class="price">${icon('energy')}${ESCAPE.repairCost}</span></button>`
         : `<button class="btn orange build" data-action="open-build" ${busy ? 'disabled' : ''}>${icon('hammer')}<span>${esc(t('build'))}</span></button>`}
-      <button class="btn green end" data-action="end-day" ${busy ? 'disabled' : ''}><i class="day-timer" aria-hidden="true" style="--left:${(dayLeft / DAY_SECONDS).toFixed(4)}"></i><span>${esc(t('endDay'))}</span>${icon('play')}<small class="day-clock">${clockText()}</small></button>
+      <button class="btn green end" data-action="end-day" style="${timerColors()}" ${busy ? 'disabled' : ''}><i class="day-timer" aria-hidden="true" style="--left:${(dayLeft / DAY_SECONDS).toFixed(4)}"></i><span>${esc(t('endDay'))}</span>${icon('play')}<small class="day-clock">${clockText()}</small></button>
     </div>
   </div>`;
 }
@@ -761,6 +761,11 @@ function beginPlacing(type) {
 
 // Two minutes to plan each day. The clock only runs while the player can act (no windows, tutorial, storm or
 // cinematic open, and the tab visible); when it runs out, the day ends by itself with what was chosen.
+// The End day button stays green for the first minute, then turns yellow, orange and red as time runs out.
+function timerColors() {
+  const h = Math.round(100 * Math.min(1, dayLeft / (DAY_SECONDS / 2)));
+  return `--c1: hsl(${h} 75% 60%); --c2: hsl(${h} 72% 38%); --edge: hsl(${h} 80% 20%)`;
+}
 function clockText() { const s = Math.ceil(dayLeft); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); }
 setInterval(() => {
   if (screen !== 'game' || !game || game.status !== 'playing') return;
@@ -772,6 +777,7 @@ setInterval(() => {
   if (!btn) return;
   btn.querySelector('.day-timer')?.style.setProperty('--left', (dayLeft / DAY_SECONDS).toFixed(4));
   const cl = btn.querySelector('.day-clock'); if (cl) cl.textContent = clockText();
+  btn.style.cssText = timerColors();
   btn.classList.toggle('hurry', dayLeft <= 15);
   if (dayLeft <= 0 && !btn.disabled) btn.click();
 }, 250);
