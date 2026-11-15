@@ -766,3 +766,8 @@ button, .btn, [data-action], [data-go] { touch-action: manipulation; -webkit-tap
 @keyframes lsSlide { 0% { transform: translateX(-110%); } 100% { transform: translateX(260%); } }
 .scene-label.t-rover { background: linear-gradient(#ffffff, #cfd8dc); }
 .ribbon.night-soon { background: linear-gradient(#7c83ff, #3b3fa8); animation: alarm 1.6s ease-in-out infinite; }
+.btn.end { position: relative; overflow: hidden; }
+.btn.end .day-timer { position: absolute; left: 0; bottom: 0; height: 5px; width: calc(var(--left, 1) * 100%); background: rgba(255,255,255,.75); border-radius: 0 3px 3px 0; transition: width .25s linear; pointer-events: none; }
+.btn.end .day-clock { position: absolute; top: 3px; right: 8px; font-size: .62em; opacity: .85; font-variant-numeric: tabular-nums; pointer-events: none; }
+.btn.end.hurry .day-timer { background: #ff5252; }
+.btn.end.hurry { animation: alarm 1s ease-in-out infinite; }

@@ -28,6 +28,8 @@ let lastReport = null;   // report shown after ending a day
 let openTerm = null;     // glossary word currently open
 let showHelp = false;    // "how to play" tutorial (step by step)
 let helpStep = 0;
+const DAY_SECONDS = 120;  // time to plan each day
+let dayLeft = DAY_SECONDS, clockDay = null;
 let busy = false;        // true while a solar storm animation is playing
 let ui = null;           // null | {kind:'build'} | {kind:'placing', type, moveId} | {kind:'selected', id}
 let showSun = false;     // "real Sun" window with NASA DONKI data
@@ -365,7 +367,7 @@ function dock() {
       ${game.mode === 'escape' && partsCollected(game) >= partsNeeded()
         ? `<button class="btn orange build repair" data-action="repair" ${busy || !canRepair(game, freeEnergy()) ? 'disabled' : ''}>${icon('rocket')}<span>${esc(t('repairLaunch'))}</span><span class="price">${icon('energy')}${ESCAPE.repairCost}</span></button>`
         : `<button class="btn orange build" data-action="open-build" ${busy ? 'disabled' : ''}>${icon('hammer')}<span>${esc(t('build'))}</span></button>`}
-      <button class="btn green end" data-action="end-day" ${busy ? 'disabled' : ''}><span>${esc(t('endDay'))}</span>${icon('play')}</button>
+      <button class="btn green end" data-action="end-day" ${busy ? 'disabled' : ''}><i class="day-timer" aria-hidden="true" style="--left:${(dayLeft / DAY_SECONDS).toFixed(4)}"></i><span>${esc(t('endDay'))}</span>${icon('play')}<small class="day-clock">${clockText()}</small></button>
     </div>
   </div>`;
 }
@@ -645,6 +647,7 @@ function defaultChoice() {
 }
 
 function startGame() {
+  dayLeft = DAY_SECONDS; clockDay = null;
   const w = getWeather();
   game = newGame({ map: pick.map, difficulty: pick.difficulty, mode: pick.mode, flares: w ? w.pool : [], activity: w ? w.activity.factor : 1 });
   choice = defaultChoice();
@@ -756,6 +759,23 @@ function beginPlacing(type) {
   render();
 }
 
+// Two minutes to plan each day. The clock only runs while the player can act (no windows, tutorial, storm or
+// cinematic open, and the tab visible); when it runs out, the day ends by itself with what was chosen.
+function clockText() { const s = Math.ceil(dayLeft); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); }
+setInterval(() => {
+  if (screen !== 'game' || !game || game.status !== 'playing') return;
+  const key = game.map + game.day + ':' + game.mode;
+  if (clockDay !== key) { clockDay = key; dayLeft = DAY_SECONDS; }
+  if (cinematic || busy || ui || !modalRoot.hidden || document.hidden) return;
+  dayLeft = Math.max(0, dayLeft - .25);
+  const btn = app.querySelector('.btn.end');
+  if (!btn) return;
+  btn.querySelector('.day-timer')?.style.setProperty('--left', (dayLeft / DAY_SECONDS).toFixed(4));
+  const cl = btn.querySelector('.day-clock'); if (cl) cl.textContent = clockText();
+  btn.classList.toggle('hurry', dayLeft <= 15);
+  if (dayLeft <= 0 && !btn.disabled) btn.click();
+}, 250);
+
 document.addEventListener('click', e => {
   const b = e.target.closest('button');
   if (!b || b.disabled) return;
@@ -788,7 +808,7 @@ document.addEventListener('click', e => {
       }
       const finish = () => {
         busy = false;
-        lastReport = playDay(game, choice);
+        lastReport = playDay(game, choice); dayLeft = DAY_SECONDS;
         if (game.status === 'playing') choice = defaultChoice();
         const r = lastReport;
         if (has3d && r.roverHit && !r.partBack) setRover(game.rover);

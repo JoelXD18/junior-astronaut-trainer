@@ -548,7 +548,7 @@ const BUILDERS = new Proxy({}, { get: (_, type) => (planet === 'mars' ? MARS_BUI
 const ICONS = { solar: 'sun', oxygen: 'oxygen', tank: 'tank', battery: 'battery', shield: 'shield' };
 
 // Radiation shield: a soft energy dome around the habitat (game effect, so kids can see it).
-const SH_BLUE = new THREE.Color(0x3fa9ff), SH_PURPLE = new THREE.Color(0x9b6bff), SH_PINK = new THREE.Color(0xff5fd2), shieldTarget = new THREE.Color();
+const SH_BLUE = new THREE.Color(0x3fa9ff), SH_PURPLE = new THREE.Color(0x9b6bff), SH_PINK = new THREE.Color(0xff5fd2), SH_GOLD = new THREE.Color(0xffc23a), shieldTarget = new THREE.Color();
 const SHIELD_R = 14.5; // covers the habitat and its extra modules
 export const SEV_SPOT = [6, 21], HELI_SPOT = [-3, 20]; // decorations outside the dome (kept free in game.js)
 
@@ -1606,8 +1606,8 @@ function tick() {
   // Shield
   const sh = mode === 'game' ? Math.min(target.shield / 5, 1) : 0;
   parts.shield.uniforms.power.value = lerp(parts.shield.uniforms.power.value, sh > 0 ? .35 + sh * .65 : 0, k);
-  // 1 energy = blue, 2 = pink, 3 or more = purple
-  shieldTarget.copy(mode !== 'game' || target.shield <= 1 ? SH_BLUE : target.shield === 2 ? SH_PINK : SH_PURPLE);
+  // 1 energy = blue, 2 = pink, 3 or more = gold
+  shieldTarget.copy(mode !== 'game' || target.shield <= 1 ? SH_BLUE : target.shield === 2 ? SH_PINK : SH_GOLD);
   parts.shield.uniforms.color.value.lerp(shieldTarget, k);
   parts.shield.uniforms.time.value = time;
   parts.shield.uniforms.hit.value = storm.active && storm.blocked > 0 ? .5 + .5 * Math.sin(time * 25) : lerp(parts.shield.uniforms.hit.value, 0, k);
