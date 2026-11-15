@@ -946,11 +946,6 @@ function makeBase() {
   base.add(shieldDome());
   const f = flag(); f.position.set(-21.5, 0, 19.5); f.rotation.y = .5; base.add(f);
 
-  // Building lights for the night: the same warm light as the habitat's, moved to the buildings
-  parts.bLights = [];
-  for (let i = 0; i < 8; i++) {
-    const l = new THREE.PointLight(0xffd8a0, 0, 16, 2); l.position.set(0, -50, 0); l.visible = false; base.add(l); parts.bLights.push(l);
-  }
   // Habitat lights for the night
   for (const [x, z] of [[4, 4], [-4, 4], [0, -5]]) {
     const l = new THREE.PointLight(0xffd8a0, 0, 16, 2); l.position.set(x, 3, z); l.visible = false; base.add(l); parts.lights.push(l);
@@ -1019,13 +1014,8 @@ export function syncBuildings(list) {
   }
   for (const [id, o] of objs) if (!seen.has(id)) { removeHolder(o.holder); objs.delete(id); }
   parts.spinners = [...objs.values()].map(o => o.holder.children[0]?.userData?.spin).filter(Boolean);
-  // put the night lights next to the buildings (one each, as many as there are lights)
-  const holders = [...objs.values()].map(o => o.holder);
-  parts.bLights?.forEach((l, i) => {
-    const h = holders[i];
-    if (h) { l.position.set(h.position.x + 2, h.userData.lightY || 3, h.position.z + 2); l.userData.on = true; }
-    else { l.position.set(0, -50, 0); l.userData.on = false; }
-  });
+  // every building (also new ones) glows warm at night
+  for (const o of objs.values()) addNightGlow(o.holder);
 
   // Cables from every building to the habitat
   parts.cables.children.slice().forEach(c => { c.geometry.dispose(); parts.cables.remove(c); });
@@ -1284,12 +1274,24 @@ function GAME_CAM() { return window.innerWidth < 700 ? new THREE.Vector3(34, 62,
 // hold(): true while the radio still has to finish before the next shot (safety for browser voices).
 // Get the scene ready before a film starts: wait for the lander model and prepare the graphics for the
 // current planet (so the first seconds don't stutter while the computer works that out).
+// Materials of buildings that glow at night (only those with no glow of their own, like LEDs or the crystal).
+const glowMats = new Set();
+let nightGlow = 0, lastGlow = 0;
+function addNightGlow(obj) {
+  obj.traverse(m => {
+    const mat = m.isMesh && m.material;
+    if (!mat?.isMeshStandardMaterial || glowMats.has(mat) || mat === lampMat) return;
+    if (mat.emissive.getHex() !== 0 && !mat.userData.nightGlow) return; // already lights up on its own
+    mat.userData.nightGlow = true; glowMats.add(mat);
+    mat.emissive.setRGB(.42 * nightGlow, .3 * nightGlow, .16 * nightGlow);
+  });
+}
+
 let nightLightsOn = false;
 function setNightLights(on) {
   if (on === nightLightsOn) return;
   nightLightsOn = on;
   parts.lights.forEach(l => { l.visible = on; });
-  parts.bLights?.forEach(l => { l.visible = on; });
 }
 
 export async function prepareScene() {
@@ -1571,7 +1573,9 @@ function tick() {
   parts.sun.material.opacity = lerp(parts.sun.material.opacity, night ? 0 : 1, k);
   parts.lights.forEach(l => { l.intensity = lerp(l.intensity, night ? 40 : 0, k); });
   if (lampMat) lampMat.emissiveIntensity = lerp(lampMat.emissiveIntensity, night ? 3 : 0, k);
-  parts.bLights?.forEach(l => { l.intensity = lerp(l.intensity, night && l.userData.on ? 40 : 0, k); });
+  // buildings glow warm at night (cheap: no extra lights to calculate on every pixel)
+  nightGlow = lerp(nightGlow, night ? 1 : 0, k);
+  if (Math.abs(nightGlow - lastGlow) > .005) { lastGlow = nightGlow; for (const m of glowMats) m.emissive.setRGB(.42 * nightGlow, .3 * nightGlow, .16 * nightGlow); }
   // switch every night light on or off together: each change in the number of lights makes the graphics card
   // rebuild its shaders (a stutter), so it must happen once, not once per light
   setNightLights(night || parts.lights[0].intensity > .5);
