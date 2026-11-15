@@ -370,6 +370,23 @@ function sharedMats() {
   return mats;
 }
 
+// Round printed labels (like "O₂" on a tank), drawn once and shared.
+const labelTex = {};
+function decal(text, bg, fg, size = 1.3) {
+  if (!labelTex[text]) {
+    const c = document.createElement('canvas'); c.width = c.height = 128;
+    const g = c.getContext('2d');
+    g.fillStyle = bg; g.beginPath(); g.arc(64, 64, 60, 0, 7); g.fill();
+    g.lineWidth = 8; g.strokeStyle = fg; g.stroke();
+    g.fillStyle = fg; g.font = 'bold 58px Arial, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.fillText(text, 64, 68);
+    labelTex[text] = new THREE.CanvasTexture(c); labelTex[text].colorSpace = THREE.SRGBColorSpace;
+  }
+  const m = new THREE.Mesh(new THREE.CircleGeometry(size / 2, 32), new THREE.MeshStandardMaterial({ map: labelTex[text], transparent: true, roughness: .6 }));
+  m.raycast = () => {};
+  return m;
+}
+
 // Vertical solar array (like NASA's Artemis VSAT concept): a tall mast with panels that face the Sun.
 // More levels = more panels.
 function solarTower(level) {
@@ -407,6 +424,7 @@ function oxygenPlant(level) {
   const pipe = new THREE.Mesh(new THREE.CylinderGeometry(.12, .12, 2.4, 8), m.dark);
   pipe.rotation.z = Math.PI / 2; pipe.position.set(.2, 1.9, 0); g.add(pipe);
   if (level === 3) { const dish = new THREE.Mesh(new THREE.CylinderGeometry(1.6, 1.6, .2, 20), m.radiator); dish.position.set(-1.8, 4.4, 0); g.add(dish); }
+  for (const s of [1, -1]) { const d = decal('O₂', '#ffffff', '#0d8fd8', 1.5); d.position.set(-1.8, 1.4, s * (1.72 + (level > 1 ? 1.9 : 0))); d.rotation.y = s > 0 ? 0 : Math.PI; g.add(d); }
   return g;
 }
 
@@ -421,23 +439,35 @@ function tankPair(level) {
     const band = new THREE.Mesh(new THREE.TorusGeometry(.87, .06, 8, 24), m.o2Band);
     band.rotation.y = Math.PI / 2; band.position.set(.8, 1.05, z); g.add(band);
     for (const sx of [-1.1, 1.1]) { const leg = new THREE.Mesh(new THREE.BoxGeometry(.15, .5, 1.3), m.dark); leg.position.set(sx, .25, z); g.add(leg); }
+    const d = decal('O₂', '#ffffff', '#0d8fd8', 1.1); d.position.set(2.37, 1.05, z); d.rotation.y = Math.PI / 2; g.add(d);
   }
   return g;
 }
 
 // Battery bank: a container with level lights. Higher level = taller stack.
+// Battery bank: big battery cells (green, with a + terminal on top) and a charge meter that lights up.
+// Higher level = more cells.
 function batteryBank(level) {
   const m = sharedMats(), g = new THREE.Group();
-  const h = 1.6 + level * .8;
-  const box = new THREE.Mesh(new THREE.BoxGeometry(5, h, 2.6), m.container);
-  box.position.y = h / 2; g.add(box);
-  const rad = new THREE.Mesh(new THREE.BoxGeometry(4.6, .06, 2.4), m.radiator);
-  rad.position.y = h + .05; g.add(rad);
+  const cells = 2 + level, h = 2.3 + level * .25;
+  const body = metal(0x2e9d5a, .45, .35, { emissive: 0x1c7a40, emissiveIntensity: .45 }), cap = metal(0xeeeeee, .3, .6); // a slight glow: green even in shadow
+  const plate = new THREE.Mesh(new THREE.BoxGeometry(cells * 1.35 + .8, .3, 2.2), m.grey);
+  plate.position.y = .15; g.add(plate);
+  for (let i = 0; i < cells; i++) {
+    const x = (i - (cells - 1) / 2) * 1.35;
+    const cell = new THREE.Mesh(new THREE.CylinderGeometry(.55, .55, h, 20), body); cell.position.set(x, .3 + h / 2, 0); g.add(cell);
+    const top = new THREE.Mesh(new THREE.CylinderGeometry(.56, .56, .35, 20), cap); top.position.set(x, .3 + h - .1, 0); g.add(top);
+    const term = new THREE.Mesh(new THREE.CylinderGeometry(.2, .2, .3, 12), cap); term.position.set(x, .3 + h + .2, 0); g.add(term);
+    const plus = decal('+', '#2e9d5a', '#ffffff', .75); plus.position.set(x, .3 + h * .55, .56); g.add(plus);
+  }
+  // charge meter: 8 lights on a post, lit by how full the batteries are
+  const post = new THREE.Mesh(new THREE.BoxGeometry(.5, h + .4, .35), m.dark);
+  post.position.set((cells * 1.35) / 2 + .55, .3 + (h + .4) / 2, 0); g.add(post);
   const leds = [];
   for (let i = 0; i < 8; i++) {
     const mat = new THREE.MeshStandardMaterial({ color: 0x113322, emissive: C.bat, emissiveIntensity: 0 });
-    const led = new THREE.Mesh(new THREE.BoxGeometry(.45, .35, .05), mat);
-    led.position.set(-1.9 + i * .55, h * .55, 1.33);
+    const led = new THREE.Mesh(new THREE.BoxGeometry(.32, (h - .2) / 9, .05), mat);
+    led.position.set(post.position.x, .45 + i * (h / 8.2), .2);
     g.add(led); leds.push(mat);
   }
   g.userData.leds = leds;
@@ -445,15 +475,29 @@ function batteryBank(level) {
 }
 
 // Shield generator inside the dome. Higher level = taller, stronger.
+// Shield generator (inside the dome): a tripod holding a glowing purple crystal with spinning energy rings.
+// Higher level = taller, more rings.
+const crystalMat = new THREE.MeshStandardMaterial({ color: 0xb9a8ff, emissive: 0x7c5cff, emissiveIntensity: .8, roughness: .15, metalness: .2, transparent: true, opacity: .92 });
+const ringMat = new THREE.MeshStandardMaterial({ color: 0xd9ccff, emissive: 0x8c7cff, emissiveIntensity: .6, metalness: .6, roughness: .3 });
 function shieldPylon(level) {
   const m = sharedMats(), g = new THREE.Group();
-  const h = 2.5 + level;
-  const col = new THREE.Mesh(new THREE.CylinderGeometry(.35, .6, h, 12), m.pylon);
-  col.position.y = h / 2; g.add(col);
-  for (let i = 0; i < level; i++) {
-    const ring = new THREE.Mesh(new THREE.TorusGeometry(.8, .08, 8, 24), m.pylon);
-    ring.rotation.x = Math.PI / 2; ring.position.y = h - .4 - i * .7; g.add(ring);
+  const h = 2.6 + level * .9;
+  const base = new THREE.Mesh(new THREE.CylinderGeometry(1.1, 1.3, .4, 6), m.grey); base.position.y = .2; g.add(base);
+  for (let i = 0; i < 3; i++) { // tripod legs leaning in
+    const a = i * Math.PI * 2 / 3;
+    const leg = new THREE.Mesh(new THREE.CylinderGeometry(.09, .13, h, 8), m.frame);
+    leg.position.set(Math.cos(a) * .55, .4 + h / 2, Math.sin(a) * .55);
+    leg.rotation.set(Math.sin(a) * .18, 0, -Math.cos(a) * .18); g.add(leg);
   }
+  const collar = new THREE.Mesh(new THREE.CylinderGeometry(.35, .45, .3, 12), m.frame); collar.position.y = h + .35; g.add(collar);
+  const crystal = new THREE.Mesh(new THREE.OctahedronGeometry(.7, 0), crystalMat); crystal.scale.set(.8, 1.3, .8); crystal.position.y = h + 1.3; g.add(crystal);
+  const rings = new THREE.Group(); rings.position.y = h + 1.3; g.add(rings);
+  for (let i = 0; i < Math.min(level + 1, 3); i++) {
+    const r = new THREE.Mesh(new THREE.TorusGeometry(1.05 + i * .28, .06, 8, 36), ringMat);
+    r.rotation.set(Math.PI / 2 + i * .7, i * .9, 0); rings.add(r);
+  }
+  g.userData.spin = { crystal, rings };
+  (parts.spinners ||= []).push(g.userData.spin);
   return g;
 }
 
@@ -503,12 +547,23 @@ function shieldDome() {
       vV = normalize(cameraPosition - wp.xyz); gl_Position = projectionMatrix * viewMatrix * wp; }`,
     fragmentShader: `uniform float power; uniform float time; uniform float hit; uniform vec3 color;
       varying vec3 vN; varying vec3 vV; varying vec3 vP;
-      void main(){ float f = pow(1. - abs(dot(vN, vV)), 2.5);
-        vec2 h = vP.xz * .9 + vec2(vP.y * .6);
-        float grid = smoothstep(.92, 1., abs(sin(h.x * 3.) * sin(h.y * 3.)));
-        float wave = .5 + .5 * sin(vP.y * 2. - time * 2.);
-        float a = power * (f * .9 + grid * .25 + wave * .05) + hit * (f + .3);
-        gl_FragColor = vec4(color * (1. + hit), a * .8); }`,
+      // distance to the edge of a hexagon cell (honeycomb)
+      float hex(vec2 p) {
+        p *= 1.15; vec2 r = vec2(1., 1.732), h = r * .5;
+        vec2 a = mod(p, r) - h, b = mod(p - h, r) - h;
+        vec2 g = dot(a, a) < dot(b, b) ? a : b;
+        g = abs(g); return .5 - max(dot(g, normalize(vec2(1., 1.732))), g.x);
+      }
+      void main(){
+        float rim = pow(1. - abs(dot(vN, vV)), 2.2);
+        float lat = asin(clamp(vP.y / 11., 0., 1.));            // height on the dome
+        vec2 uv = vec2(atan(vP.z, vP.x) * 3.5, lat * 7.);
+        float edge = 1. - smoothstep(.0, .07, hex(uv));          // the lines of the honeycomb
+        float scan = smoothstep(.25, 0., abs(fract(lat * .32 - time * .18) - .5));  // a band that sweeps up
+        float ripple = hit * (.5 + .5 * sin(lat * 40. - time * 30.));
+        vec3 col = mix(color, vec3(.75, .95, 1.), rim * .6 + scan * .3);
+        float a = power * (.06 + rim * .75 + edge * .32 + scan * .18) + hit * (rim + .25 + ripple * .4);
+        gl_FragColor = vec4(col * (1. + hit * .8), clamp(a, 0., 1.) * .85); }`,
   });
   const dome = new THREE.Mesh(new THREE.SphereGeometry(11, 64, 32, 0, Math.PI * 2, 0, Math.PI / 2), mat);
   parts.shield = mat;
@@ -904,6 +959,7 @@ export function syncBuildings(list) {
     o.radius = b.radius;
   }
   for (const [id, o] of objs) if (!seen.has(id)) { removeHolder(o.holder); objs.delete(id); }
+  parts.spinners = [...objs.values()].map(o => o.holder.children[0]?.userData?.spin).filter(Boolean);
   // put the night lights next to the buildings (one each, as many as there are lights)
   const holders = [...objs.values()].map(o => o.holder);
   parts.bLights?.forEach((l, i) => {
@@ -1439,6 +1495,8 @@ function tick() {
   for (const r of [parts.lrv, parts.perse]) if (r?.userData.spot) r.userData.spot.intensity = lerp(r.userData.spot.intensity, night ? 120 : 0, k);
   if (mats.cells) mats.cells.emissiveIntensity = lerp(mats.cells.emissiveIntensity, night ? 0 : .25, k);
   if (parts.globe) parts.globe.rotation.y += dt * .01;
+  if (parts.spinners) for (const s of parts.spinners) { s.crystal.rotation.y += dt * .8; s.rings.rotation.y += dt * 1.2; s.rings.rotation.x = Math.sin(time * .7) * .3; }
+  crystalMat.emissiveIntensity = .7 + .35 * Math.sin(time * 3) + (target.shield > 0 ? .8 : 0);
 
   // Shield
   const sh = mode === 'game' ? Math.min(target.shield / 5, 1) : 0;

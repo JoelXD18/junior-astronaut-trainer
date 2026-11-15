@@ -55,10 +55,17 @@ export const ICONS = {
   },
   hammer() {
     const g = 'h' + uid++;
-    return wrap(`<rect x="28" y="22" width="9" height="38" rx="3" transform="rotate(-35 32 40)" fill="#a1662f" stroke="#3e2108" stroke-width="3.5"/>
-      <path d="M14 18 L34 6 L46 20 L40 24 L34 18 L22 28 Z" fill="url(#${g})" stroke="#263238" stroke-width="3.5" stroke-linejoin="round"/>
-      <path d="M18 18 L33 9" stroke="#fff" stroke-width="2.5" opacity=".6" stroke-linecap="round"/>`,
-      grad(g, '#eceff1', '#78909c'));
+    // a claw hammer: wooden handle, metal head with a flat striking face and a curved claw
+    return wrap(`<g transform="rotate(38 32 34)">
+        <rect x="28" y="21" width="9" height="38" rx="3.5" fill="#b9773a" stroke="#3e2108" stroke-width="3.5"/>
+        <path d="M30.5 25 V54" stroke="#e0a868" stroke-width="2.2" stroke-linecap="round" opacity=".8"/>
+        <rect x="27" y="47" width="11" height="12" rx="3" fill="#4e342e" stroke="#3e2108" stroke-width="3"/>
+        <path d="M14 12 C9 12 6 16 4 23 L10 22 C11.5 18.5 13.5 17.5 16 18 Z" fill="url(#${g})" stroke="#263238" stroke-width="3" stroke-linejoin="round"/>
+        <rect x="15" y="9" width="27" height="13" rx="2.5" fill="url(#${g})" stroke="#263238" stroke-width="3.5"/>
+        <rect x="40" y="6" width="12" height="19" rx="3" fill="url(#${g})" stroke="#263238" stroke-width="3.5"/>
+        <path d="M18 12.5 H38 M43 9.5 H49" stroke="#fff" stroke-width="2.2" stroke-linecap="round" opacity=".7"/>
+      </g>`,
+      grad(g, '#f5f7f8', '#78909c'));
   },
   tank() {
     const g = 't' + uid++;
