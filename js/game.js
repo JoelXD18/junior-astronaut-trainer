@@ -93,9 +93,9 @@ export const oxygenBonus = level => level - 1;        // free oxygen per day whe
 export const shieldBonus = level => level - 1;        // extra storm points blocked when the shield is on
 
 export const DIFFICULTY = {
-  easy:   { stormChance: 0.15, warnChance: 0.9, falseAlarm: 0.05, maxStrength: 3 },
-  normal: { stormChance: 0.25, warnChance: 0.75, falseAlarm: 0.1, maxStrength: 4 },
-  hard:   { stormChance: 0.35, warnChance: 0.6, falseAlarm: 0.15, maxStrength: 5 },
+  easy:   { stormChance: 0.15, warnChance: 0.9, falseAlarm: 0.02, maxStrength: 3 },
+  normal: { stormChance: 0.25, warnChance: 0.75, falseAlarm: 0.04, maxStrength: 4 },
+  hard:   { stormChance: 0.35, warnChance: 0.6, falseAlarm: 0.06, maxStrength: 5 },
 };
 
 export const DOSE_PER_STORM_POINT = 10; // % of the safe limit per unblocked storm point

@@ -946,6 +946,12 @@ function makeBase() {
   base.add(shieldDome());
   const f = flag(); f.position.set(-21.5, 0, 19.5); f.rotation.y = .5; base.add(f);
 
+  // Night lights over the buildings: a fixed set of six warm lights, each placed over a group of nearby buildings
+  // (they move whenever something is built or moved, so new buildings are lit too)
+  parts.cLights = [];
+  for (let i = 0; i < 6; i++) {
+    const l = new THREE.PointLight(0xffd8a0, 0, 22, 1.6); l.position.set(0, -50, 0); l.visible = false; base.add(l); parts.cLights.push(l);
+  }
   // Habitat lights for the night
   for (const [x, z] of [[4, 4], [-4, 4], [0, -5]]) {
     const l = new THREE.PointLight(0xffd8a0, 0, 16, 2); l.position.set(x, 3, z); l.visible = false; base.add(l); parts.lights.push(l);
@@ -1014,8 +1020,9 @@ export function syncBuildings(list) {
   }
   for (const [id, o] of objs) if (!seen.has(id)) { removeHolder(o.holder); objs.delete(id); }
   parts.spinners = [...objs.values()].map(o => o.holder.children[0]?.userData?.spin).filter(Boolean);
-  // every building (also new ones) glows warm at night
+  // every building (also new ones) glows a little at night, and the night lights go over each group of buildings
   for (const o of objs.values()) addNightGlow(o.holder);
+  placeClusterLights([...objs.values()].map(o => o.holder.position));
 
   // Cables from every building to the habitat
   parts.cables.children.slice().forEach(c => { c.geometry.dispose(); parts.cables.remove(c); });
@@ -1283,7 +1290,24 @@ function addNightGlow(obj) {
     if (!mat?.isMeshStandardMaterial || glowMats.has(mat) || mat === lampMat) return;
     if (mat.emissive.getHex() !== 0 && !mat.userData.nightGlow) return; // already lights up on its own
     mat.userData.nightGlow = true; glowMats.add(mat);
-    mat.emissive.setRGB(.42 * nightGlow, .3 * nightGlow, .16 * nightGlow);
+    mat.emissive.setRGB(.16 * nightGlow, .11 * nightGlow, .06 * nightGlow);
+  });
+}
+
+// Group the buildings that are close together (at most one group per light) and put a light over each group.
+function placeClusterLights(points) {
+  const L = parts.cLights || [], groups = [];
+  for (const p of points) {
+    let best = null, bd = 1e9;
+    for (const g of groups) { const d = Math.hypot(p.x - g.x, p.z - g.z); if (d < bd) { bd = d; best = g; } }
+    if (best && (bd < 11 || groups.length >= L.length)) {
+      best.n++; best.x += (p.x - best.x) / best.n; best.z += (p.z - best.z) / best.n; best.r = Math.max(best.r, bd);
+    } else groups.push({ x: p.x, z: p.z, n: 1, r: 0 });
+  }
+  L.forEach((l, i) => {
+    const g = groups[i];
+    if (g) { l.position.set(g.x, 5.5, g.z); l.distance = 18 + g.r; l.userData.on = true; }
+    else { l.position.set(0, -50, 0); l.userData.on = false; }
   });
 }
 
@@ -1292,6 +1316,7 @@ function setNightLights(on) {
   if (on === nightLightsOn) return;
   nightLightsOn = on;
   parts.lights.forEach(l => { l.visible = on; });
+  parts.cLights?.forEach(l => { l.visible = on; });
 }
 
 export async function prepareScene() {
@@ -1574,8 +1599,9 @@ function tick() {
   parts.lights.forEach(l => { l.intensity = lerp(l.intensity, night ? 40 : 0, k); });
   if (lampMat) lampMat.emissiveIntensity = lerp(lampMat.emissiveIntensity, night ? 3 : 0, k);
   // buildings glow warm at night (cheap: no extra lights to calculate on every pixel)
+  parts.cLights?.forEach(l => { l.intensity = lerp(l.intensity, night && l.userData.on ? 55 : 0, k); });
   nightGlow = lerp(nightGlow, night ? 1 : 0, k);
-  if (Math.abs(nightGlow - lastGlow) > .005) { lastGlow = nightGlow; for (const m of glowMats) m.emissive.setRGB(.42 * nightGlow, .3 * nightGlow, .16 * nightGlow); }
+  if (Math.abs(nightGlow - lastGlow) > .005) { lastGlow = nightGlow; for (const m of glowMats) m.emissive.setRGB(.16 * nightGlow, .11 * nightGlow, .06 * nightGlow); }
   // switch every night light on or off together: each change in the number of lights makes the graphics card
   // rebuild its shaders (a stutter), so it must happen once, not once per light
   setNightLights(night || parts.lights[0].intensity > .5);
