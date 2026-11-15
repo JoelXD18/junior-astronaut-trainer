@@ -211,12 +211,11 @@ function rankList(data) {
     <span class="rd">${r.empty ? '-' : esc(t('rankDays', { n: r.days }))}</span></li>`).join('')}</ol>
     ${data?.myRank > 10 ? `<p class="rank-mine">${esc(t('rankPos', { r: data.myRank, p: data.players, n: data.myDays }))}</p>` : ''}`;
 }
-// The player's astronaut name, big and clear, with a dice button to get another one.
+// The player's astronaut name, big and clear. It is picked at random once and kept, so it never changes.
 function nickCard() {
   return `<div class="nick-card"><span class="nc-label">🧑‍🚀 ${esc(t('rankYouAre'))}</span>
     <span class="nc-name">${esc(nickName(myNick()))}</span>
-    <span class="nc-hint">${esc(t('rankNickHint'))}</span>
-    <button class="btn orange nc-roll" data-action="rank-reroll"><span>🎲 ${esc(t('rankReroll'))}</span></button></div>`;
+    <span class="nc-hint">${esc(t('rankNickHint'))}</span></div>`;
 }
 function rankingScreen() {
   const tab = (attr, val, label, on) => `<button class="rank-tab ${on ? 'on' : ''}" ${attr}="${val}">${label}</button>`;
@@ -831,7 +830,6 @@ document.addEventListener('click', e => {
       return render();
     }
     case 'again': return startGame();
-    case 'rank-reroll': newNick(); return render();
     case 'rank-skip': endInfo.rank = { state: 'skipped' }; return render();
     case 'rank-send': {
       const days = game.day - 1;
