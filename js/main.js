@@ -224,7 +224,7 @@ function rankingScreen() {
     : rank.status === 'error' ? `<p class="notice bad">${icon('warning')} ${esc(t('rankError'))}</p>` : rankList(rank.data);
   return centered(windowHtml(`${icon('trophy')} ${esc(t('rankTitle'))}`, `
     ${nickCard()}
-    <p class="small">${esc(t('rankIntro'))}</p>
+    <p class="rank-intro">${icon('trophy')} <span>${esc(t('rankIntro'))}</span></p>
     <div class="rank-tabs">${tab('data-rank-map', 'moon', `${icon('moon')} ${esc(t('moon'))}`, rank.map === 'moon')}${tab('data-rank-map', 'mars', `${icon('mars')} ${esc(t('mars'))}`, rank.map === 'mars')}</div>
     <div class="rank-tabs small-tabs">${['easy', 'normal', 'hard'].map(d => tab('data-rank-diff', d, esc(t(d)), rank.difficulty === d)).join('')}</div>
     ${body}`,

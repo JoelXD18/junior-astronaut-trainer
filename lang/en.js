@@ -339,7 +339,7 @@ export default {
   r_ctrl_false_alarm: "Base, Mission Control here. Lucky you: the flare missed the base, no storm today. Space weather is hard to predict, even for scientists!",
   ranking: "Ranking",
   rankTitle: "World ranking",
-  rankIntro: "Infinite mode: the players who kept their crew alive the longest. Each player appears once, with their best score.",
+  rankIntro: "Infinite mode: whoever keeps their crew safe for the most days wins!",
   rankEmpty: "No records yet. Be the first!",
   rankLoading: "Loading the ranking…",
   rankError: "Could not connect to the ranking. Check your internet and try again later.",

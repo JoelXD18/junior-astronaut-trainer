@@ -715,3 +715,6 @@ body.intro .menu, body.intro-lock .menu { pointer-events: none; }
 .rank-loading .rank-list li { animation: rankPulse 1.2s ease-in-out infinite; }
 .rank-loading .rank-list li:nth-child(even) { animation-delay: .15s; }
 @keyframes rankPulse { 50% { opacity: .25; } }
+.rank-intro { display: flex; align-items: center; justify-content: center; gap: 8px; margin: 10px 0 4px; padding: 8px 12px; border-radius: 12px; text-align: center;
+  font: 400 18px/1.2 var(--title); color: #fff; background: rgba(255, 213, 79, .16); border: 2px solid rgba(255, 213, 79, .6); }
+.rank-intro .ico { font-size: 24px; flex: none; }

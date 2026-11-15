@@ -334,7 +334,7 @@ export default {
   r_ctrl_false_alarm: "Base, aquí Control de Misión. ¡Qué suerte! La erupción no llegó a la base: hoy no hay tormenta. ¡El tiempo espacial es difícil de predecir, incluso para los científicos!",
   ranking: "Ranking",
   rankTitle: "Ranking mundial",
-  rankIntro: "Modo Infinito: los jugadores que mantuvieron viva a su tripulación más días. Cada jugador sale una vez, con su mejor marca.",
+  rankIntro: "Modo Infinito: ¡gana quien aguanta más días con su tripulación a salvo!",
   rankEmpty: "Todavía no hay récords. ¡Sé el primero!",
   rankLoading: "Cargando el ranking…",
   rankError: "No se pudo conectar con el ranking. Revisa tu internet e inténtalo más tarde.",
