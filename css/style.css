@@ -711,3 +711,7 @@ body.intro .menu, body.intro-lock .menu { pointer-events: none; }
 .rank-list li { padding: 5px 12px; }
 .rank-list .rk { font-size: 18px; }
 .window .nick-card { margin-top: 0; }
+
+.rank-loading .rank-list li { animation: rankPulse 1.2s ease-in-out infinite; }
+.rank-loading .rank-list li:nth-child(even) { animation-delay: .15s; }
+@keyframes rankPulse { 50% { opacity: .25; } }

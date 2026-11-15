@@ -194,11 +194,13 @@ function dataScreen() {
 
 // ---------- world ranking (Infinite mode) ----------
 const rank = { map: 'moon', difficulty: 'normal', status: 'idle', data: null };
+const rankCache = {}; // lists already seen: shown at once while the fresh one loads
 function loadRank(map = rank.map, difficulty = rank.difficulty) {
-  Object.assign(rank, { map, difficulty, status: 'loading' });
+  const key = map + '|' + difficulty;
+  Object.assign(rank, { map, difficulty, status: rankCache[key] ? 'ok' : 'loading', data: rankCache[key] || null });
   topScores(map, difficulty)
-    .then(data => { if (rank.map === map && rank.difficulty === difficulty) Object.assign(rank, { status: 'ok', data }); })
-    .catch(() => { rank.status = 'error'; })
+    .then(data => { rankCache[key] = data; if (rank.map === map && rank.difficulty === difficulty) Object.assign(rank, { status: 'ok', data }); })
+    .catch(() => { if (!rankCache[key]) rank.status = 'error'; })
     .finally(() => { if (screen === 'ranking' || screen === 'end') render(); });
 }
 // Always the top 10 places; an empty place shows "-".
@@ -218,7 +220,7 @@ function nickCard() {
 }
 function rankingScreen() {
   const tab = (attr, val, label, on) => `<button class="rank-tab ${on ? 'on' : ''}" ${attr}="${val}">${label}</button>`;
-  const body = rank.status === 'loading' ? `<p class="rank-empty">${esc(t('rankLoading'))}</p>`
+  const body = rank.status === 'loading' ? `<div class="rank-loading" aria-label="${esc(t('rankLoading'))}">${rankList(null)}</div>`
     : rank.status === 'error' ? `<p class="notice bad">${icon('warning')} ${esc(t('rankError'))}</p>` : rankList(rank.data);
   return centered(windowHtml(`${icon('trophy')} ${esc(t('rankTitle'))}`, `
     ${nickCard()}
@@ -584,7 +586,10 @@ function musicFor() {
 function render() {
   const screens = { menu: menuScreen, map: mapScreen, difficulty: difficultyScreen, game: gameScreen,
     end: endScreen, settings: settingsScreen, credits: creditsScreen, ranking: rankingScreen, data: dataScreen, mode: modeScreen, roll: () => gameScreen() + creditsRoll() };
+  const keep = app.dataset.screen === screen ? app.querySelector('.win-body')?.scrollTop : 0;
   app.innerHTML = screens[screen]();
+  app.dataset.screen = screen;
+  if (keep) { const wb = app.querySelector('.win-body'); if (wb) wb.scrollTop = keep; }
   app.className = 'screen-' + screen;
   const modal = openTerm ? termHtml(openTerm) : showSun ? sunHtml() : showHelp ? helpHtml() : lastReport ? reportHtml(lastReport) : '';
   modalRoot.innerHTML = modal;
