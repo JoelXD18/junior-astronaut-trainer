@@ -350,5 +350,5 @@ export default {
   rankSent: "¡Récord subido! Así va el ranking:",
   rankRetry: "Reintentar",
   nickWords: {"format":"{n} {a} {d}","nouns":["Cometa","Cohete","Estrella","Astronauta","Rover","Luna","Nebulosa","Meteoro","Galaxia","Órbita","Satélite","Planeta","Piloto","Halcón","Módulo","Explorador"],"adjs":["Valiente","Veloz","Brillante","Audaz","Feliz","Fuerte","Genial","Leal","Hábil","Tenaz","Alegre","Estelar","Cósmico","Lunar","Solar","Ágil"]},
-  rankNickHint: "Te ha tocado al azar y es tuyo para siempre: así te ven los demás jugadores en el ranking.",
+  rankNickHint: "Así te ven los demás jugadores en el ranking.",
 };

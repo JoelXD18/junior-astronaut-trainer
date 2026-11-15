@@ -355,5 +355,5 @@ export default {
   rankSent: "Record uploaded! Here is the ranking:",
   rankRetry: "Try again",
   nickWords: {"format":"{a} {n} {d}","nouns":["Comet","Rocket","Star","Astronaut","Rover","Moon","Nebula","Meteor","Galaxy","Orbit","Satellite","Planet","Pilot","Falcon","Lander","Explorer"],"adjs":["Brave","Swift","Bright","Bold","Happy","Strong","Awesome","Loyal","Skilled","Tough","Cheerful","Stellar","Cosmic","Lunar","Solar","Agile"]},
-  rankNickHint: "It was picked for you and it is yours for good: this is how other players see you in the ranking.",
+  rankNickHint: "This is how other players see you in the ranking.",
 };
