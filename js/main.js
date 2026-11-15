@@ -535,6 +535,7 @@ function render() {
   modalRoot.hidden = !modal;
   document.title = t('title');
   playMusic(musicFor());
+  narrateTutorial();
   document.body.classList.toggle('cinematic-on', !!cinematic || screen === 'roll');
   if (!has3d) return;
   setLabels({ shield: t('lblShield'), home: t('lblHome') });
@@ -547,6 +548,19 @@ function render() {
       battery: Math.min(batteryMax(game), left), batteryMax: batteryMax(game) });
     syncScene();
   }
+}
+
+// The tutorial reads each card aloud once, when it appears (Next or Back reads the new card).
+// The speaker button on the card reads it again.
+let spokenCard = null;
+function narrateTutorial() {
+  const showing = screen === 'game' && game && showHelp && !openTerm && !showSun && !cinematic;
+  if (!showing) { spokenCard = null; return; }
+  const key = [game.map, game.mode, helpStep, lang()].join('|');
+  if (key === spokenCard) return;
+  spokenCard = key;
+  const s = tutorialSteps()[helpStep];
+  if (s) speak(s.title + '. ' + s.text, lang());
 }
 
 function defaultChoice() {

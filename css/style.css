@@ -656,3 +656,23 @@ body.intro .menu, body.intro-lock .menu { pointer-events: none; }
   .menu .brand { padding-top: 10px; padding-bottom: 8px; }
   .menu .logo-sub, .menu .event-badge { margin-top: 6px; }
 }
+/* credits logo: small enough that the whole orbit fits inside the window (no clipping) */
+.credits-brand, .cr-brand { overflow: visible; padding: 10px 0; }
+.credits-brand .brand-main { font-size: clamp(24px, 4.4vw, 44px); }
+.credits-brand .brand-top { font-size: clamp(11px, 1.8vw, 16px); }
+.credits-brand .brand { padding: 12px 20px 10px; }
+.cr-brand .brand-main { font-size: clamp(28px, 6vw, 64px); }
+/* phone (upright) menu: smaller buttons, not full width */
+@media (max-width: 640px) and (min-height: 521px) {
+  .menu { gap: 10px; padding: 16px; }
+  .menu .stack { width: min(250px, 72vw); gap: 10px; margin: 4px 0; }
+  .menu .stack .btn { min-height: 0; padding: 8px 14px; font-size: 16px; }
+  .menu .stack .btn.xl { padding: 10px 14px; font-size: 20px; }
+  .menu .stack .btn .ico { font-size: 20px; }
+  .menu .logo-small { font-size: 15px; }
+  .menu .brand-main { font-size: clamp(30px, 10vw, 40px); }
+  .menu .brand-top { font-size: 12px; }
+  .menu .logo-sub { font-size: 12px; padding: 4px 10px; }
+  .menu .event-badge { font-size: 10.5px; padding: 3px 8px; }
+  .menu > .sun-chip { font-size: 12px; }
+}
